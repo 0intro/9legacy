@@ -12,6 +12,7 @@ dev +dev
 	dup
 	rtc
 	ssl
+	tls
 	cap
 	kprof
 
@@ -191,7 +192,8 @@ dir
 	port
 
 lib
-	libc
 	libip
 	libsec
 	libaml
+	libmp
+	libc
