@@ -1,0 +1,34 @@
+#!/bin/rc
+
+awk -v 'confdir='`{basename -d $1} '
+BEGIN{
+	collect = isdir = 0
+}
+
+/^[ \t]*$/{
+	next
+}
+/^#/{
+	next
+}
+collect && /^[^	\t]/{
+	collect = isdir = 0
+}
+collect && $0 ~ /[^ \t]+/{
+	tab[$0]++;
+}
+$0 ~ /^[^ \t]/{
+	if($1 ~ "dirs"){
+		dirs = 1;
+		collect = 1;
+	}
+	next;
+}
+
+END{
+	for(i in tab) {
+		gsub(/[ \t]/, "", i)
+		mkfragdir = confdir "/" i
+		print "<|sed ''s!MKFRAGDIR!" mkfragdir "!'' " mkfragdir "/mkfrag"
+	}
+}' $*

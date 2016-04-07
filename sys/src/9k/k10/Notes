@@ -1,0 +1,46 @@
+-	acpi
+-	devipmi/ipmi
+-	devarch
+-	netif
+-	acpimatch
+-	syscalltrace
+-	srx/devec.c: BY2PG alignment?
+-	iovec handling
+-	ptclbsumamd64 could use 64-bit ops
+-	mpscqio Rendez isn't a Rendez
+-	Block.auxspc; Next
++	ip/tcp.c
+-	lapicperf
+-	nmienable; handling of NMI latch generally
+
+=	Sys is not conf -> ioconf for now
+-	ex/kbd.c
+
+-	scheduler
+-	devsd.c/sdide.c
+-	qiox
+-	bad map
+-	running with single processor
+-	devcons
+-	devcons debugging
+-	e820 in boot1
+-	/usr/forsyth/src/newmal
+-	portclock.c
+
+-	devram (see devdram)
+
+-	qclose f->iq
+
+-------
+1. call to idlehands in proc
+2. sleep/wakeup references
+
+--------
+PCIDs
+	CR4.PCIDE
+	CR4.PGE
+	INVPCID p1138
+	2^12
+
+----
+fffffe402878f78

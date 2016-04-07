@@ -1,0 +1,31 @@
+Made
+
+- get rid of conf, by2pg and vars named m
+- add acpi
+- add colors to pages and cores
+- fixes to exec and rfnomnt
+
+Quick changes
+
+- perf counters
+- cleanup spurious interrupt handling
+- /dev/config, if not there
+- regression testing
+- add ahci
+- add monitor, waitwhile
+- aoe from 386 to port
+
+Slow changes
+
+- revisit *apic, *ipi, and init code
+- int types (look at GiB ull, eg)
+- kprof
+- sched and lock instrumentation for benchs
+- new sched
+- new mm
+- add XCs
+
+Researchy changes
+
+- sems & tubes
+- zero copy

@@ -1,0 +1,58 @@
+Notes on mm.
+
+- initialization:
+
+asminit()
+	sys->pmstart set to roundup(end, pgsz)
+	sys->pmend = pmstart
+	[0, pmstart] allocated as type none
+
+multiboot()
+	asmmodinit() and
+	asmmapinit()
+	(prints later when called again by main)
+		asminsert() adjusts things (eg ignores low mem, overlaps...)
+		sys->pmend = largest addr seen
+mmuinit()
+	archmmu()
+		m->pgszlg2[0], pgszmask[0], npgsz
+		cpuidinit()
+		same for [1] (2M) and [2] (1G)
+	sys->vmstart = KSEG0
+	sys->vmunused = vmstart + pmstart rounded to 4KiB
+			i.e., pmstart in KSEG0
+	sys->vmunmapped = KSEG0 + 4MiB
+	sys->vmend = vmstart + TMFM (64MiB kernel memory)
+
+			NB:
+				mmuinit and walk calls asmmalloc for ptpgs
+				mmuput calls mallocalign and malloc
+				if later asmmeminit does not stop taking pages
+				for the kernel, asmmalloc won't find memory and
+				mmu will fail to allocate.
+
+meminit()
+	asmmeminit()	TODO: rename asmmeminit to be meminit()?
+
+		asmalloc from vmunmapped [rnd up to 4KiB] to vmend, type none
+			TODO: change how this is done; do it directly
+		map up to vmend with 2MiB in KSEG0
+			In clu, vmstart:vmend == 0:64M (0x400000)
+		sys->vmunmapped is now vmend
+
+		map all memory in asm at KSEG2, using larger pages if it can
+			In clu, from 64M (0x400000) to 1G (0x4000000)
+		sets asm->base, kbase, npage to reflect the pages there
+		iallocimit to ½ pages in the kernel memory (vmend - vmstart)
+		fills palloc pm according to base & npage
+
+mallocinit()
+	records tailnuints from sys->vmunused (end or pmstart in KSEG0) 
+	to vmend (up to 64MiB)
+	nunits grows 128KiB at a time from tailnunits
+
+pageinit()
+	takes memory noted in palloc (by meminit) with npage > 0 and
+	splits banks according to acpi colors and
+	allocates a Page struct for each one.
+	But stops when 600MiB have been used, by now.

@@ -1,0 +1,166 @@
+need to re-think flushme/mmupageflush. if va->pa and pa shared at different va,
+mmupageflush shouldn't be in Page, but in Segment mapping page (Pages) within va range.
+perhaps a different way of expressing it? flush segment? matters on sep i/d cache machines.
+
++	VA(k) 	looks wrong? VA(k) -> void* not uintptr
+
+textlim, datalim, bsslim
+pragma pack in acpi.h
+page.c/asm.c interface: asm should call pageinit function
+SEGMAPSIZE/SEGMAXSIZE
++	RENDHASH (2^5 isn't distinguished enough)
+kmap of big pages
+
+---
+mount point held by image in cache
+clock0link linkage
+
+procctlmemio loop, and s->flushme when only read?
+syssegflush: s->flushme set perpetually, even for pages paged out
+	to force PG_TXTFLUSH in fault for later page fault to ensure dcache flushed after pio
+syssegflush
+	missing Pte
+	chunking
++	space taken by cachectl in Page, when MAXMACH large
+
+addseg
+
+new interface:
+
+	void
+	mmucachectl(Page *p, uint why)
+	{
+		if(!pagedout(p))
+			memset(p->cachectl, why, sizeof(p->cachectl));
+	}
+
+mmuidle()
+
+splhi alreadyhi does CLI
+
+128 process limit in pexit(!)
+
+Cor
+	_xinc->ainc
+
+meminit -> asmmeminit
+	builds palloc.mem, used by pageinit.
+	also sets ialloclimit based on sys->vmend - sys->vmstart
+
+if malloc needs physalloc, physalloc will need ilock (malloc already uses it)
+
+bootstrap:
+	tailalloc or kmemalloc?
+	could size it during vmend/kernel mapping?
+
+split allocation: small pages and big ones to avoid huge map for all of memory.
+
+>=page-aligned things need bibop table: allocate in regions
+
+need physallocinit before full mallocinit
+
+
+------- Segment curiosities
+	Physseg and Image are mutually-exclusive?
+	fstart/flen, should be in Image with list of prototype Segments
+	size in pages
+	profile	should be Proc.up: ref Profbuf (ref-counted, shared)
+	sema	data only
+	profile	text only
+
+-- without swap:
+	don't need swap Image
+	don't need page hash by daddr?/lookpage through image's Segments
+	LRU within image, or don't bother recycling
+	LRU unused images instead
+	don't need Image hash chains
+	don't need Lru free list (global, perhaps for image?)
+
+--- images
+	sysload?
+
+Segments hold arch mmu data?
+Image Segment would then really be page cache
+	Orbit had Exec -> Seg; copyseg, but seg->master (not implemented)
+SSEG currently doesn't grow.
+Image prototype Segment might have different virtual address, or none?
+
+
+TO DO
+-	nemo's changes to sysexec
+-	reset
+-	nemo changes to path etc
+
+
+Allocation
+
+-	physical memory
+	physalloc, physfree
+		buddy allocator
+	physical memory is not inherently organised as Pages
+	any contiguous range is acceptable to most devices
+	in practice, buddy has minimal size; malloc chunks has minimal size
+	(also, buddy is initialised with range of blocks of different sizes since memory
+		is arranged in an awkward way)
+	smallest Page size is much smaller
+
+-	kernel heap
+	malloc
+
+
+-	problems:
+	- bootstrap: asmalloc, basealloc
+	- physalloc (buddy allocator) needs structures sized to memory,
+		which implies an underlying primitive allocator: basealloc -> asmalloc
+	- malloc calls morecore when current heap runs out
+		it should call physalloc and map the result
+	- buddy tables are too large when dealing with huge spaces,
+		seems to require at least a 2-level hierarchy
+	- how should the hierarchy be managed?
+		eg, 2 levels of buddy?
+		top level of huge chunks, with buddy below?
+		if huge chunks are not that big, is buddy needed?
+		malloc chunks don't need to be that big
+		use different primitives for large (typically contiguous physical) allocations
+	- with asmalloc you've got 3 levels!
+	- just malloc and asmalloc?
+		need fast source of Pages
+		build up Page pools and leave them as is
+		fragmentation? memory is huge, but 1 Gb fragments are large relative to memory
+		stable workload?
+		it's not as if malloc ever returns memory to allow buddies to coalesce
+		-> malloc calls asmalloc and Page calls physalloc?
+		-> still, Page size is small
+		-> no real need for malloc pages to allocate buddies, but
+		page and IO allocators usefully can do that (if allocated/freed)
+	- trouble with Page subdivision is that it amounts to a restricted buddy,
+		or a bitmask allocator, and both AMD64 and ARM64 have
+		a range of page sizes
+	- page table pages are smallest page size
+	- does only malloc need radix tree/bibop for metadata for big allocations?
+		- needs to be sized initially?
+		- currently kernel malloc doesn't allow huge chunks anyway
+
+Try
+	- basealloc -> asmalloc for small chunks of raw memory
+		(careful it doesn't fragment a useful chunk!)
+	- one or more buddy pools
+	- buddy pool for Pages, starting with largest block as largest page size
+		- or could allocate smaller pages by allocating a larger 
+	- malloc pool chunk is on the order of 2 Mbytes (or reasonable page size)
+		if it's 2 Mbytes aligned, with header, can use pointer-masking scheme
+	- all pools get memory from basealloc? (ends up in KSEG2)
+
+Virtual space
+-	user space
+-	kernel space
+		- kmap (mainly or exclusively for user pages) -> notional KMap structure
+		- vmap (for long-lived maps for device registers)
+-	64-bit can use KSEG2 (must take care about aliasing)
+
+Mdom table?
+	pa2mdom(pa)
+		- presumably the memory is assigned to domains with physical addresses aligned somehow,
+		allowing a quick check of (say) the top bits in a table or a short binary search?
+
+Mesg

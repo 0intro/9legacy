@@ -1,0 +1,300 @@
+/amd64/9k10cpu .. 470889+548528+177
+Plan 9
+asmalloc: 0x00000000001cb000@0x0000000000000000, type 1
+mmuinit: vmstart 0xfffffffff0000000 vmunused 0xfffffffff0235000 vmunmapped 0xfffffffff0400000 vmend 0xfffffffff4000000
+sys->pd 0x108003 0x108023
+l 3 0xffffff7fbfdfeff8 107023
+l 2 0xffffff7fbfdffff8 108023
+l 1 0xffffff7fbffffc00 e3
+l 1 0xffffff7fbffffc00 e3
+asmalloc: 0x0000000003c00000@0x0000000000400000, type 1
+pa 0x400000 mem 0x400000
+0xfffffffff0400000 l 1
+0xfffffffff0600000 l 1
+0xfffffffff0800000 l 1
+0xfffffffff0a00000 l 1
+0xfffffffff0c00000 l 1
+0xfffffffff0e00000 l 1
+0xfffffffff1000000 l 1
+0xfffffffff1200000 l 1
+0xfffffffff1400000 l 1
+0xfffffffff1600000 l 1
+0xfffffffff1800000 l 1
+0xfffffffff1a00000 l 1
+0xfffffffff1c00000 l 1
+0xfffffffff1e00000 l 1
+0xfffffffff2000000 l 1
+0xfffffffff2200000 l 1
+0xfffffffff2400000 l 1
+0xfffffffff2600000 l 1
+0xfffffffff2800000 l 1
+0xfffffffff2a00000 l 1
+0xfffffffff2c00000 l 1
+0xfffffffff2e00000 l 1
+0xfffffffff3000000 l 1
+0xfffffffff3200000 l 1
+0xfffffffff3400000 l 1
+0xfffffffff3600000 l 1
+0xfffffffff3800000 l 1
+0xfffffffff3a00000 l 1
+0xfffffffff3c00000 l 1
+0xfffffffff3e00000 l 1
+ 0x0000000004000000 0x00000000d7e60000 1 (3555065856) va 0xfffffe0004000000
+ 0x0000000100000000 0x0000001028000000 1 (65095598080) va 0xfffffe0100000000
+asm: base 0x4000000 npage 137216; pm0: base 0x4000000 npage 137216
+asm: base 0x0 npage 0; pm1: base 0x0 npage 0
+asm: base 0x0 npage 0; pm2: base 0x0 npage 0
+asm: base 0x0 npage 0; pm3: base 0x0 npage 0
+asm: base 0x0 npage 0; pm4: base 0x0 npage 0
+asm: base 0x0 npage 0; pm5: base 0x0 npage 0
+asm: base 0x0 npage 0; pm6: base 0x0 npage 0
+asm: base 0x0 npage 0; pm7: base 0x0 npage 0
+asmmeminit: losing 0 pages
+asmmeminit: losing 0 pages
+asmmeminit: losing 0 pages
+base 0xfffffffff023a000 ptr 0xfffffffff023a000 nunints 4048385
+vmap(0xe5c20, 48)
+vmap(0xe5c20, 988)
+vmap(0xfee00000, 1024)
+vmap(0xfec00000, 1024)
+vmap(0xfec20000, 1024)
+apic16: hz 199999980 max 1999999 min 19999 div 10
+pcirouting: ignoring south bridge PCI.0.20.3 1002/439D
+asmmapinit 0x00000000deffe400 0x0000000000000400 dev
+asmalloc: 0x0000000000000400@0x00000000deffe400, type 0
+asmfree: 0x0000000006ffe400@0x00000000d8000000, type 0
+asmfree: 0x0000000000000400@0x00000000deffe400, type 5
+asmmapinit 0x00000000deffa000 0x0000000000001000 dev
+asmalloc: 0x0000000000001000@0x00000000deffa000, type 0
+asmfree: 0x0000000006ffa000@0x00000000d8000000, type 0
+asmfree: 0x0000000000001000@0x00000000deffa000, type 5
+asmmapinit 0x00000000deffb000 0x0000000000001000 dev
+asmalloc: 0x0000000000001000@0x00000000deffb000, type 0
+asmfree: 0x0000000000001000@0x00000000deffb000, type 5
+asmmapinit 0x00000000deffe800 0x0000000000000100 dev
+asmalloc: 0x0000000000000100@0x00000000deffe800, type 0
+asmfree: 0x0000000000000100@0x00000000deffe800, type 5
+asmmapinit 0x00000000deffc000 0x0000000000001000 dev
+asmalloc: 0x0000000000001000@0x00000000deffc000, type 0
+asmfree: 0x0000000000001000@0x00000000deffc000, type 5
+asmmapinit 0x00000000deffd000 0x0000000000001000 dev
+asmalloc: 0x0000000000001000@0x00000000deffd000, type 0
+asmfree: 0x0000000000001000@0x00000000deffd000, type 5
+asmmapinit 0x00000000deffec00 0x0000000000000100 dev
+asmalloc: 0x0000000000000100@0x00000000deffec00, type 0
+asmfree: 0x0000000000000300@0x00000000deffe900, type 0
+asmfree: 0x0000000000000100@0x00000000deffec00, type 5
+asmmapinit 0x00000000defff000 0x0000000000001000 dev
+asmalloc: 0x0000000000001000@0x00000000defff000, type 0
+asmfree: 0x0000000000000300@0x00000000deffed00, type 0
+asmfree: 0x0000000000001000@0x00000000defff000, type 5
+asmmapinit 0x00000000dff60000 0x0000000000020000 dev
+asmalloc: 0x0000000000020000@0x00000000dff60000, type 0
+asmfree: 0x0000000000f60000@0x00000000df000000, type 0
+asmfree: 0x0000000000020000@0x00000000dff60000, type 5
+asmmapinit 0x00000000dff40000 0x0000000000020000 dev
+asmalloc: 0x0000000000020000@0x00000000dff40000, type 0
+asmfree: 0x0000000000f40000@0x00000000df000000, type 0
+asmfree: 0x0000000000020000@0x00000000dff40000, type 5
+asmmapinit 0x00000000dff98000 0x0000000000004000 dev
+asmalloc: 0x0000000000004000@0x00000000dff98000, type 0
+asmfree: 0x0000000000018000@0x00000000dff80000, type 0
+asmfree: 0x0000000000004000@0x00000000dff98000, type 5
+asmmapinit 0x00000000dffe0000 0x0000000000020000 dev
+asmalloc: 0x0000000000020000@0x00000000dffe0000, type 0
+asmfree: 0x0000000000044000@0x00000000dff9c000, type 0
+asmfree: 0x0000000000020000@0x00000000dffe0000, type 5
+asmmapinit 0x00000000dffc0000 0x0000000000020000 dev
+asmalloc: 0x0000000000020000@0x00000000dffc0000, type 0
+asmfree: 0x0000000000024000@0x00000000dff9c000, type 0
+asmfree: 0x0000000000020000@0x00000000dffc0000, type 5
+asmmapinit 0x00000000dff9c000 0x0000000000004000 dev
+asmalloc: 0x0000000000004000@0x00000000dff9c000, type 0
+asmfree: 0x0000000000004000@0x00000000dff9c000, type 5
+asmmapinit 0x00000000dc000000 0x0000000001000000 dev
+asmalloc: 0x0000000001000000@0x00000000dc000000, type 0
+asmfree: 0x0000000004000000@0x00000000d8000000, type 0
+asmfree: 0x0000000001000000@0x00000000dc000000, type 5
+asmmapinit 0x00000000dfefc000 0x0000000000004000 dev
+asmalloc: 0x0000000000004000@0x00000000dfefc000, type 0
+asmfree: 0x0000000000efc000@0x00000000df000000, type 0
+asmfree: 0x0000000000004000@0x00000000dfefc000, type 5
+asmmapinit 0x00000000df000000 0x0000000000800000 dev
+asmalloc: 0x0000000000800000@0x00000000df000000, type 0
+asmfree: 0x0000000000800000@0x00000000df000000, type 5
+vmap(0xdff60000, 131072)
+vmap(0xdffe0000, 131072)
+#l0: igbepcie: 1000Mbps port 0xdff60000 irq 10: 003048ff2106
+#l1: igbepcie: 1000Mbps port 0xdffe0000 irq 7: 003048ff2107
+538M memory: 2M kernel data, 536M user, 536M swap
+newpage called from 0xfffffffff0115141
+newpage called from 0xfffffffff01151b9
+Hello Squidboy 17 1
+mach1: 0xfffffffff1490000 pml4 0xfffffffff1490070
+Hello Squidboy 18 2
+mach2: 0xfffffffff149d000 pml4 0xfffffffff149d070
+Hello Squidboy 19 3
+mach3: 0xfffffffff14aa000 pml4 0xfffffffff14aa070
+Hello Squidboy 20 4
+mach4: 0xfffffffff14b7000 pml4 0xfffffffff14b7070
+Hello Squidboy 21 5
+mach5: 0xfffffffff14c4000 pml4 0xfffffffff14c4070
+Hello Squidboy 22 6
+mach6: 0xfffffffff14d1000 pml4 0xfffffffff14d1070
+Hello Squidboy 23 7
+mach7: 0xfffffffff14de000 pml4 0xfffffffff14de070
+Hello Squidboy 32 8
+mach8: 0xfffffffff14eb000 pml4 0xfffffffff14eb070
+Hello Squidboy 33 9
+mach9: 0xfffffffff14f8000 pml4 0xfffffffff14f8070
+Hello Squidboy 34 10
+mach10: 0xfffffffff1505000 pml4 0xfffffffff1505070
+Hello Squidboy 35 11
+mach11: 0xfffffffff1512000 pml4 0xfffffffff1512070
+Hello Squidboy 36 12
+mach12: 0xfffffffff151f000 pml4 0xfffffffff151f070
+Hello Squidboy 37 13
+mach13: 0xfffffffff152c000 pml4 0xfffffffff152c070
+Hello Squidboy 38 14
+mach14: 0xfffffffff1539000 pml4 0xfffffffff1539070
+Hello Squidboy 39 15
+mach15: 0xfffffffff1546000 pml4 0xfffffffff1546070
+Hello Squidboy 48 16
+mach16: 0xfffffffff1553000 pml4 0xfffffffff1553070
+Hello Squidboy 49 17
+mach17: 0xfffffffff1560000 pml4 0xfffffffff1560070
+Hello Squidboy 50 18
+mach18: 0xfffffffff156d000 pml4 0xfffffffff156d070
+Hello Squidboy 51 19
+mach19: 0xfffffffff157a000 pml4 0xfffffffff157a070
+Hello Squidboy 52 20
+mach20: 0xfffffffff1587000 pml4 0xfffffffff1587070
+Hello Squidboy 53 21
+mach21: 0xfffffffff1594000 pml4 0xfffffffff1594070
+Hello Squidboy 54 22
+mach22: 0xfffffffff15a1000 pml4 0xfffffffff15a1070
+Hello Squidboy 55 23
+mach23: 0xfffffffff15ae000 pml4 0xfffffffff15ae070
+Hello Squidboy 64 24
+mach24: 0xfffffffff15bb000 pml4 0xfffffffff15bb070
+Hello Squidboy 65 25
+mach25: 0xfffffffff15c8000 pml4 0xfffffffff15c8070
+Hello Squidboy 66 26
+mach26: 0xfffffffff15d5000 pml4 0xfffffffff15d5070
+Hello Squidboy 67 27
+mach27: 0xfffffffff15e2000 pml4 0xfffffffff15e2070
+Hello Squidboy 68 28
+mach28: 0xfffffffff15ef000 pml4 0xfffffffff15ef070
+Hello Squidboy 69 29
+mach29: 0xfffffffff15fc000 pml4 0xfffffffff15fc070
+Hello Squidboy 70 30
+mach30: 0xfffffffff1609000 pml4 0xfffffffff1609070
+Hello Squidboy 71 31
+mach31: 0xfffffffff1616000 pml4 0xfffffffff1616070
+mach 2 is go 0xfffffffff149d000 0xfffffffff1498000 fffffffff1497ff8
+cpu0: registers for *init* 1
+mach2: online
+mach 3 is go 0xfffffffff14aa000 0xfffffffff14a5000 fffffffff14a4ff8
+mach 1 is go 0xfffffffff1490000 0xfffffffff148b000 fffffffff148aff8
+ax	0x0000000000000082
+mach1: online
+mach3: online
+bx	0x0000000000000000
+mach 4 is go 0xfffffffff14b7000 0xfffffffff14b2000 fffffffff14b1ff8
+cx	0x0000000000000000
+mach 5 is go 0xfffffffff14c4000 0xfffffffff14bf000 fffffffff14beff8
+dx	0xfffffffff010a080
+mach 18 is go 0xfffffffff156d000 0xfffffffff1568000 fffffffff1567ff8
+di	0x0000000000000000
+mach5: online
+si	0xfffffffff023c500
+mach4: online
+bp	0xfffffffff023c500
+mach 6 is go 0xfffffffff14d1000 0xfffffffff14cc000 fffffffff14cbff8
+r8	0xfffffffff01bb73e
+mach 16 is go 0xfffffffff1553000 0xfffffffff154e000 fffffffff154dff8
+r9	0xfffffffff15f02c0
+mach 9 is go 0xfffffffff14f8000 0xfffffffff14f3000 fffffffff14f2ff8
+r10	0x0000000000000010
+mach18: online
+r11	0x0000000000000000
+mach 7 is go 0xfffffffff14de000 0xfffffffff14d9000 fffffffff14d8ff8
+r12	0xfffffffff020117c
+mach 8 is go 0xfffffffff14eb000 0xfffffffff14e6000 fffffffff14e5ff8
+r13	0x0000000000000000
+mach6: online
+r14	0x0000000000000000
+mach7: online
+r15	0x0000000000000000
+mach16: online
+ds  0x0000   es  0x0000   fs  0x0000   gs  0x0000
+mach9: online
+type	0x27
+mach 11 is go 0xfffffffff1512000 0xfffffffff150d000 fffffffff150cff8
+error	0xfffffffff011055e
+mach 17 is go 0xfffffffff1560000 0xfffffffff155b000 fffffffff155aff8
+pc	0xfffffffff0114d7f
+mach11: online
+cs	0x8
+mach8: online
+flags	0x246
+mach 19 is go 0xfffffffff157a000 0xfffffffff1575000 fffffffff1574ff8
+sp	0xfffffffff1482708
+mach 26 is go 0xfffffffff15d5000 0xfffffffff15d0000 fffffffff15cfff8
+ss	0x0
+mach 10 is go 0xfffffffff1505000 0xfffffffff1500000 fffffffff14ffff8
+type	0x27
+mach19: online
+m	0xfffffffff010b000
+up	0xfffffffff023c500
+mach17: online
+cr0	0x000000008001003b
+mach10: online
+cr2	0x0000000000000000
+mach 24 is go 0xfffffffff15bb000 0xfffffffff15b6000 fffffffff15b5ff8
+cr3	0x0000000000106000
+mach 25 is go 0xfffffffff15c8000 0xfffffffff15c3000 fffffffff15c2ff8
+vno 39: buggeration @ 0xfffffffff0114d7f...
+mach26: online
+spurious interrupt 39
+mach25: online
+ibrk addr 0x4098a8 seg 3 base 0x408000 size 1
+mach24: online
+mach 27 is go 0xfffffffff15e2000 0xfffffffff15dd000 fffffffff15dcff8
+ibrk addr 0x4098a8 newtop 0x40a000 newsize 2
+mach27: online
+mach 20 is go 0xfffffffff1587000 0xfffffffff1582000 fffffffff1581ff8
+mach 12 is go 0xfffffffff151f000 0xfffffffff151a000 fffffffff1519ff8
+mach 14 is go 0xfffffffff1539000 0xfffffffff1534000 fffffffff1533ff8
+mach 15 is go 0xfffffffff1546000 0xfffffffff1541000 fffffffff1540ff8
+mach12: online
+mach 23 is go 0xfffffffff15ae000 0xfffffffff15a9000 fffffffff15a8ff8
+mach 13 is go 0xfffffffff152c000 0xfffffffff1527000 fffffffff1526ff8
+mach14: online
+mach 21 is go 0xfffffffff1594000 0xfffffffff158f000 fffffffff158eff8
+mach15: online
+mach13: online
+mach20: online
+mach21: online
+mach 28 is go 0xfffffffff15ef000 0xfffffffff15ea000 fffffffff15e9ff8
+mach 22 is go 0xfffffffff15a1000 0xfffffffff159c000 fffffffff159bff8
+mach23: online
+mach 29 is go 0xfffffffff15fc000 0xfffffffff15f7000 fffffffff15f6ff8
+mach28: online
+mach 31 is go 0xfffffffff1616000 0xfffffffff1611000 fffffffff1610ff8
+mach22: online
+mach 30 is go 0xfffffffff1609000 0xfffffffff1604000 fffffffff1603ff8
+mach31: online
+mach29: online
+mach30: online
+ibrk addr 0x407790 seg 3 base 0x405000 size 2
+ibrk addr 0x407790 newtop 0x408000 newsize 3
+ibrk addr 0x417858 seg 3 base 0x405000 size 3
+ibrk addr 0x417858 newtop 0x418000 newsize 19
+ibrk addr 0x418880 seg 3 base 0x405000 size 19
+ibrk addr 0x418880 newtop 0x419000 newsize 20
+ibrk addr 0x4115a0 seg 3 base 0x40f000 size 2
+ibrk addr 0x4115a0 newtop 0x412000 newsize 3
+can't open /boot/nvram: '/env/nvroff' file does not exist
+authid: >>> q
+aquamar% cp /dev/text /sys/src/9k/words/boot.out
