@@ -19,7 +19,7 @@ dev
 	kbin	kbd latin1
 	uart
 
-	fakertc
+#	fakertc
 	sd
 	usb
 	ether	netif
@@ -40,6 +40,7 @@ ip
 	ipmux
 
 misc
+	armv6
 	uartmini
 	sdmmc	emmc
 	dma

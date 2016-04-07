@@ -25,7 +25,7 @@ dev
 	ether	netif
 
 link
-	archbcm
+	archbcm2
 	loopbackmedium
 	ethermedium
 	usbdwc
@@ -40,7 +40,7 @@ ip
 	ipmux
 
 misc
-	armv6
+	armv7
 	uartmini
 	sdmmc	emmc
 	dma

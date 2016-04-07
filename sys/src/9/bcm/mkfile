@@ -1,5 +1,5 @@
 CONF=pi
-CONFLIST=pi picpu pifat
+CONFLIST=pi picpu pifat pi2 pi2cpu
 EXTRACOPIES=
 
 loadaddr=0x80008000
@@ -8,7 +8,7 @@ objtype=arm
 </$objtype/mkfile
 p=9
 
-DEVS=`{rc ../port/mkdevlist $CONF}
+DEVS=`{rc ../port/mkdevlist $CONF|sort}
 
 PORT=\
 	alarm.$O\
