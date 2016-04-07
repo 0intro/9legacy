@@ -97,6 +97,8 @@ extern void trapinit(void);
 extern void uartconsinit(void);
 extern int userureg(Ureg*);
 extern void vectors(void);
+extern void vgpinit(void);
+extern void vgpset(uint, int);
 extern void vtable(void);
 extern void wdogoff(void);
 extern void wdogfeed(void);

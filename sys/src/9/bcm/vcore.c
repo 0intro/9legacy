@@ -12,6 +12,7 @@
 
 typedef struct Prophdr Prophdr;
 typedef struct Fbinfo Fbinfo;
+typedef struct Vgpio Vgpio;
 
 enum {
 	Read		= 0x00>>2,
@@ -52,8 +53,11 @@ enum {
 	TagSetvres	= 0x00048004,
 	TagGetdepth	= 0x00040005,
 	TagSetdepth	= 0x00048005,
-	TagGetrgb	= 0x00044006,
+	TagGetrgb	= 0x00040006,
 	TagSetrgb	= 0x00048006,
+	TagGetGpio	= 0x00040010,
+
+	Nvgpio		= 2,
 };
 
 struct Fbinfo {
@@ -78,6 +82,15 @@ struct Prophdr {
 	u32int	taglen;
 	u32int	data[1];
 };
+
+struct Vgpio {
+	u32int	*counts;
+	u16int	incs;
+	u16int	decs;
+	int	ison;
+};
+
+static Vgpio vgpio;
 
 static void
 vcwrite(uint chan, int val)
@@ -338,4 +351,35 @@ getcputemp(void)
 	if(vcreq(TagGettemp, buf, sizeof(buf[0]), sizeof buf) != sizeof buf)
 		return 0;
 	return buf[1];
+}
+
+/*
+ * Virtual GPIO - used for ACT LED on pi3
+ */
+void
+vgpinit(void)
+{
+	u32int buf[1];
+	uintptr va;
+
+	buf[0] = 0;
+	if(vcreq(TagGetGpio, buf, 0, sizeof(buf)) != sizeof buf || buf[0] == 0)
+		return;
+	va = mmukmap(VGPIO, buf[0] & ~0xC0000000, BY2PG);
+	if(va == 0)
+		return;
+	vgpio.counts = (u32int*)va;
+}
+
+void
+vgpset(uint port, int on)
+{
+	if(vgpio.counts == nil || port >= Nvgpio || on == vgpio.ison)
+		return;
+	if(on)
+		vgpio.incs++;
+	else
+		vgpio.decs++;
+	vgpio.counts[port] = (vgpio.incs << 16) | vgpio.decs;
+	vgpio.ison = on;
 }

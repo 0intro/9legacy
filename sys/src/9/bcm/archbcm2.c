@@ -18,7 +18,6 @@ typedef struct Mbox Mbox;
 typedef struct Mboxes Mboxes;
 
 #define	POWERREGS	(VIRTIO+0x100000)
-#define ARMLOCAL	(VIRTIO+IOSIZE)
 
 Soc soc = {
 	.dramsize	= 0x3F000000, 	/* was 1024*MiB, but overlaps with physio */

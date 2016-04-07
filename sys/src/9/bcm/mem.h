@@ -47,6 +47,8 @@
 #define	L1		(KZERO+0x4000)		/* tt ptes: 16KiB aligned */
 #define	KTZERO		(KZERO+0x8000)		/* kernel text start */
 #define VIRTIO		0x7E000000		/* i/o registers */
+#define	ARMLOCAL	(VIRTIO+IOSIZE)		/* armv7 only */
+#define	VGPIO		(ARMLOCAL+MiB)		/* virtual gpio for pi3 ACT LED */
 #define	FRAMEBUFFER	0xC0000000		/* video framebuffer */
 
 #define	UZERO		0			/* user segment */
