@@ -33,7 +33,7 @@ enum {
 
 	SystimerFreq	= 1*Mhz,
 	MaxPeriod	= SystimerFreq / HZ,
-	MinPeriod	= SystimerFreq / (100*HZ),
+	MinPeriod	= 10,
 
 };
 
@@ -86,6 +86,8 @@ clockintr(Ureg *ureg, void *)
 {
 	Systimers *tn;
 
+	if(m->machno != 0)
+		panic("cpu%d: unexpected system timer interrupt", m->machno);
 	tn = (Systimers*)SYSTIMERS;
 	/* dismiss interrupt */
 	tn->cs = 1<<3;
@@ -108,7 +110,10 @@ clockshutdown(void)
 
 	tm = (Armtimer*)ARMTIMER;
 	tm->ctl = 0;
-	//wdogoff();
+	if(cpuserver)
+		wdogfeed();
+	else
+		wdogoff();
 }
 
 void
@@ -121,8 +126,8 @@ clockinit(void)
 	if(((cprdsc(0, CpID, CpIDfeat, 1) >> 16) & 0xF) != 0) {
 		/* generic timer supported */
 		if(m->machno == 0){
-			*(ulong*)(ARMLOCAL + Localctl) = 0;				/* magic */
-			*(ulong*)(ARMLOCAL + Prescaler) = 0x06aaaaab;	/* magic for 1 Mhz */
+			*(ulong*)(ARMLOCAL + Localctl) = 0;				/* input clock is 19.2Mhz crystal */
+			*(ulong*)(ARMLOCAL + Prescaler) = 0x06aaaaab;	/* divide by (2^31/Prescaler) for 1Mhz */
 		}
 		cpwrsc(0, CpTIMER, CpTIMERphys, CpTIMERphysctl, Imask);
 	}
@@ -168,7 +173,7 @@ timerset(uvlong next)
 		cpwrsc(0, CpTIMER, CpTIMERphys, CpTIMERphysctl, Enable);
 	}else{
 		tn = (Systimers*)SYSTIMERS;
-		tn->c3 = (ulong)(now + period);
+		tn->c3 = tn->clo + period;
 	}
 }
 
@@ -178,20 +183,16 @@ fastticks(uvlong *hz)
 	Systimers *tn;
 	ulong lo, hi;
 	uvlong now;
-	int s;
 
 	if(hz)
 		*hz = SystimerFreq;
 	tn = (Systimers*)SYSTIMERS;
-	s = splhi();
 	do{
 		hi = tn->chi;
 		lo = tn->clo;
 	}while(tn->chi != hi);
 	now = (uvlong)hi<<32 | lo;
-	m->fastclock = now;
-	splx(s);
-	return m->fastclock;
+	return now;
 }
 
 ulong
@@ -224,7 +225,7 @@ ulong
 {
 	if(SystimerFreq != 1*Mhz)
 		return fastticks2us(fastticks(nil));
-	return fastticks(nil);
+	return ((Systimers*)SYSTIMERS)->clo;
 }
 
 void

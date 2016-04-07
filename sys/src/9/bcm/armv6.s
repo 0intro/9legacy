@@ -10,6 +10,12 @@
 TEXT armstart(SB), 1, $-4
 
 	/*
+	 * SVC mode, interrupts disabled
+	 */
+	MOVW	$(PsrDirq|PsrDfiq|PsrMsvc), R1
+	MOVW	R1, CPSR
+
+	/*
 	 * disable the mmu and L1 caches
 	 * invalidate caches and tlb
 	 */
@@ -51,7 +57,7 @@ _ramZ:
 	 * enable caches, mmu, and high vectors
 	 */
 	MRC	CpSC, 0, R0, C(CpCONTROL), C(0), CpMainctl
-	ORR	$(CpChv|CpCdcache|CpCicache|CpCmmu), R0
+	ORR	$(CpChv|CpCdcache|CpCicache|CpCpredict|CpCmmu), R0
 	MCR	CpSC, 0, R0, C(CpCONTROL), C(0), CpMainctl
 	ISB
 
@@ -96,12 +102,6 @@ TEXT farget(SB), 1, $-4				/* fault address */
 
 TEXT lcycles(SB), 1, $-4
 	MRC	CpSC, 0, R0, C(CpSPM), C(CpSPMperf), CpSPMcyc
-	RET
-
-TEXT tmrget(SB), 1, $-4				/* local generic timer physical counter value */
-	MOVW	$0, R1				/* not in armv6 */
-	MOVW	R1, 0(R0)
-	MOVW	R1, 4(R0)
 	RET
 
 TEXT splhi(SB), 1, $-4
@@ -201,6 +201,7 @@ TEXT mmuinvalidate(SB), 1, $-4
 	MOVW	$0, R0
 	MCR	CpSC, 0, R0, C(CpTLB), C(CpTLBinvu), CpTLBinv
 	BARRIERS
+	MCR CpSC, 0, R0, C(CpCACHE), C(CpCACHEinvi), CpCACHEflushbtc
 	RET
 
 /*
@@ -253,7 +254,9 @@ TEXT cachedwbinvse(SB), 1, $-4
  *   drain write buffer
  *   writeback data cache range [va, va+n)
  */
+TEXT cachedwbtlb(SB), 1, $-4
 TEXT cachedwbse(SB), 1, $-4
+
 	MOVW	R0, R1		/* DSB clears R0 */
 	DSB
 	MOVW	n+4(FP), R2
@@ -303,4 +306,19 @@ TEXT l2cacheuwbinv(SB), 1, $-4
 TEXT cacheiinv(SB), 1, $-4
 	MOVW	$0, R0
 	MCR	CpSC, 0, R0, C(CpCACHE), C(CpCACHEinvi), CpCACHEall
+	RET
+
+/*
+ * invalidate range of instruction cache
+ */
+TEXT cacheiinvse(SB), 1, $-4
+	MOVW	R0, R1		/* DSB clears R0 */
+	DSB
+	MOVW n+4(FP), R2
+	ADD	R1, R2
+	SUB	$1, R2
+	MCRR(CpSC, 0, 2, 1, CpCACHERANGEinvi)
+	MCR CpSC, 0, R0, C(CpCACHE), C(CpCACHEinvi), CpCACHEflushbtc
+	DSB
+	ISB
 	RET

@@ -247,6 +247,7 @@ iunlock(Lock *l)
 
 	sr = l->sr;
 	l->m = nil;
+	coherence();
 	l->key = 0;
 	coherence();
 	m->ilockdepth--;

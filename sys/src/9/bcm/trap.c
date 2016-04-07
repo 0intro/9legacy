@@ -150,7 +150,7 @@ intrtime(void)
 
 	x = perfticks();
 	diff = x - m->perf.intrts;
-	m->perf.intrts = x;
+	m->perf.intrts = 0;
 
 	m->perf.inintr += diff;
 	if(up == nil && m->perf.inidle > diff)
@@ -194,8 +194,14 @@ void
 fiq(Ureg *ureg)
 {
 	Vctl *v;
+	int inintr;
 
-	m->perf.intrts = perfticks();
+	if(m->perf.intrts)
+		inintr = 1;
+	else{
+		inintr = 0;
+		m->perf.intrts = perfticks();
+	}
 	v = vfiq;
 	if(v == nil)
 		panic("cpu%d: unexpected item in bagging area", m->machno);
@@ -204,7 +210,8 @@ fiq(Ureg *ureg)
 	coherence();
 	v->f(ureg, v->a);
 	coherence();
-	intrtime();
+	if(!inintr)
+		intrtime();
 }
 
 void
@@ -221,8 +228,11 @@ irqenable(int irq, void (*f)(Ureg*, void*), void* a)
 	v->irq = irq;
 	v->cpu = 0;
 	if(irq >= IRQlocal){
-		enable = (u32int*)(LOCALREGS + Localtimerint) + m->machno;
 		v->reg = (u32int*)(LOCALREGS + Localintpending) + m->machno;
+		if(irq >= IRQmbox0)
+			enable = (u32int*)(LOCALREGS + Localmboxint) + m->machno;
+		else
+			enable = (u32int*)(LOCALREGS + Localtimerint) + m->machno;
 		v->mask = 1 << (irq - IRQlocal);
 		v->cpu = m->machno;
 	}else if(irq >= IRQbasic){
@@ -245,7 +255,10 @@ irqenable(int irq, void (*f)(Ureg*, void*), void* a)
 	}else{
 		v->next = vctl;
 		vctl = v;
-		if(irq >= IRQlocal)
+		if(irq >= IRQmbox0){
+			if(irq <= IRQmbox3)
+				*enable |= 1 << (irq - IRQmbox0);
+		}else if(irq >= IRQlocal)
 			*enable |= 1 << (irq - IRQlocal);
 		else
 			*enable = v->mask;

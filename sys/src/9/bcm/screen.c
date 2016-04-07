@@ -293,12 +293,15 @@ hwdraw(Memdrawparam *par)
 static int
 screensize(void)
 {
-	char *p;
+	char *p, buf[32];
 	char *f[3];
 	int width, height, depth;
 
 	p = getconf("vgasize");
-	if(p == nil || getfields(p, f, nelem(f), 0, "x") != nelem(f) ||
+	if(p == nil || memccpy(buf, p, '\0', sizeof buf) == nil)
+		return -1;
+
+	if(getfields(buf, f, nelem(f), 0, "x") != nelem(f) ||
 	    (width = atoi(f[0])) < 16 ||
 	    (height = atoi(f[1])) <= 0 ||
 	    (depth = atoi(f[2])) <= 0)

@@ -23,12 +23,14 @@
 	MOVW	$0, R0; \
 	MCR	CpSC, 0, R0, C(CpCACHE), C(CpCACHEwb), CpCACHEwait
 
-#define	BARRIERS	ISB; DSB
+#define	BARRIERS	DSB; ISB
 
 #define MCRR(coproc, op, rd, rn, crm) \
 	WORD $(0xec400000|(rn)<<16|(rd)<<12|(coproc)<<8|(op)<<4|(crm))
 #define MRRC(coproc, op, rd, rn, crm) \
 	WORD $(0xec500000|(rn)<<16|(rd)<<12|(coproc)<<8|(op)<<4|(crm))
+#define MSR(R, rn, m, m1) \
+	WORD $(0xe120f200|(R)<<22|(m1)<<16|(m)<<8|(rn))
 
 #define	LDREX(fp,t)   WORD $(0xe<<28|0x01900f9f | (fp)<<16 | (t)<<12)
 /* `The order of operands is from left to right in dataflow order' - asm man */

@@ -409,6 +409,11 @@ etherusbmulticast(void*, uchar*, int)
 }
 
 static void
+etherusbshutdown(Ether*)
+{
+}
+
+static void
 etherusbattach(Ether* edev)
 {
 	Ctlr *ctlr;
@@ -439,7 +444,7 @@ etherusbpnp(Ether* edev)
 	edev->arg = edev;
 	/* TODO: promiscuous, multicast (for ipv6), shutdown (for reboot) */
 //	edev->promiscuous = etherusbpromiscuous;
-//	edev->shutdown = etherusbshutdown;
+	edev->shutdown = etherusbshutdown;
 	edev->multicast = etherusbmulticast;
 
 	return 0;

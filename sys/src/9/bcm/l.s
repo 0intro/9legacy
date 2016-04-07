@@ -20,12 +20,6 @@ TEXT _start(SB), 1, $-4
 	MOVW	$0, R0
 
 	/*
-	 * SVC mode, interrupts disabled
-	 */
-	MOVW	$(PsrDirq|PsrDfiq|PsrMsvc), R1
-	MOVW	R1, CPSR
-
-	/*
 	 * start stack at top of mach (physical addr)
 	 */
 	MOVW	$PADDR(MACHADDR+MACHSIZE-4), R13

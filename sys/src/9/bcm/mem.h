@@ -52,7 +52,7 @@
 #define	UZERO		0			/* user segment */
 #define	UTZERO		(UZERO+BY2PG)		/* user text start */
 #define UTROUND(t)	ROUNDUP((t), BY2PG)
-#define	USTKTOP		0x20000000		/* user segment end +1 */
+#define	USTKTOP		0x40000000		/* user segment end +1 */
 #define	USTKSIZE	(8*1024*1024)		/* user stack size */
 #define	TSTKTOP		(USTKTOP-USTKSIZE)	/* sysexec temporary stack */
 #define	TSTKSIZ	 	256

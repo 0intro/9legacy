@@ -25,7 +25,7 @@
 enum {
 	Nchan		= 7,		/* number of dma channels */
 	Regsize		= 0x100,	/* size of regs for each chan */
-	Cbalign		= 32,		/* control block byte alignment */
+	Cbalign		= 64,		/* control block byte alignment (allow for 64-byte cache on bcm2836) */
 	Dbg		= 0,
 	
 	/* registers for each dma controller */
