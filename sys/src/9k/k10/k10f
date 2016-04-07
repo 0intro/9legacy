@@ -1,0 +1,205 @@
+dev +dev
+	root
+	cons	uidgid
+	arch
+	env
+	pipe
+	proc
+	mnt
+#	pci		pci smbus
+	pci		pci
+	srv
+	dup
+	rtc
+	ssl
+	tls
+	cap
+	kprof
+
+	ether		netif
+	ip		arp chandial ip ipv6 ipaux iproute netlog nullmedium pktmedium ptclbsumamd64
+
+	uart
+	usb
+#	kbin
+	acpi	hpet acpi lapic ioapic msi sipi
+	sd
+	mem
+
+
+uart +dev
+	uarti8250
+	uartpci		pci
+
+ip +dev
+	il
+	tcp
+	udp
+	ipifc
+	icmp
+	icmp6
+
+link +dev
+	ether8139	pci
+	ether8169	pci ethermii
+	ether82557	pci
+	ether82563	pci
+	ether82598	pci
+	etherigbe	pci ethermii
+	ethervirtio	pci
+	ethermedium
+	loopbackmedium
+	netdevmedium
+
+	usbuhci
+	usbohci
+	usbehci usbehcipc
+
+#	acpi		hpet
+#	ht
+
+misc +dev
+	nocache
+
+sd	+dev
+	sdata	pci sdscsi
+	sdiahci	pci sdscsi
+#	sdide	pci sdscsi
+#	sdaoe	sdscsi
+	sdvirtio	pci sdscsi
+
+#boot cpu
+#	int cpuflag = 1;
+#boot cpu boot $3
+#	int cpuflag = 1;
+#	char* bootdisk = "$3";
+#boot rootdir $3
+#	char* rootdir = "$3";
+#boot (bboot|romboot|dosboot)
+#	int cpuflag = 1;
+#	char* bootprog = $2;
+#boot boot $3
+#	char* bootdisk = "$3";
+#
+boot
+	tcp
+	il
+	local
+
+rootdir
+	bootk10f.out boot
+	/amd64/bin/auth/factotum factotum
+	/amd64/bin/ip/ipconfig ipconfig
+	/amd64/bin/fossil/fossil fossil
+	/amd64/bin/venti/venti venti
+	../root/nvram nvram
+
+conf
+	int cpuserver = 0;
+
+#
+#dbgflg
+#	chan		'c'
+#	apic		'A'
+#	acpi		'C'
+#	hpet		'H'
+#	ht		'H'
+#	ioapic		'I'
+#	mp		'M'
+#	pci		'P'
+#	arch		'V'
+#
+dbgflg
+	lapic		'A'
+	acpi		'C'
+	devacpi		'C'
+	hpet		'H'
+	ht		'H'
+	ioapic		'I'
+	mp		'M'
+	arch		'V'
+	archk10		'V'
+	sysproc		'E'
+	main		'x'
+	mmu		'm'
+	sipi		'y'
+	sysseg	's'
+	physalloc	'p'
+	qmalloc	'q'
+
+amd64 +dev
+	l32p
+	l64v
+	l64idt
+	l64syscall
+	l64fpu
+	l64cpuid
+	arch
+	archk10
+	cga
+	options
+	fpu
+	i8254
+	i8259
+	kbd
+	main
+	map
+	memory
+	mmu
+	multiboot
+	qmalloc
+	random
+	syscall
+	trap
+	vsvm
+
+port
+	alarm
+	allocb
+	bud
+	chan
+	dev
+	devtab
+	edf
+	fault
+	image
+	latin1
+	mcslock
+	net
+	page
+	parse
+	pgrp
+	portclock
+	print
+	proc
+	ps
+	physalloc
+	qio
+	qlock
+	rebootcmd
+	ref
+	rmap
+	segment
+	sysauth
+	syscallfmt
+	sysfile
+	sysproc
+	sysseg
+	systab
+	tod
+
+#
+#dir
+# pc		-.I.
+#
+dir
+	386
+	ip
+	port
+
+lib
+	libip
+	libsec
+	libaml
+	libmp
+	libc
