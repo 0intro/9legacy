@@ -1,14 +1,12 @@
 /***** spin: mesg.c *****/
 
-/* Copyright (c) 1989-2003 by Lucent Technologies, Bell Laboratories.     */
-/* All Rights Reserved.  This software is for educational purposes only.  */
-/* No guarantee whatsoever is expressed or implied by the distribution of */
-/* this code.  Permission is given to distribute this code provided that  */
-/* this introductory message is not removed and no monies are exchanged.  */
-/* Software written by Gerard J. Holzmann.  For tool documentation see:   */
-/*             http://spinroot.com/                                       */
-/* Send all bug-reports and/or questions to: bugs@spinroot.com            */
+/*
+ * This file is part of the public release of Spin. It is subject to the
+ * terms in the LICENSE file that is included in this source directory.
+ * Tool documentation is available at http://spinroot.com
+ */
 
+#include <stdlib.h>
 #include "spin.h"
 #include "y.tab.h"
 
@@ -24,9 +22,10 @@ extern int	lineno, depth, xspin, m_loss, jumpsteps;
 extern int	nproc, nstop;
 extern short	Have_claim;
 
+QH	*qh;
 Queue	*qtab = (Queue *) 0;	/* linked list of queues */
 Queue	*ltab[MAXQ];		/* linear list of queues */
-int	nqs = 0, firstrow = 1;
+int	nqs = 0, firstrow = 1, has_stdin = 0;
 char	Buf[4096];
 
 static Lextok	*n_rem = (Lextok *) 0;
@@ -73,7 +72,7 @@ qmake(Symbol *s)
 		return eval(s->ini);
 
 	q = (Queue *) emalloc(sizeof(Queue));
-	q->qid    = ++nqs;
+	q->qid    = (short) ++nqs;
 	q->nslots = s->ini->val;
 	q->nflds  = cnt_mpars(s->ini->rgt);
 	q->setat  = depth;
@@ -130,7 +129,7 @@ qsend(Lextok *n)
 
 	if (whichq == -1)
 	{	printf("Error: sending to an uninitialized chan\n");
-		whichq = 0;
+		/* whichq = 0; */
 		return 0;
 	}
 	if (whichq < MAXQ && whichq >= 0 && ltab[whichq])
@@ -143,6 +142,37 @@ qsend(Lextok *n)
 	return 0;
 }
 
+#ifndef PC
+ #include <termios.h>
+ static struct termios initial_settings, new_settings;
+
+ void
+ peek_ch_init(void)
+ {
+	tcgetattr(0,&initial_settings);
+ 
+	new_settings = initial_settings;
+	new_settings.c_lflag &= ~ICANON;
+	new_settings.c_lflag &= ~ECHO;
+	new_settings.c_lflag &= ~ISIG;
+	new_settings.c_cc[VMIN] = 0;
+	new_settings.c_cc[VTIME] = 0;
+ }
+
+ int
+ peek_ch(void)
+ {	int n;
+
+	has_stdin = 1;
+
+	tcsetattr(0, TCSANOW, &new_settings);
+	n = getchar();
+	tcsetattr(0, TCSANOW, &initial_settings);
+
+	return n;
+ }
+#endif
+
 int
 qrecv(Lextok *n, int full)
 {	int whichq = eval(n->lft)-1;
@@ -150,22 +180,37 @@ qrecv(Lextok *n, int full)
 	if (whichq == -1)
 	{	if (n->sym && !strcmp(n->sym->name, "STDIN"))
 		{	Lextok *m;
-
+#ifndef PC
+			static int did_once = 0;
+			if (!did_once) /* 6.2.4 */
+			{	peek_ch_init();
+				did_once = 1;
+			}
+#endif
 			if (TstOnly) return 1;
 
 			for (m = n->rgt; m; m = m->rgt)
 			if (m->lft->ntyp != CONST && m->lft->ntyp != EVAL)
-			{	int c = getchar();
+			{
+#ifdef PC
+				int c = getchar();
+#else
+				int c = peek_ch();	/* 6.2.4, was getchar(); */
+#endif
+				if (c == 27 || c == 3)	/* escape or control-c */
+				{	printf("quit\n");
+					exit(0);
+				} /* else: non-blocking */
+				if (c == EOF) return 0;	/* no char available */
 				(void) setval(m->lft, c);
 			} else
-				fatal("invalid use of STDIN", (char *)0);
-
-			whichq = 0;
+			{	fatal("invalid use of STDIN", (char *)0);
+			}
 			return 1;
 		}
 		printf("Error: receiving from an uninitialized chan %s\n",
 			n->sym?n->sym->name:"");
-		whichq = 0;
+		/* whichq = 0; */
 		return 0;
 	}
 	if (whichq < MAXQ && whichq >= 0 && ltab[whichq])
@@ -206,7 +251,8 @@ void
 typ_ck(int ft, int at, char *s)
 {
 	if ((verbose&32) && ft != at
-	&& (ft == CHAN || at == CHAN))
+	&& (ft == CHAN || at == CHAN)
+	&& (at != PREDEF || strcmp(s, "recv") != 0))
 	{	char buf[128], tag1[64], tag2[64];
 		(void) sputtype(tag1, ft);
 		(void) sputtype(tag2, at);
@@ -428,7 +474,11 @@ difcolumns(Lextok *n, char *tr, int v, int j, Queue *q)
 	sr_buf(v, q->fld_width[j] == MTYPE);
 	if (j == q->nflds - 1)
 	{	int cnr;
-		if (s_trail) cnr = pno; else cnr = X?X->pid - Have_claim:0;
+		if (s_trail)
+		{	cnr = pno;
+		} else
+		{	cnr = X?X->pid - Have_claim:0;
+		}
 		if (tr[0] == '[') strcat(Buf, "]");
 		pstext(cnr, Buf);
 	}
@@ -463,12 +513,6 @@ docolumns(Lextok *n, char *tr, int v, int j, Queue *q)
 		printf("\n");
 	}
 }
-
-typedef struct QH {
-	int	n;
-	struct	QH *nxt;
-} QH;
-static QH *qh;
 
 void
 qhide(int q)
@@ -571,7 +615,11 @@ void
 sr_mesg(FILE *fd, int v, int j)
 {	Buf[0] ='\0';
 	sr_buf(v, j);
+#if 1
+	fprintf(fd, Buf, (char *) 0); /* prevent compiler warning */
+#else
 	fprintf(fd, Buf);
+#endif
 }
 
 void
@@ -657,7 +705,8 @@ typedef struct BaseName {
 	int cnt;
 	struct BaseName *nxt;
 } BaseName;
-BaseName *bsn;
+
+static BaseName *bsn;
 
 void
 newbasename(char *s)
@@ -777,8 +826,9 @@ no_internals(Lextok *n)
 	sp = n->sym->name;
 
 	if ((strlen(sp) == strlen("_nr_pr") && strcmp(sp, "_nr_pr") == 0)
+	||  (strlen(sp) == strlen("_pid") && strcmp(sp, "_pid") == 0)
 	||  (strlen(sp) == strlen("_p") && strcmp(sp, "_p") == 0))
-	{	fatal("attempt to assign value to system variable %s", sp);
+	{	fatal("invalid assignment to %s", sp);
 	}
 
 	no_nested_array_refs(n);

@@ -1,13 +1,10 @@
 /***** spin: sym.c *****/
 
-/* Copyright (c) 1989-2003 by Lucent Technologies, Bell Laboratories.     */
-/* All Rights Reserved.  This software is for educational purposes only.  */
-/* No guarantee whatsoever is expressed or implied by the distribution of */
-/* this code.  Permission is given to distribute this code provided that  */
-/* this introductory message is not removed and no monies are exchanged.  */
-/* Software written by Gerard J. Holzmann.  For tool documentation see:   */
-/*             http://spinroot.com/                                       */
-/* Send all bug-reports and/or questions to: bugs@spinroot.com            */
+/*
+ * This file is part of the public release of Spin. It is subject to the
+ * terms in the LICENSE file that is included in this source directory.
+ * Tool documentation is available at http://spinroot.com
+ */
 
 #include "spin.h"
 #include "y.tab.h"
@@ -23,10 +20,10 @@ Ordered	*all_names = (Ordered *)0;
 int	Nid = 0;
 
 Lextok *Mtype = (Lextok *) 0;
+Lextok *runstmnts = ZN;
 
 static Ordered	*last_name = (Ordered *)0;
 static Symbol	*symtab[Nhash+1];
-static Lextok *runstmnts = ZN;
 
 static int
 samename(Symbol *a, Symbol *b)
@@ -53,22 +50,34 @@ void
 disambiguate(void)
 {	Ordered *walk;
 	Symbol *sp;
+	char *n, *m;
 
 	if (old_scope_rules)
 		return;
 
-	/* if the same name appears in two different scopes,
-	   prepend the scope_prefix to the names */
+	/* prepend the scope_prefix to the names */
 
 	for (walk = all_names; walk; walk = walk->next)
 	{	sp = walk->entry;
 		if (sp->type != 0
 		&&  sp->type != LABEL
 		&&  strlen((const char *)sp->bscp) > 1)
-		{	char *n = (char *) emalloc(strlen((const char *)sp->name)
+		{	if (sp->context)
+			{	m = (char *) emalloc(strlen((const char *)sp->bscp) + 1);
+				sprintf(m, "_%d_", sp->context->sc);
+				if (strcmp((const char *) m, (const char *) sp->bscp) == 0)
+				{	continue;
+				/* 6.2.0: only prepend scope for inner-blocks,
+				   not for top-level locals within a proctype
+				   this means that you can no longer use the same name
+				   for a global and a (top-level) local variable
+				 */
+			}	}
+
+			n = (char *) emalloc(strlen((const char *)sp->name)
 				+ strlen((const char *)sp->bscp) + 1);
 			sprintf(n, "%s%s", sp->bscp, sp->name);
-			sp->name = n;	/* discord the old memory */
+			sp->name = n;	/* discard the old memory */
 	}	}
 }
 
@@ -321,7 +330,7 @@ setxus(Lextok *p, int t)
 	has_xu = 1;
 
 	if (m_loss && t == XS)
-	{	printf("spin: warning, %s:%d, xs tag not compatible with -m (message loss)\n",
+	{	printf("spin: %s:%d, warning, xs tag not compatible with -m (message loss)\n",
 			(p->fn != NULL) ? p->fn->name : "stdin", p->ln);
 	}
 
@@ -484,7 +493,9 @@ symvar(Symbol *sp)
 		}
 	}
 
-if (1)	printf("\t{scope %s}", sp->bscp);
+	if (!old_scope_rules)
+	{	printf("\t{scope %s}", sp->bscp);
+	}
 
 	printf("\n");
 }
@@ -583,14 +594,14 @@ chanaccess(void)
 
 			if (!(verbose&32) || has_code) continue;
 
-			printf("spin: warning, %s, ", Fname->name);
+			printf("spin: %s:0, warning, ", Fname->name);
 			sputtype(buf, walk->entry->type);
 			if (walk->entry->context)
 				printf("proctype %s",
 					walk->entry->context->name);
 			else
 				printf("global");
-			printf(", '%s%s' variable is never used\n",
+			printf(", '%s%s' variable is never used (other than in print stmnts)\n",
 				buf, walk->entry->name);
 	}	}
 }
