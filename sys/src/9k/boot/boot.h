@@ -47,7 +47,7 @@ extern void	warning(char*, ...);
 extern int	writefile(char*, char*, int);
 extern void	boot(int, char **);
 extern void	doauthenticate(int, Method*);
-extern int		old9p(int);
+extern int	old9p(int);
 extern int	parsefields(char*, char**, int, char*);
 
 /* methods */
