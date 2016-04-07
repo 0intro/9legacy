@@ -20,6 +20,23 @@ static Method	*rootserver(char*);
 static void	usbinit(void);
 static void	kbmap(void);
 
+/*
+ * read disk partition tables here so that readnvram via factotum
+ * can see them.  ideally we would have this information in
+ * environment variables before attaching #S, which would then
+ * parse them and create partitions.
+ */
+static void
+partinit(void)
+{
+	char *rdparts;
+
+	rdparts = getenv("readparts");
+	if(rdparts)
+		readparts();
+	free(rdparts);
+}
+
 void
 boot(int argc, char *argv[])
 {
@@ -86,6 +103,14 @@ boot(int argc, char *argv[])
 	 *  load keymap if it is there.
 	 */
 	kbmap();
+
+	/* don't trigger aoe until the network has been configured */
+	dprint("bind #æ...");
+	bind("#æ", "/dev", MAFTER);	/* nvram could be here */
+	dprint("bind #S...");
+	bind("#S", "/dev", MAFTER);	/* nvram could be here */
+	dprint("partinit...");
+	partinit();
 
 	/*
 	 *  authentication agent

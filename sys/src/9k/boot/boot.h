@@ -12,6 +12,8 @@ enum
 	Nbarg=	16,
 };
 
+#define dprint(...) if(1) fprint(2, __VA_ARGS__);
+
 extern void	authentication(int);
 extern char*	bootdisk;
 extern char*	rootdir;
@@ -37,6 +39,7 @@ extern void	key(int, Method*);
 extern int	outin(char*, char*, int);
 extern int	plumb(char*, char*, int*, char*);
 extern int	readfile(char*, char*, int);
+extern int	readparts(void);
 extern long	readn(int, void*, long);
 extern void	run(char *file, ...);
 extern int	sendmsg(int, char*);

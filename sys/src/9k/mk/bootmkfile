@@ -12,6 +12,7 @@ BOOTFILES=\
 	embed.$O\
 	settime.$O\
 	sac.$O\
+	parts.$O\
 	paq.$O\
 	printstub.$O\
 
