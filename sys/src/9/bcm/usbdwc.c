@@ -220,10 +220,9 @@ restart:
 		hc->hcintmsk = mask;
 		fiunlock(ctlr);
 		tsleep(&ctlr->chanintr[n], chandone, hc, 1000);
-		if(hc->hcint == 0)
+		if((intr = hc->hcint) == 0)
 			goto restart;
 		hc->hcintmsk = 0;
-		intr = hc->hcint;
 		if(intr & Chhltd)
 			return intr;
 		start = fastticks(0);
@@ -235,14 +234,14 @@ restart:
 				if((ointr != Ack && ointr != (Ack|Xfercomp)) ||
 				   intr != (Ack|Chhltd|Xfercomp) ||
 				   (now - start) > 60)
-					dprint("await %x after %ld %x -> %x\n",
+					dprint("await %x after %ldµs %x -> %x\n",
 						mask, now - start, ointr, intr);
 				return intr;
 			}
 			if((intr & mask) == 0){
 				if(intr != Nak)
-					dprint("ep%d.%d await %x intr %x -> %x\n",
-						ep->dev->nb, ep->nb, mask, ointr, intr);
+					dprint("ep%d.%d await %x after %ldµs intr %x -> %x\n",
+						ep->dev->nb, ep->nb, mask, now - start, ointr, intr);
 				goto restart;
 			}
 			now = fastticks(0);
@@ -398,6 +397,7 @@ chanio(Ep *ep, Hostchan *hc, int dir, int pid, void *a, int len)
 		}
 		hc->hcchar = (hc->hcchar &~ Chdis) | Chen;
 		clog(ep, hc);
+wait:
 		if(ep->ttype == Tbulk && dir == Epin)
 			i = chanwait(ep, ctlr, hc, Chhltd);
 		else if(ep->ttype == Tintr && (hc->hcsplt & Spltena))
@@ -407,7 +407,8 @@ chanio(Ep *ep, Hostchan *hc, int dir, int pid, void *a, int len)
 		clog(ep, hc);
 		if(hc->hcint != i){
 			dprint("chanwait intr %ux->%ux\n", i, hc->hcint);
-			i = hc->hcint;
+			if((i = hc->hcint) == 0)
+				goto wait;
 		}
 		hc->hcint = i;
 

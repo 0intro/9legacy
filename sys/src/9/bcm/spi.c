@@ -16,7 +16,6 @@
 #define SPI0_MISO	9		/* P1 pin 21 */
 #define	SPI0_MOSI	10		/* P1 pin 19 */
 #define	SPI0_SCLK	11		/* P1 pin 23 */
-#define	Alt0	0x4
 
 typedef struct Ctlr Ctlr;
 typedef struct Spiregs Spiregs;
@@ -89,6 +88,30 @@ spiinit(void)
 	gpiosel(SPI0_SCLK, Alt0);
 	gpiosel(SPI0_CE0_N,  Alt0);
 	gpiosel(SPI0_CE1_N,  Alt0);
+}
+
+void
+spimode(int mode)
+{
+	spi.regs->cs = (spi.regs->cs & ~(Cpha | Cpol)) | (mode << 2);
+}
+
+/*
+ * According the Broadcom docs, the divisor has to
+ * be a power of 2, but an errata says that should
+ * be multiple of 2 and scope observations confirm
+ * that restricting it to a power of 2 is unnecessary.
+ */
+void
+spiclock(uint mhz)
+{
+	if(spi.regs == 0)
+		spiinit();
+	if(mhz == 0) {
+		spi.regs->clkdiv = 32768;	/* about 8 KHz */
+		return;
+	}
+	spi.regs->clkdiv = 2 * ((125 + (mhz - 1)) / mhz);
 }
 
 void

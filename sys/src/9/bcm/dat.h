@@ -15,6 +15,7 @@ enum {
 typedef struct Conf	Conf;
 typedef struct Confmem	Confmem;
 typedef struct FPsave	FPsave;
+typedef struct I2Cdev	I2Cdev;
 typedef struct ISAConf	ISAConf;
 typedef struct Label	Label;
 typedef struct Lock	Lock;
@@ -119,6 +120,28 @@ struct Conf
 	ulong	mhz;
 	int	monitor;	/* flag */
 };
+
+struct I2Cdev {
+	int	salen;
+	int	addr;
+	int	tenbit;
+};
+
+/*
+ * GPIO
+ */
+enum {
+	Input	= 0x0,
+	Output	= 0x1,
+	Alt0	= 0x4,
+	Alt1	= 0x5,
+	Alt2	= 0x6,
+	Alt3	= 0x7,
+	Alt4	= 0x3,
+	Alt5	= 0x2,
+};
+
+
 
 /*
  *  things saved in the Proc structure during a notify

@@ -29,16 +29,30 @@ Spi spidev[Nspislave];
 
 enum{
 	Qdir = 0,
+	Qctl,
 	Qspi,
 };
 
 Dirtab spidir[]={
 	".",	{Qdir, 0, QTDIR},	0,	0555,
+	"spictl",		{Qctl, 0},	0,	0664,
 	"spi0",		{Qspi+0, 0},	0,	0664,
 	"spi1",		{Qspi+1, 0}, 0, 0664,
 };
 
 #define DEVID(path)	((ulong)path - Qspi)
+
+enum {
+	CMclock,
+	CMmode,
+	CMlossi,
+};
+
+Cmdtab spitab[] = {
+	{CMclock, "clock", 2},
+	{CMmode, "mode", 2},
+	{CMlossi, "lossi", 1},
+};
 
 static void
 spikick(void *a)
@@ -65,12 +79,27 @@ spiinit(void)
 }
 
 static long
-spiread(Chan *c, void *a, long n, vlong)
+spiread(Chan *c, void *a, long n, vlong off)
 {
 	Spi *spi;
+	u32int *sp;
+	char *p, *e;
+	char buf[256];
 
 	if(c->qid.type & QTDIR)
 		return devdirread(c, a, n, spidir, nelem(spidir), devgen);
+
+	if(c->qid.path == Qctl) {
+		sp = (u32int *)0x7e204000;
+		p = buf;
+		e = p + sizeof(buf);
+		p = seprint(p, e, "CS: %08x\n", sp[0]);
+		p = seprint(p, e, "CLK: %08x\n", sp[2]);
+		p = seprint(p, e, "DLEN: %08x\n", sp[3]);
+		p = seprint(p, e, "LTOH: %08x\n", sp[4]);
+		seprint(p, e, "DC: %08x\n", sp[5]);
+		return readstr(off, a, n, buf);
+	}
 
 	spi = &spidev[DEVID(c->qid.path)];
 	n = qread(spi->iq, a, n);
@@ -82,9 +111,31 @@ static long
 spiwrite(Chan*c, void *a, long n, vlong)
 {
 	Spi *spi;
+	Cmdbuf *cb;
+	Cmdtab *ct;
 
 	if(c->qid.type & QTDIR)
 		error(Eperm);
+
+	if(c->qid.path == Qctl) {
+		cb = parsecmd(a, n);
+		if(waserror()) {
+			free(cb);
+			nexterror();
+		}
+		ct = lookupcmd(cb, spitab, nelem(spitab));
+		switch(ct->index) {
+		case CMclock:
+			spiclock(atoi(cb->f[1]));
+			break;
+		case CMmode:
+			spimode(atoi(cb->f[1]));
+			break;
+		case CMlossi:
+			break;
+		}
+		return n;
+	}
 
 	spi = &spidev[DEVID(c->qid.path)];
 	n = qwrite(spi->oq, a, n);

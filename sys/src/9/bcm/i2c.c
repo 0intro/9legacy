@@ -4,6 +4,8 @@
  *	Only i2c1 is supported.
  *	i2c2 is reserved for HDMI.
  *	i2c0 SDA0/SCL0 pins are not routed to P1 connector (except for early Rev 0 boards)
+ *
+ * maybe hardware problems lurking, see: https://github.com/raspberrypi/linux/issues/254
  */
 
 #include	"u.h"
@@ -50,26 +52,33 @@ static I2c i2c;
 
 enum {
 	/* ctrl */
-	I2cen	= 1<<15,
-	Intr	= 1<<10,
-	Intt	= 1<<9,
-	Intd	= 1<<8,
-	Start	= 1<<7,
-	Clear	= 1<<4,
-	Read	= 1<<0,
-	Write	= 0<<0,
+	I2cen	= 1<<15,	/* I2c enable */
+	Intr	= 1<<10,	/* interrupt on reception */
+	Intt	= 1<<9,		/* interrupt on transmission */
+	Intd	= 1<<8,		/* interrupt on done */
+	Start	= 1<<7,		/* aka ST, start a transfer */
+	Clear	= 1<<4,		/* clear fifo */
+	Read	= 1<<0,		/* read transfer */
+	Write	= 0<<0,		/* write transfer */
 
 	/* stat */
-	Clkt	= 1<<9,
-	Err	= 1<<8,
-	Rxf	= 1<<7,
-	Txe	= 1<<6,
-	Rxd	= 1<<5,
-	Txd	= 1<<4,
-	Rxr	= 1<<3,
-	Txw	= 1<<2,
-	Done	= 1<<1,
-	Ta	= 1<<0,
+	Clkt	= 1<<9,		/* clock stretch timeout */
+	Err	= 1<<8,			/* NAK */
+	Rxf	= 1<<7,			/* RX fifo full */
+	Txe	= 1<<6,			/* TX fifo full */
+	Rxd	= 1<<5,			/* RX fifo has data */
+	Txd	= 1<<4,			/* TX fifo has space */
+	Rxr	= 1<<3,			/* RX fiio needs reading */
+	Txw	= 1<<2,			/* TX fifo needs writing */
+	Done	= 1<<1,		/* transfer done */
+	Ta	= 1<<0,			/* Transfer active */
+
+	/* maximum I2C I/O (can change) */
+	MaxIO =	128,
+	MaxSA =	2,	/* longest subaddress */
+	Bufsize = (MaxIO+MaxSA+1+4)&~3,		/* extra space for subaddress/clock bytes and alignment */
+
+	Chatty = 0,
 };
 
 static void
@@ -103,30 +112,75 @@ i2cinit(void)
 {
 	i2c.regs = (Bsc*)I2CREGS;
 	i2c.regs->clkdiv = 2500;
+
 	gpiosel(SDA0Pin, Alt0);
 	gpiosel(SCL0Pin, Alt0);
 	gpiopullup(SDA0Pin);
 	gpiopullup(SCL0Pin);
+
 	intrenable(IRQi2c, i2cinterrupt, 0, 0, "i2c");
 }
 
+/*
+ * To do subaddressing avoiding a STOP condition between the address and payload.
+ * 	- write the subaddress,
+ *	- poll until the transfer starts,
+ *	- overwrite the registers for the payload transfer, before the subaddress
+ * 		transaction has completed.
+ *
+ * FIXME: neither 10bit adressing nor 100Khz transfers implemented yet.
+ */
 static void
-i2cio(int rw, uint addr, void *buf, int len)
+i2cio(int rw, int tenbit, uint addr, void *buf, int len, int salen, uint subaddr)
 {
 	Bsc *r;
 	uchar *p;
 	int st;
 
+	if(tenbit)
+		error("10bit addressing not supported");
+	if(salen == 0 && subaddr)	/* default subaddress len == 1byte */
+		salen = 1;
+
 	qlock(&i2c.lock);
-	if(i2c.regs == 0)
-		i2cinit();
 	r = i2c.regs;
-	p = buf;
 	r->ctrl = I2cen | Clear;
 	r->addr = addr;
-	r->dlen = len;
 	r->stat = Clkt|Err|Done;
-	r->ctrl = I2cen | Start | Intd | rw;
+
+	if(salen){
+		r->dlen = salen;
+		r->ctrl = I2cen | Start | Write;
+		while((r->stat & Ta) == 0) {
+			if(r->stat & (Err|Clkt)) {
+				qunlock(&i2c.lock);
+				error(Eio);
+			}
+		}
+		r->dlen = len;
+		r->ctrl = I2cen | Start | Intd | rw;
+		for(; salen > 0; salen--)
+			r->fifo = subaddr >> ((salen-1)*8);
+		/*
+		 * Adapted from Linux code...uses undocumented
+		 * status information.
+		 */
+		if(rw == Read) {
+			do {
+				if(r->stat & (Err|Clkt)) {
+					qunlock(&i2c.lock);
+					error(Eio);
+				}
+				st = r->stat >> 28;
+			} while(st != 0 && st != 4 && st != 5);
+		}
+	}
+	else {
+		r->dlen = len;
+		r->ctrl = I2cen | Start | Intd | rw;
+	}
+
+	p = buf;
 	st = rw == Read? Rxd : Txd;
 	while(len > 0){
 		while((r->stat & (st|Done)) == 0){
@@ -159,14 +213,24 @@ i2cio(int rw, uint addr, void *buf, int len)
 	qunlock(&i2c.lock);
 }
 
-void
-i2cread(uint addr, void *buf, int len)
-{
-	i2cio(Read, addr, buf, len);
-}
 
 void
-i2cwrite(uint addr, void *buf, int len)
+i2csetup(int)
 {
-	i2cio(Write, addr, buf, len);
+	//print("i2csetup\n");
+	i2cinit();
+}
+
+long
+i2csend(I2Cdev *d, void *buf, long len, ulong offset)
+{
+	i2cio(Write, d->tenbit, d->addr, buf, len, d->salen, offset);
+	return len;
+}
+
+long
+i2crecv(I2Cdev *d, void *buf, long len, ulong offset)
+{
+	i2cio(Read, d->tenbit, d->addr, buf, len, d->salen, offset);
+	return len;
 }

@@ -53,6 +53,34 @@ Dirtab rtcdir[]={
 static ulong rtc2sec(Rtc*);
 static void sec2rtc(ulong, Rtc*);
 
+static void
+i2cread(uint addr, void *buf, int len)
+{
+	I2Cdev d;
+
+	d.addr = addr;
+	d.tenbit = 0;
+	d.salen = 0;
+	i2crecv(&d, buf, len, 0);
+}
+
+static void
+i2cwrite(uint addr, void *buf, int len)
+{
+	I2Cdev d;
+
+	d.addr = addr;
+	d.tenbit = 0;
+	d.salen = 0;
+	i2csend(&d, buf, len, 0);
+}
+
+static void
+rtcinit()
+{
+	i2csetup(0);
+}
+
 static Chan*
 rtcattach(char* spec)
 {
@@ -211,7 +239,7 @@ Dev rtc3231devtab = {
 	"rtc",
 
 	devreset,
-	devinit,
+	rtcinit,
 	devshutdown,
 	rtcattach,
 	rtcwalk,
