@@ -219,7 +219,9 @@ restart:
 		r->haintmsk |= 1<<n;
 		hc->hcintmsk = mask;
 		fiunlock(ctlr);
-		sleep(&ctlr->chanintr[n], chandone, hc);
+		tsleep(&ctlr->chanintr[n], chandone, hc, 1000);
+		if(hc->hcint == 0)
+			goto restart;
 		hc->hcintmsk = 0;
 		intr = hc->hcint;
 		if(intr & Chhltd)
@@ -238,8 +240,9 @@ restart:
 				return intr;
 			}
 			if((intr & mask) == 0){
-				dprint("ep%d.%d await %x intr %x -> %x\n",
-					ep->dev->nb, ep->nb, mask, ointr, intr);
+				if(intr != Nak)
+					dprint("ep%d.%d await %x intr %x -> %x\n",
+						ep->dev->nb, ep->nb, mask, ointr, intr);
 				goto restart;
 			}
 			now = fastticks(0);
@@ -269,6 +272,8 @@ chanintr(Ctlr *ctlr, int n)
 	int i;
 
 	hc = &ctlr->regs->hchan[n];
+	if((hc->hcint & hc->hcintmsk) == 0)
+		return 1;
 	if(ctlr->debugchan & (1<<n))
 		clog(nil, hc);
 	if((hc->hcsplt & Spltena) == 0)
@@ -394,12 +399,16 @@ chanio(Ep *ep, Hostchan *hc, int dir, int pid, void *a, int len)
 		hc->hcchar = (hc->hcchar &~ Chdis) | Chen;
 		clog(ep, hc);
 		if(ep->ttype == Tbulk && dir == Epin)
-			i = chanwait(ep, ctlr, hc, /* Ack| */ Chhltd);
+			i = chanwait(ep, ctlr, hc, Chhltd);
 		else if(ep->ttype == Tintr && (hc->hcsplt & Spltena))
 			i = chanwait(ep, ctlr, hc, Chhltd);
 		else
 			i = chanwait(ep, ctlr, hc, Chhltd|Nak);
 		clog(ep, hc);
+		if(hc->hcint != i){
+			dprint("chanwait intr %ux->%ux\n", i, hc->hcint);
+			i = hc->hcint;
+		}
 		hc->hcint = i;
 
 		if(hc->hcsplt & Spltena){
@@ -425,7 +434,7 @@ chanio(Ep *ep, Hostchan *hc, int dir, int pid, void *a, int len)
 			if(i & ~(Chhltd|Ack))
 				error(Eio);
 			if(hc->hcdma != hcdma)
-				print("usbotg: weird hcdma %x->%x intr %x->%x\n",
+				print("usbotg: weird hcdma %ux->%ux intr %ux->%ux\n",
 					hcdma, hc->hcdma, i, hc->hcint);
 		}
 		n = hc->hcdma - hcdma;
