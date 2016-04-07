@@ -575,6 +575,7 @@ ctltrans(Ep *ep, uchar *req, long n)
 		}else
 			b->wp += chanio(ep, hc, Epin, DATA1, data, datalen);
 		chanio(ep, hc, Epout, DATA1, nil, 0);
+		cachedinvse(b->rp, BLEN(b));
 		n = Rsetuplen;
 	}else{
 		if(datalen > 0)
