@@ -593,10 +593,10 @@ if(iskaddr(addr)){
 		}
 		sprint(buf, "sys: trap: fault %s addr=%#llux",
 			read? "read": "write", addr);
-		for(int i = 0; i < NSEG; i++){
-			if(up->seg[i] != nil)
-				printpages(up->seg[i]->pages);
-		}
+		//for(int i = 0; i < NSEG; i++){
+		//	if(up->seg[i] != nil)
+		//		printpages(up->seg[i]->pages);
+		//}
 		//mmudump(up);
 		checkpages();
 		postnote(up, 1, buf, NDebug);

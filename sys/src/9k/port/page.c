@@ -137,9 +137,9 @@ Clear:
 }
 
 int
-physmemavail(uintptr)
+physmemavail(uintptr need)
 {
-	return 1;	/* palloc.freecount > highwater+need/BY2PG+1 */
+	return (SEGMAPSIZE*PTEPERTAB) > (need/PGSZ);
 }
 
 int

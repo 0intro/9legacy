@@ -34,7 +34,7 @@ fault(uintptr addr, int read)
 		sps = up->psstate;
 		up->psstate = "Fault";
 		if(fixfault(s, addr, read, 1) == 0){	/* runlocks s->lk */
-			if(DBGFLG)
+			if(0)
 				checkpages();
 			up->psstate = sps;
 			return 0;

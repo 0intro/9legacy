@@ -225,7 +225,7 @@ archhz(void)
 void
 archenable(void)
 {
-	if((m->cpuinfo[1][3] & (1<<3)) == 0){
+	if(1 || (m->cpuinfo[1][3] & (1<<3)) == 0){
 		print("cpu%d: no monitor/mwait\n", m->machno);
 	}else
 		wrmsr(0x1a0, rdmsr(0x1a0) | (1<<18));	/* enable monitor/mwait */
