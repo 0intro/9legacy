@@ -98,6 +98,8 @@ TEXT cachesoff(SB), 1, $-4
 	MOVW	12(R(MACH)), R2		/* m->mmul1 (virtual addr) */
 	MOVW	$PTEDRAM, R1			/* PTE bits */
 	MOVW	R1, (R2)
+	DSB
+	MCR	CpSC, 0, R2, C(CpCACHE), C(CpCACHEwb), CpCACHEse
 
 	/* invalidate stale TLBs again */
 	BARRIERS

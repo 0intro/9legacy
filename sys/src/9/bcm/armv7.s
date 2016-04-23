@@ -5,14 +5,21 @@
 
 #include "arm.s"
 
-#define CACHELINESZ 64
+#define CACHELINESZ 	64
+#define ICACHELINESZ	32
 
+#undef DSB
+#undef DMB
+#undef ISB
+#define DSB	WORD	$0xf57ff04f	/* data synch. barrier; last f = SY */
 #define DMB	WORD	$0xf57ff05f	/* data mem. barrier; last f = SY */
+#define ISB	WORD	$0xf57ff06f	/* instr. sync. barrier; last f = SY */
 #define WFI	WORD	$0xe320f003	/* wait for interrupt */
 #define WFI_EQ	WORD	$0x0320f003	/* wait for interrupt if eq */
+#define ERET	WORD	$0xe160006e	/* exception return from HYP */
 
 /* tas/cas strex debugging limits; started at 10000 */
-#define MAXSC 100000
+#define MAXSC 1000000
 
 TEXT armstart(SB), 1, $-4
 
@@ -23,16 +30,19 @@ TEXT armstart(SB), 1, $-4
 	BNE	reset
 
 	/*
+	 * go to SVC mode, interrupts disabled
+	 */
+	BL	svcmode(SB)
+
+	/*
 	 * disable the mmu and caches
-	 * invalidate tlb
 	 */
 	MRC	CpSC, 0, R1, C(CpCONTROL), C(0), CpMainctl
 	BIC	$(CpCdcache|CpCicache|CpCmmu), R1
 	ORR	$(CpCsbo|CpCsw), R1
 	BIC	$CpCsbz, R1
 	MCR	CpSC, 0, R1, C(CpCONTROL), C(0), CpMainctl
-	MCR	CpSC, 0, R0, C(CpTLB), C(CpTLBinvu), CpTLBinv
-	ISB
+	BARRIERS
 
 	/*
 	 * clear mach and page tables
@@ -46,12 +56,23 @@ _ramZ:
 	BNE	_ramZ
 
 	/*
+	 * turn SMP on
+	 * invalidate tlb
+	 */
+	MRC	CpSC, 0, R1, C(CpCONTROL), C(0), CpAuxctl
+	ORR	$CpACsmp, R1		/* turn SMP on */
+	MCR	CpSC, 0, R1, C(CpCONTROL), C(0), CpAuxctl
+	BARRIERS
+	MCR	CpSC, 0, R0, C(CpTLB), C(CpTLBinvu), CpTLBinv
+	BARRIERS
+
+	/*
 	 * start stack at top of mach (physical addr)
 	 * set up page tables for kernel
 	 */
 	MOVW	$PADDR(MACHADDR+MACHSIZE-4), R13
 	MOVW	$PADDR(L1), R0
-	BL	,mmuinit(SB)
+	BL	mmuinit(SB)
 
 	/*
 	 * set up domain access control and page table base
@@ -59,7 +80,7 @@ _ramZ:
 	MOVW	$Client, R1
 	MCR	CpSC, 0, R1, C(CpDAC), C(0)
 	MOVW	$PADDR(L1), R1
-	ORR		$(CpTTBs/*|CpTTBowba|CpTTBiwba*/), R1
+	ORR	$(CpTTBs|CpTTBowba|CpTTBiwba), R1
 	MCR	CpSC, 0, R1, C(CpTTB), C(0)
 	MCR	CpSC, 0, R1, C(CpTTB), C(0), CpTTB1	/* cortex has two */
 
@@ -74,10 +95,6 @@ _ramZ:
 	/*
 	 * enable caches, mmu, and high vectors
 	 */
-	MRC	CpSC, 0, R1, C(CpCONTROL), C(0), CpAuxctl
-	ORR	$CpACsmp, R1		/* turn SMP on */
-	MCR	CpSC, 0, R1, C(CpCONTROL), C(0), CpAuxctl
-	BARRIERS
 
 	MRC	CpSC, 0, R0, C(CpCONTROL), C(0), CpMainctl
 	ORR	$(CpChv|CpCdcache|CpCicache|CpCmmu), R0
@@ -126,20 +143,28 @@ reset:
 	/*
 	 * SVC mode, interrupts disabled
 	 */
-	MOVW	$(PsrDirq|PsrDfiq|PsrMsvc), R1
-	MOVW	R1, CPSR
+	BL	svcmode(SB)
 
 	/*
 	 * disable the mmu and caches
-	 * invalidate tlb
 	 */
 	MRC	CpSC, 0, R1, C(CpCONTROL), C(0), CpMainctl
 	BIC	$(CpCdcache|CpCicache|CpCmmu), R1
 	ORR	$(CpCsbo|CpCsw), R1
 	BIC	$CpCsbz, R1
 	MCR	CpSC, 0, R1, C(CpCONTROL), C(0), CpMainctl
+	BARRIERS
+
+	/*
+	 * turn SMP on
+	 * invalidate tlb
+	 */
+	MRC	CpSC, 0, R1, C(CpCONTROL), C(0), CpAuxctl
+	ORR	$CpACsmp, R1		/* turn SMP on */
+	MCR	CpSC, 0, R1, C(CpCONTROL), C(0), CpAuxctl
+	BARRIERS
 	MCR	CpSC, 0, R0, C(CpTLB), C(CpTLBinvu), CpTLBinv
-	ISB
+	BARRIERS
 
 	/*
 	 * find Mach for this cpu
@@ -151,22 +176,13 @@ reset:
 	ADD	R2, R0			/* R0 = &machaddr[cpuid] */
 	MOVW	(R0), R0		/* R0 = machaddr[cpuid] */
 	CMP	$0, R0
-	MOVW.EQ	$MACHADDR, R0		/* paranoia: use MACHADDR if 0 */
-	SUB	$KZERO, R0		/* phys addr */
-	MOVW	R0, R(MACH)		/* m = PADDR(machaddr[cpuid]) */
+	BEQ	0(PC)			/* must not be zero */
+	SUB	$KZERO, R0, R(MACH)	/* m = PADDR(machaddr[cpuid]) */
 
 	/*
 	 * start stack at top of local Mach
 	 */
-	MOVW	R(MACH), R13
-	ADD		$(MACHSIZE-4), R13
-
-	/*
-	 * set up page tables for kernel
-	 */
-	MOVW	12(R(MACH)), R0	/* m->mmul1 */
-	SUB	$KZERO, R0		/* phys addr */
-	BL	,mmuinit(SB)
+	ADD	$(MACHSIZE-4), R(MACH), R13
 
 	/*
 	 * set up domain access control and page table base
@@ -175,7 +191,7 @@ reset:
 	MCR	CpSC, 0, R1, C(CpDAC), C(0)
 	MOVW	12(R(MACH)), R1	/* m->mmul1 */
 	SUB	$KZERO, R1		/* phys addr */
-	ORR		$(CpTTBs/*|CpTTBowba|CpTTBiwba*/), R1
+	ORR	$(CpTTBs|CpTTBowba|CpTTBiwba), R1
 	MCR	CpSC, 0, R1, C(CpTTB), C(0)
 	MCR	CpSC, 0, R1, C(CpTTB), C(0), CpTTB1	/* cortex has two */
 
@@ -189,11 +205,6 @@ reset:
 	/*
 	 * enable caches, mmu, and high vectors
 	 */
-	MRC	CpSC, 0, R1, C(CpCONTROL), C(0), CpAuxctl
-	ORR	$CpACsmp, R1		/* turn SMP on */
-	MCR	CpSC, 0, R1, C(CpCONTROL), C(0), CpAuxctl
-	BARRIERS
-
 	MRC	CpSC, 0, R0, C(CpCONTROL), C(0), CpMainctl
 	ORR	$(CpChv|CpCdcache|CpCicache|CpCmmu), R0
 	MCR	CpSC, 0, R0, C(CpCONTROL), C(0), CpMainctl
@@ -221,9 +232,27 @@ TEXT _startpg2(SB), 1, $-4
 	 * call cpustart and loop forever if it returns
 	 */
 	MRC	CpSC, 0, R0, C(CpID), C(CpIDidct), CpIDmpid
-	AND	$(MAXMACH-1), R0			/* mask out non-cpu-id bits */
+	AND	$(MAXMACH-1), R0		/* mask out non-cpu-id bits */
 	BL	,cpustart(SB)
 	B	,0(PC)
+
+/*
+ * get into SVC mode with interrupts disabled
+ * raspberry pi firmware since 29 Sept 2015 starts in HYP mode
+ */
+TEXT svcmode(SB), 1, $-4
+	MOVW	CPSR, R1
+	AND	$PsrMask, R1
+	MOVW	$PsrMhyp, R2
+	CMP	R2, R1
+	MOVW	$(PsrDirq|PsrDfiq|PsrMsvc), R1
+	BNE	nothyp
+	MSR(1, 1, 1, 0xe)	/* MOVW	R1, SPSR_HYP */
+	MSR(0, 14, 1, 0xe)	/* MOVW	R14, ELR_HYP */
+	ERET
+nothyp:
+	MOVW	R1, CPSR
+	RET
 
 TEXT cpidget(SB), 1, $-4			/* main ID */
 	MRC	CpSC, 0, R0, C(CpID), C(0), CpIDid
@@ -249,14 +278,8 @@ TEXT lcycles(SB), 1, $-4
 	MRC	CpSC, 0, R0, C(CpCLD), C(CpCLDcyc), 0
 	RET
 
-TEXT tmrget(SB), 1, $-4				/* local generic timer physical counter value */
-	MRRC(CpSC, 0, 1, 2, CpTIMER)
-	MOVM.IA [R1-R2], (R0)
-	RET
-
 TEXT splhi(SB), 1, $-4
-	MOVW	$(MACHADDR+4), R2		/* save caller pc in Mach */
-	MOVW	R14, 0(R2)
+	MOVW	R14, 4(R(MACH))		/* save caller pc in m->splpc */
 
 	MOVW	CPSR, R0			/* turn off irqs (but not fiqs) */
 	ORR	$(PsrDirq), R0, R1
@@ -264,8 +287,7 @@ TEXT splhi(SB), 1, $-4
 	RET
 
 TEXT splfhi(SB), 1, $-4
-	MOVW	$(MACHADDR+4), R2		/* save caller pc in Mach */
-	MOVW	R14, 0(R2)
+	MOVW	R14, 4(R(MACH))		/* save caller pc in m->splpc */
 
 	MOVW	CPSR, R0			/* turn off irqs and fiqs */
 	ORR	$(PsrDirq|PsrDfiq), R0, R1
@@ -280,13 +302,15 @@ TEXT splflo(SB), 1, $-4
 
 TEXT spllo(SB), 1, $-4
 	MOVW	CPSR, R0			/* turn on irqs and fiqs */
+	MOVW	$0, R1
+	CMP.S	R1, R(MACH)
+	MOVW.NE	R1, 4(R(MACH))			/* clear m->splpc */
 	BIC	$(PsrDirq|PsrDfiq), R0, R1
 	MOVW	R1, CPSR
 	RET
 
 TEXT splx(SB), 1, $-4
-	MOVW	$(MACHADDR+0x04), R2		/* save caller pc in Mach */
-	MOVW	R14, 0(R2)
+	MOVW	R14, 4(R(MACH))		/* save caller pc in m->splpc */
 
 	MOVW	R0, R1				/* reset interrupt level */
 	MOVW	CPSR, R0
@@ -353,9 +377,7 @@ TEXT idlehands(SB), $-4
 	DSB
 	MOVW	nrdy(SB), R0
 	CMP	$0, R0
-/*** with WFI, local timer interrupts can be lost and dispatching stops
 	WFI_EQ
-***/
 	DSB
 
 	MOVW	R3, CPSR			/* splx */
@@ -370,6 +392,7 @@ TEXT coherence(SB), $-4
  * invalidate tlb
  */
 TEXT mmuinvalidate(SB), 1, $-4
+	DSB
 	MOVW	$0, R0
 	MCR	CpSC, 0, R0, C(CpTLB), C(CpTLBinvu), CpTLBinv
 	BARRIERS
@@ -380,13 +403,14 @@ TEXT mmuinvalidate(SB), 1, $-4
  *   invalidate tlb entry for virtual page address va, ASID 0
  */
 TEXT mmuinvalidateaddr(SB), 1, $-4
+	DSB
 	MCR	CpSC, 0, R0, C(CpTLB), C(CpTLBinvu), CpTLBinvse
 	BARRIERS
 	RET
 
 /*
  * `single-element' cache operations.
- * in arm arch v7, they operate on all cache levels, so separate
+ * in arm arch v7, if effective to PoC, they operate on all cache levels, so separate
  * l2 functions are unnecessary.
  */
 
@@ -408,6 +432,14 @@ _dwbse:
 	CMP.S	R0, R1
 	BGT	_dwbse
 	B	_wait
+
+/*
+ * TLB on armv7 loads from cache, so no need for writeback
+ */
+TEXT cachedwbtlb(SB), $-4
+	DSB
+	ISB
+	RET
 
 TEXT cachedwbinvse(SB), $-4			/* D writeback+invalidate SE */
 	MOVW	R0, R2

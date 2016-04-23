@@ -20,9 +20,9 @@ dev
 	uart
 
 	fakertc
+	ether	netif
 	sd
 	usb
-	ether	netif
 
 link
 	archbcm

@@ -235,11 +235,7 @@ machinit(void)
 	if (m->machno != 0) {
 		/* synchronise with cpu 0 */
 		m->ticks = m0->ticks;
-		m->fastclock = m0->fastclock;
-		m->delayloop = m0->delayloop;
 	}
-
-	//machon(m->machno);
 }
 
 void
@@ -303,7 +299,7 @@ main(void)
 	m = (Mach*)MACHADDR;
 	memset(edata, 0, end - edata);	/* clear bss */
 	mach0init();
-	mmuinit1((void*)L1);
+	m->mmul1 = (PTE*)L1;
 	machon(0);
 
 	optionsinit("/boot/boot boot");
@@ -344,6 +340,7 @@ main(void)
 	swapinit();
 	userinit();
 	launchinit(getncpus());
+	mmuinit1();
 
 	schedinit();
 	assert(0);			/* shouldn't have returned */
@@ -590,15 +587,29 @@ shutdown(int ispanic)
 	active.exiting = 1;
 	unlock(&active);
 
-	if(once)
+	if(once) {
+		delay(m->machno*100);		/* stagger them */
 		iprint("cpu%d: exiting\n", m->machno);
+	}
 	spllo();
-	for(ms = 5*1000; ms > 0; ms -= TK2MS(2)){
+	if (m->machno == 0)
+		ms = 5*1000;
+	else
+		ms = 2*1000;
+	for(; ms > 0; ms -= TK2MS(2)){
 		delay(TK2MS(2));
 		if(active.machs == 0 && consactive() == 0)
 			break;
 	}
-	delay(100*m->machno);
+	if(active.ispanic){
+		if(!cpuserver)
+			for(;;)
+				;
+		if(getconf("*debug"))
+			delay(5*60*1000);
+		else
+			delay(10000);
+	}
 }
 
 /*
@@ -617,7 +628,6 @@ exit(int code)
 		f = (void*)REBOOTADDR;
 		intrcpushutdown();
 		cacheuwbinv();
-		l2cacheuwbinv();
 		(*f)(0, 0, 0);
 		for(;;){}
 	}
@@ -681,8 +691,7 @@ reboot(void *entry, void *code, ulong size)
 	 * should be the only processor running now
 	 */
 
-	delay(5000);
-	print("active.machs = %x\n", active.machs);
+	delay(500);
 	print("reboot entry %#lux code %#lux size %ld\n",
 		PADDR(entry), PADDR(code), size);
 	delay(100);

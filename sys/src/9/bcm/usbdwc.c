@@ -435,7 +435,7 @@ chanio(Ep *ep, Hostchan *hc, int dir, int pid, void *a, int len)
 			else
 				continue;
 		}
-		if(dir == Epin && ep->ttype == Tbulk && n == nleft){
+		if(dir == Epin && ep->ttype == Tbulk){
 			nt = (hctsiz & Xfersize) - (hc->hctsiz & Xfersize);
 			if(nt != n){
 				if(n == ROUND(nt, 4))

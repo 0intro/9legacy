@@ -18,6 +18,11 @@ enum {
 	IRQlocal	= 96,
 	IRQcntps	= IRQlocal + 0,
 	IRQcntpns	= IRQlocal + 1,
+	IRQmbox0	= IRQlocal + 4,
+	IRQmbox1	= IRQlocal + 5,
+	IRQmbox2	= IRQlocal + 6,
+	IRQmbox3	= IRQlocal + 7,
+	IRQlocaltmr	= IRQlocal + 11,
 
 	IRQfiq		= IRQusb,	/* only one source can be FIQ */
 

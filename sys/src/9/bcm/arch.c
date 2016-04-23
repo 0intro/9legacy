@@ -156,6 +156,19 @@ procsave(Proc* p)
 
 // TODO: save and restore VFPv3 FP state once 5[cal] know the new registers.
 	fpuprocsave(p);
+	/*
+	 * Prevent the following scenario:
+	 *	pX sleeps on cpuA, leaving its page tables in mmul1
+	 *	pX wakes up on cpuB, and exits, freeing its page tables
+	 *  pY on cpuB allocates a freed page table page and overwrites with data
+	 *  cpuA takes an interrupt, and is now running with bad page tables
+	 * In theory this shouldn't hurt because only user address space tables
+	 * are affected, and mmuswitch will clear mmul1 before a user process is
+	 * dispatched.  But empirically it correlates with weird problems, eg
+	 * resetting of the core clock at 0x4000001C which confuses local timers.
+	 */
+	if(conf.nmach > 1)
+		mmuswitch(nil);
 }
 
 void

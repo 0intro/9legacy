@@ -19,10 +19,10 @@ dev
 	kbin	kbd latin1
 	uart
 
-#	fakertc
+	fakertc
+	ether	netif
 	sd
 	usb
-	ether	netif
 
 link
 	archbcm

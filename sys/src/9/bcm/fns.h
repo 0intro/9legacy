@@ -10,7 +10,9 @@ extern void cachedwbinv(void);
 extern void cachedinvse(void*, int);
 extern void cachedwbse(void*, int);
 extern void cachedwbinvse(void*, int);
+extern void cachedwbtlb(void*, int);
 extern void cacheiinv(void);
+extern void cacheiinvse(void*, int);
 extern void cacheuwbinv(void);
 extern uintptr cankaddr(uintptr pa);
 extern int cas32(void*, u32int, u32int);
@@ -67,7 +69,7 @@ extern int l2ap(int);
 extern void l2cacheuwbinv(void);
 extern void links(void);
 extern void mmuinit(void*);
-extern void mmuinit1(void*);
+extern void mmuinit1(void);
 extern void mmuinvalidate(void);
 extern void mmuinvalidateaddr(u32int);
 extern uintptr mmukmap(uintptr, uintptr, usize);
@@ -97,6 +99,7 @@ extern int userureg(Ureg*);
 extern void vectors(void);
 extern void vtable(void);
 extern void wdogoff(void);
+extern void wdogfeed(void);
 
 /*
  * floating point emulation

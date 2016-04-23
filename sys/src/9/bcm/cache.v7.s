@@ -3,9 +3,29 @@
  * shared by l.s and rebootcode.s
  */
 
+#define	BPIALL	MCR CpSC, 0, R0, C(CpCACHE), C(5), 6	/* branch predictor invalidate all */
+
 TEXT cacheiinv(SB), $-4				/* I invalidate */
+	DSB
 	MOVW	$0, R0
 	MCR	CpSC, 0, R0, C(CpCACHE), C(CpCACHEinvi), CpCACHEall /* ok on cortex */
+	BPIALL	/* redundant? */
+	DSB
+	ISB
+	RET
+
+TEXT cacheiinvse(SB), $0			/* I invalidate SE */
+	MOVW 4(FP), R1
+	ADD	R0, R1
+	BIC $(ICACHELINESZ - 1), R0
+	DSB
+_iinvse:
+	MCR CpSC, 0, R0, C(CpCACHE), C(CpCACHEinvi), CpCACHEse
+	ADD $ICACHELINESZ, R0
+	CMP.S R0, R1
+	BGT _iinvse
+	BPIALL
+	DSB
 	ISB
 	RET
 

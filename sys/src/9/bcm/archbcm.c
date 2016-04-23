@@ -28,7 +28,7 @@ Soc soc = {
 
 enum {
 	Wdogfreq	= 65536,
-	Wdogtime	= 5,	/* seconds, ≤ 15 */
+	Wdogtime	= 10,	/* seconds, ≤ 15 */
 };
 
 /*
@@ -62,7 +62,7 @@ archreboot(void)
 		;
 }
 
-static void
+void
 wdogfeed(void)
 {
 	u32int *r;

@@ -21,7 +21,7 @@ typedef struct Mboxes Mboxes;
 #define ARMLOCAL	(VIRTIO+IOSIZE)
 
 Soc soc = {
-	.dramsize	= 1024*MiB,
+	.dramsize	= 0x3F000000, 	/* was 1024*MiB, but overlaps with physio */
 	.physio		= 0x3F000000,
 	.busdram	= 0xC0000000,
 	.busio		= 0x7E000000,
@@ -32,7 +32,7 @@ Soc soc = {
 
 enum {
 	Wdogfreq	= 65536,
-	Wdogtime	= 5,	/* seconds, ≤ 15 */
+	Wdogtime	= 10,	/* seconds, ≤ 15 */
 };
 
 /*
@@ -86,7 +86,7 @@ archreboot(void)
 		;
 }
 
-static void
+void
 wdogfeed(void)
 {
 	u32int *r;
@@ -109,11 +109,25 @@ wdogoff(void)
 char *
 cputype2name(char *buf, int size)
 {
-	ulong r;
+	u32int r;
+	uint part;
+	char *p;
 
 	r = cpidget();			/* main id register */
 	assert((r >> 24) == 'A');
-	seprint(buf, buf + size, "Cortex-A7 r%ldp%ld",
+	part = (r >> 4) & MASK(12);
+	switch(part){
+	case 0xc07:
+		p = seprint(buf, buf + size, "Cortex-A7");
+		break;
+	case 0xd03:
+		p = seprint(buf, buf + size, "Cortex-A53");
+		break;
+	default:
+		p = seprint(buf, buf + size, "Unknown-%#x", part);
+		break;
+	}
+	seprint(p, buf + size, " r%ldp%ld",
 		(r >> 20) & MASK(4), r & MASK(4));
 	return buf;
 }
@@ -160,6 +174,24 @@ startcpu(uint cpu)
 	mb->clr[cpu].startcpu = PADDR(cpureset);
 	mb->set[cpu].doorbell = 1;
 	return 0;
+}
+
+void
+mboxclear(uint cpu)
+{
+	Mboxes *mb;
+
+	mb = (Mboxes*)(ARMLOCAL + Mboxregs);
+	mb->clr[cpu].mbox1 = 1;
+}
+
+void
+wakecpu(uint cpu)
+{
+	Mboxes *mb;
+
+	mb = (Mboxes*)(ARMLOCAL + Mboxregs);
+	mb->set[cpu].mbox1 = 1;
 }
 
 int
@@ -215,11 +247,11 @@ cpustart(int cpu)
 
 	up = nil;
 	machinit();
-	mmuinit1(m->mmul1);
 	mb = (Mboxes*)(ARMLOCAL + Mboxregs);
 	mb->clr[cpu].doorbell = 1;
 	trapinit();
 	clockinit();
+	mmuinit1();
 	timersinit();
 	cpuidprint();
 	archreset();

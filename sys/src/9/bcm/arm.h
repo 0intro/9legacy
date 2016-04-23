@@ -12,6 +12,7 @@
 #define PsrMsvc		0x00000013	/* `protected mode for OS' */
 #define PsrMmon		0x00000016	/* `secure monitor' (trustzone hyper) */
 #define PsrMabt		0x00000017
+#define PsrMhyp		0x0000001A
 #define PsrMund		0x0000001B
 #define PsrMsys		0x0000001F	/* `privileged user mode for OS' (trustzone) */
 #define PsrMask		0x0000001F

@@ -445,12 +445,13 @@ okay(int on)
 		if(p != nil)
 			okled = strtol(p, 0, 0);
 		else
-			okled = OkLed;
+			return;
 		p = getconf("bcm2709.disk_led_active_low");
 		if(p == nil)
 			p = getconf("bcm2708.disk_led_active_low");
 		polarity = (p == nil || *p == '1');
 		gpiosel(okled, Output);
 	}
-	gpioout(okled, on^polarity);
+	if(okled != 0)
+		gpioout(okled, on^polarity);
 }

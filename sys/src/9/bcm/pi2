@@ -22,9 +22,9 @@ dev
 
 	fakertc
 #	rtc3231		i2c
+	ether	netif
 	sd
 	usb
-	ether	netif
 
 link
 	archbcm2
