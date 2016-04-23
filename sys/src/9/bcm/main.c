@@ -331,6 +331,7 @@ main(void)
 		swcursorinit();
 	cpuidprint();
 	archreset();
+	vgpinit();
 
 	procinit0();
 	initseg();

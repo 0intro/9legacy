@@ -25,7 +25,6 @@
 enum {
 	SYSTIMERS	= VIRTIO+0x3000,
 	ARMTIMER	= VIRTIO+0xB400,
-	ARMLOCAL	= (VIRTIO+IOSIZE),
 
 	Localctl	= 0x00,
 	Prescaler	= 0x08,
