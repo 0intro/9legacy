@@ -18,8 +18,12 @@ dev
 	kbmap
 	kbin	kbd latin1
 	uart
+	gpio	gpio
+	spi		spi
+	i2c		i2c
 
 	fakertc
+#	rtc3231		i2c
 	ether	netif
 	sd
 	usb
@@ -30,6 +34,7 @@ link
 	ethermedium
 	usbdwc
 	etherusb
+	pitft
 
 ip
 	tcp
@@ -41,11 +46,12 @@ ip
 
 misc
 	armv7
-	uartmini
+	uartmini	gpio
 	sdmmc	emmc
 	dma
 	vcore
 	vfp3	coproc
+#	spi
 
 port
 	int cpuserver = 1;

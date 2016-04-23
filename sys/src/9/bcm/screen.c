@@ -37,10 +37,11 @@ Cursor	arrow = {
 };
 
 Memimage *gscreen;
+Lcd	*lcd;
 
 static Memdata xgdata;
 
-static Memimage xgscreen =
+/*static*/ Memimage xgscreen =
 {
 	{ 0, 0, Wid, Ht },	/* r */
 	{ 0, 0, Wid, Ht },	/* clipr */
@@ -287,6 +288,9 @@ hwdraw(Memdrawparam *par)
 	if(mask->data->bdata == xgdata.bdata)
 		swcursoravoid(par->mr);
 
+	if(lcd)
+		lcd->draw(par->r);
+
 	return 0;
 }
 
@@ -388,6 +392,8 @@ void
 blankscreen(int blank)
 {
 	fbblank(blank);
+	if(lcd)
+		lcd->blank(blank);
 }
 
 static void
@@ -474,9 +480,13 @@ scroll(void)
 	p = Pt(window.min.x, window.min.y+o);
 	memimagedraw(gscreen, r, gscreen, p, nil, p, S);
 	flushmemscreen(r);
+	if(lcd)
+		lcd->draw(r);
 	r = Rpt(Pt(window.min.x, window.max.y-o), window.max);
 	memimagedraw(gscreen, r, back, ZP, nil, ZP, S);
 	flushmemscreen(r);
+	if(lcd)
+		lcd->draw(r);
 
 	curpos.y -= o;
 }

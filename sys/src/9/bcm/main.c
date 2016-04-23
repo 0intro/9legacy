@@ -354,6 +354,7 @@ void
 init0(void)
 {
 	int i;
+	Chan *c;
 	char buf[2*KNAMELEN];
 
 	up->nerrlab = 0;
@@ -386,6 +387,14 @@ init0(void)
 		for(i = 0; i < nconf; i++) {
 			ksetenv(confname[i], confval[i], 0);
 			ksetenv(confname[i], confval[i], 1);
+		}
+		if(getconf("pitft")){
+			c = namec("#P/pitft", Aopen, OWRITE, 0);
+			if(!waserror()){
+				devtab[c->type]->write(c, "init", 4, 0);
+				poperror();
+			}
+			cclose(c);
 		}
 		poperror();
 	}
@@ -561,7 +570,7 @@ confinit(void)
 		+ conf.nproc*sizeof(Proc)
 		+ conf.nimage*sizeof(Image)
 		+ conf.nswap
-		+ conf.nswppo*sizeof(Page*);
+		+ conf.nswppo*sizeof(Page);
 	mainmem->maxsize = kpages;
 	if(!cpuserver)
 		/*
