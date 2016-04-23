@@ -319,6 +319,7 @@ static struct {
 	uvlong	maxt;			/* longest time in main loop */
 } irstats;
 
+void pageunchain(Page *p);
 static void
 imagereclaim(void)
 {
@@ -344,6 +345,8 @@ imagereclaim(void)
 			if(p->ref == 0) {
 				n++;
 				uncachepage(p);
+				pageunchain(p);
+				pagechainhead(p);
 			}
 			unlock(p);
 		}
