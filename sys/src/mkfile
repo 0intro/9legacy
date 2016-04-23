@@ -24,6 +24,7 @@ LIBS=\
 	libmemdraw\
 	libmemlayer\
 	libmp\
+	libmux\
 	libndb\
 	liboventi\
 	libplumb\
