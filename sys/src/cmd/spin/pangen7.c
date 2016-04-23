@@ -1,28 +1,24 @@
 /***** spin: pangen7.c *****/
 
-/* Copyright (c) 1989-2003 by Lucent Technologies, Bell Laboratories.     */
-/* All Rights Reserved.  This software is for educational purposes only.  */
-/* No guarantee whatsoever is expressed or implied by the distribution of */
-/* this code.  Permission is given to distribute this code provided that  */
-/* this introductory message is not removed and no monies are exchanged.  */
-/* Software written by Gerard J. Holzmann.  For tool documentation see:   */
-/*             http://spinroot.com/                                       */
-/* Send all bug-reports and/or questions to: bugs@spinroot.com            */
-/* pangen7.c: Version 5.3.0 2010, synchronous product of never claims     */
+/*
+ * This file is part of the public release of Spin. It is subject to the
+ * terms in the LICENSE file that is included in this source directory.
+ * Tool documentation is available at http://spinroot.com
+ */
 
 #include <stdlib.h>
+#include <assert.h>
 #include "spin.h"
 #include "y.tab.h"
 #include <assert.h>
-#ifdef PC
-extern int unlink(const char *);
-#else
+#ifndef PC
 #include <unistd.h>
 #endif
 
 extern ProcList	*rdy;
 extern Element *Al_El;
 extern int nclaims, verbose, Strict;
+extern short has_accept;
 
 typedef struct Succ_List Succ_List;
 typedef struct SQueue SQueue;
@@ -55,21 +51,21 @@ struct Guard {
 	Guard *nxt;
 };
 
-SQueue	*sq, *sd, *render;	/* states move from sq to sd to render to holding */
-SQueue	*holding, *lasthold;
-State_Stack *dsts;
+static SQueue	*sq, *sd, *render;	/* states move from sq to sd to render to holding */
+static SQueue	*holding, *lasthold;
+static State_Stack *dsts;
 
-int nst;		/* max nr of states in claims */
-int *Ist;		/* initial states */
-int *Nacc;		/* number of accept states in claim */
-int *Nst;		/* next states */
-int **reached;		/* n claims x states */
-int unfolding;		/* to make sure all accept states are reached */
-int is_accept;		/* remember if the current state is accepting in any claim */
-int not_printing;	/* set during explore_product */
+static int nst;		/* max nr of states in claims */
+static int *Ist;	/* initial states */
+static int *Nacc;	/* number of accept states in claim */
+static int *Nst;	/* next states */
+static int **reached;	/* n claims x states */
+static int unfolding;	/* to make sure all accept states are reached */
+static int is_accept;	/* remember if the current state is accepting in any claim */
+static int not_printing; /* set during explore_product */
 
-Element ****matrix;	/* n x two-dimensional arrays state x state */
-Element **Selfs;	/* self-loop states at end of claims */
+static Element ****matrix;	/* n x two-dimensional arrays state x state */
+static Element **Selfs;	/* self-loop states at end of claims */
 
 static void get_seq(int, Sequence *);
 static void set_el(int n, Element *e);
@@ -151,9 +147,9 @@ more:
 static void
 wrap_text(char *pre, Lextok *t, char *post)
 {
-	printf(pre);
+	printf(pre, (char *) 0);
 	comment(stdout, t, 0);
-	printf(post);
+	printf(post, (char *) 0);
 }
 
 static State_Stack *
@@ -185,7 +181,7 @@ push_dsts(int *n)
 static void
 pop_dsts(void)
 {
-	assert(dsts);
+	assert(dsts != NULL);
 	dsts = dsts->nxt;
 }
 
@@ -249,7 +245,7 @@ state_body(OneState *s, Guard *guard)
 				y = push_dsts(s->combo);
 				if (!y)
 				{	if (once++ == 0)
-					{	assert(s->succ);
+					{	assert(s->succ != NULL);
 						state_body(s, guard);
 					}
 					pop_dsts();
@@ -360,6 +356,7 @@ mk_accepting(int n, Element *e)
 	}	}
 	assert(p && p->b == N_CLAIM);
 	Nacc[n] = 1;
+	has_accept = 1;
 
 	l->e = e;
 	l->nxt = labtab;
@@ -404,7 +401,8 @@ check_special(int *nrs)
 is_accepting:					if (strchr(p->n->name, ':'))
 						{	sprintf(buf, "N%d", i);
 						} else
-						{	strcpy(buf, p->n->name);
+						{	assert(strlen(p->n->name) < sizeof(buf));
+							strcpy(buf, p->n->name);
 						}
 						if (unfolding == 0 && i == 0)
 						{	if (!not_printing)
@@ -499,7 +497,7 @@ print_product(void)
 	if (unfolding == 0)
 	{	printf("never Product {\n");	/* name expected by iSpin */
 		q = find_state(Ist);	/* should find it in the holding q */
-		assert(q);
+		assert(q != NULL);
 		q->nxt = holding;	/* put it at the front */
 		holding = q;
 	}
@@ -729,7 +727,7 @@ retrieve_state(int *s)
 		{	if (last)
 			{	last->nxt = nq->nxt;
 			} else
-			{	sd = nq;
+			{	sd = nq->nxt;	/* 6.4.0: was sd = nq */
 			}
 			return nq;	/* found */
 	}	}
