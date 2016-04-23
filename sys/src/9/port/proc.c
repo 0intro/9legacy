@@ -419,7 +419,7 @@ ready(Proc *p)
 		return;
 	}
 
-	if(up != p && (p->wired == nil || p->wired == m))
+	if(up != p && (p->wired == nil || p->wired == MACHP(m->machno)))
 		m->readied = p;	/* group scheduling */
 
 	updatecpu(p);
