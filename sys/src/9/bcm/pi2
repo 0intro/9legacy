@@ -18,14 +18,16 @@ dev
 	kbmap
 	kbin	kbd latin1
 	uart
+	spi		spi
 
 	fakertc
+#	rtc3231		i2c
 	sd
 	usb
 	ether	netif
 
 link
-	archbcm
+	archbcm2
 	loopbackmedium
 	ethermedium
 	usbdwc
@@ -40,7 +42,7 @@ ip
 	ipmux
 
 misc
-	armv6
+	armv7
 	uartmini
 	sdmmc	emmc
 	dma
@@ -48,9 +50,9 @@ misc
 	vfp3	coproc
 
 port
-	int cpuserver = 1;
+	int cpuserver = 0;
 
-boot cpu boot #S/sdM0/
+boot boot #S/sdM0/
 	local
 	tcp
 
