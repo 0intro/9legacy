@@ -23,11 +23,12 @@ static void dumpstackwithureg(Ureg*);
 static Lock vctllock;
 static Vctl *vctl[256];
 
-enum
-{
-	Ntimevec = 20		/* number of time buckets for each intr */
+typedef struct Intrtime Intrtime;
+struct Intrtime {
+	uvlong	count;
+	uvlong	cycles;
 };
-ulong intrtimes[256][Ntimevec];
+static Intrtime intrtimes[256];
 
 void*
 intrenable(int irq, void (*f)(Ureg*, void*), void* a, int tbdf, char *name)
@@ -105,9 +106,10 @@ intrdisable(void* vector)
 static long
 irqallocread(Chan*, void *vbuf, long n, vlong offset)
 {
-	char *buf, *p, str[2*(11+1)+(8+1)+KNAMELEN+1+1];
+	char *buf, *p, str[2*(11+1)+2*(20+1)+(8+1)+(KNAMELEN+1)+1];
 	int ns, vno;
 	long oldn;
+	Intrtime *t;
 	Vctl *v;
 
 	if(n < 0 || offset < 0)
@@ -117,8 +119,9 @@ irqallocread(Chan*, void *vbuf, long n, vlong offset)
 	buf = vbuf;
 	for(vno=0; vno<nelem(vctl); vno++){
 		for(v=vctl[vno]; v; v=v->next){
-			ns = snprint(str, sizeof str, "%11d %11d %-*.*s %.*s\n",
-				vno, v->irq, 8, 8, v->type, KNAMELEN, v->name);
+			t = intrtimes + vno;
+			ns = snprint(str, sizeof str, "%11d %11d %20llud %20llud %-*.*s %.*s\n",
+				vno, v->irq, t->count, t->cycles, 8, 8, v->type, KNAMELEN, v->name);
 			if(ns <= offset)	/* if do not want this, skip entry */
 				offset -= ns;
 			else{
@@ -234,7 +237,7 @@ static char* excname[32] = {
 };
 
 /*
- *  keep histogram of interrupt service times
+ *  keep interrupt service times and counts
  */
 void
 intrtime(Mach*, int vno)
@@ -250,10 +253,8 @@ intrtime(Mach*, int vno)
 	if(up == nil && m->perf.inidle > diff)
 		m->perf.inidle -= diff;
 
-	diff /= m->cpumhz*100;		/* quantum = 100µsec */
-	if(diff >= Ntimevec)
-		diff = Ntimevec-1;
-	intrtimes[vno][diff]++;
+	intrtimes[vno].cycles += diff;
+	intrtimes[vno].count++;
 }
 
 void (*pmcupdate)(void);
