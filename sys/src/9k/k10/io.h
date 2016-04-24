@@ -45,6 +45,7 @@ typedef struct Vctl {
 
 	int	(*isr)(int);		/* get isr bit for this irq */
 	int	(*eoi)(int);		/* eoi */
+	int	(*mask)(Vctl*, int);	/* interrupt enable returns masked vector */
 	int	vno;
 } Vctl;
 

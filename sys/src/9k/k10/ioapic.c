@@ -282,6 +282,67 @@ ioapicintrdd(u32int* hi, u32int* lo)
 }
 
 int
+nextvec(void)
+{
+	uint vecno;
+
+	lock(&idtnolock);
+	vecno = idtno;
+	idtno = (idtno+8) % IdtMAX;
+	if(idtno < IdtIOAPIC)
+	idtno += IdtIOAPIC;
+	unlock(&idtnolock);
+
+	return vecno;
+}
+
+static int
+msimask(Vctl *v, int mask)
+{
+	Pcidev *p;
+
+	p = pcimatchtbdf(v->tbdf);
+	if(p == nil)
+		return -1;
+	return pcimsimask(p, mask);
+}
+
+static int
+intrenablemsi(Vctl* v, Pcidev *p)
+{
+	uint vno, lo, hi;
+	uvlong msivec;
+
+	vno = nextvec();
+
+	lo = IPlow | TMedge | vno;
+	ioapicintrdd(&hi, &lo);
+
+	if(lo & Lm)
+		lo |= MTlp;
+
+	msivec = (uvlong)hi<<32 | lo;
+	if(pcimsienable(p, msivec) == -1)
+		return -1;
+	v->isr = apicisr;
+	v->eoi = apiceoi;
+	v->vno = vno;
+	v->type = "msi";
+	v->mask = msimask;
+
+	DBG("msiirq: %#8.8ux: enabling %.16llux %s irq %d vno %d\n", p->tbdf, msivec, v->name, v->irq, vno);
+	return vno;
+}
+
+int
+disablemsi(Vctl*, Pcidev *p)
+{
+	if(p == nil)
+		return -1;
+	return pcimsimask(p, 1);
+}
+
+int
 ioapicintrenable(Vctl* v)
 {
 	Rbus *rbus;
@@ -325,6 +386,9 @@ ioapicintrenable(Vctl* v)
 		busno = BUSBNO(v->tbdf);
 		if((pcidev = pcimatchtbdf(v->tbdf)) == nil)
 			panic("no PCI dev for tbdf %#8.8ux\n", v->tbdf);
+		if((vecno = intrenablemsi(v, pcidev)) != -1)
+			return vecno;
+		disablemsi(v, pcidev);
 		if((devno = pcicfgr8(pcidev, PciINTP)) == 0)
 			panic("no INTP for tbdf %#8.8ux\n", v->tbdf);
 		devno = BUSDNO(v->tbdf)<<2|(devno-1);

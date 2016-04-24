@@ -224,6 +224,12 @@ extern void mpsinit(void);
 extern void mpacpi(void);
 
 /*
+ * msi.c
+ */
+int	pcimsienable(Pcidev*, uvlong);
+int	pcimsimask(Pcidev*, int);
+
+/*
  * sipi.c
  */
 extern void sipi(void);

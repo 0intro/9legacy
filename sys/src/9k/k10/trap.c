@@ -72,6 +72,9 @@ intrenable(int irq, void (*f)(Ureg*, void*), void* a, int tbdf, char *name)
 	vctl[vno] = v;
 	iunlock(&vctllock);
 
+	if(v->mask != nil)
+		v->mask(v, 0);
+
 	/*
 	 * Return the assigned vector so intrdisable can find
 	 * the handler; the IRQ is useless in the wonderful world
@@ -93,6 +96,8 @@ intrdisable(void* vector)
 			break;
 	if(*vl == nil)
 		panic("intrdisable: v %#p", v);
+	if(v->mask != nil)
+		v->mask(v, 1);
 	v->f(nil, v->a);
 	*vl = v->next;
 	ioapicintrdisable(v->vno);
