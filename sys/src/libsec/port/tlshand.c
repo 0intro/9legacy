@@ -815,10 +815,9 @@ static void
 msgHash(TlsConnection *c, uchar *p, int n)
 {
 
-	if(c->version < TLS12Version){
-		md5(p, n, 0, &c->hs.md5);
-		sha1(p, n, 0, &c->hs.sha1);
-	}else
+	md5(p, n, 0, &c->hs.md5);
+	sha1(p, n, 0, &c->hs.sha1);
+	if(c->version >= TLS12Version){
 		sha2_256(p, n, 0, &c->hs.sha2_256);
 }
 
