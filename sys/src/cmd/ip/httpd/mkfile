@@ -13,6 +13,7 @@ TARG=\
 	netlib_history\
 	webls\
 	wikipost\
+	websocket\
 
 XTARG=\
 	httpd\
@@ -22,6 +23,7 @@ XTARG=\
 	man2html\
 	save\
 	wikipost\
+	websocket\
 
 LIB=libhttps.a$O
 
