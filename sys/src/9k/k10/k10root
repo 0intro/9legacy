@@ -10,6 +10,7 @@ dev +dev
 	dup
 	rtc
 	ssl
+	tls
 	cap
 	kprof
 	acpi
@@ -169,6 +170,7 @@ dir
 	port
 
 lib
-	libc
 	libip
 	libsec
+	libmp
+	libc
