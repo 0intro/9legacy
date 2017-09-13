@@ -141,6 +141,7 @@ amd64 +dev
 	syscallfmt
 	trap
 	vsvm
+	physalloc
 
 port
 	alarm
