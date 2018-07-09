@@ -29,7 +29,7 @@ dev
 	usb
 
 link
-	archbcm
+	archbcm2
 	loopbackmedium
 	ethermedium
 	sdhost
@@ -47,7 +47,7 @@ ip
 	ipmux
 
 misc
-	armv6
+	armv7
 	uartmini	gpio
 	sdmmc	emmc
 	dma
@@ -55,15 +55,24 @@ misc
 	vfp3	coproc
 
 port
-	int cpuserver = 1;
+	int cpuserver = 0;
 
-boot cpu boot #S/sdM0/
+boot boot #S/sdM0/
 	local
 	tcp
 
 bootdir
-	boot$CONF.out	boot
-	/arm/bin/ip/ipconfig
-	/arm/bin/auth/factotum
-	/arm/bin/fossil/fossil
+	bootwifi.rc			boot
+	/arm/bin/rc
+	/rc/lib/rcmain
 	/arm/bin/usb/usbd
+	/arm/bin/auth/factotum
+	/arm/bin/srv
+	/arm/bin/aux/wpa wpa
+	/arm/bin/ip/ipconfig
+	/arm/bin/mount
+	/arm/bin/bind
+	/arm/bin/echo
+	/arm/bin/read
+	/sys/lib/firmware/brcmfmac43430-sdio.bin
+	/sys/lib/firmware/brcmfmac43430-sdio.txt

@@ -33,7 +33,8 @@ ip
 	ipmux
 
 misc
-	uartmini
+	armv6
+	uartmini	gpio
 	sdmmc	emmc
 	dma
 	vfp3	coproc

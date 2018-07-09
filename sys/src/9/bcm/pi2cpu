@@ -27,9 +27,10 @@ dev
 	ether	netif
 	sd
 	usb
+#	aoe
 
 link
-	archbcm
+	archbcm2
 	loopbackmedium
 	ethermedium
 	sdhost
@@ -47,9 +48,10 @@ ip
 	ipmux
 
 misc
-	armv6
+	armv7
 	uartmini	gpio
 	sdmmc	emmc
+#	sdaoe	sdscsi
 	dma
 	vcore
 	vfp3	coproc

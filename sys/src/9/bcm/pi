@@ -18,18 +18,25 @@ dev
 	kbmap
 	kbin	kbd latin1
 	uart
+	gpio	gpio
+	spi		spi
+	i2c		i2c
 
 	fakertc
+#	rtc3231		i2c
+	ether	netif
 	sd
 	usb
-	ether	netif
 
 link
 	archbcm
 	loopbackmedium
 	ethermedium
+	sdhost
 	usbdwc
 	etherusb
+	ether4330 emmc
+	pitft
 
 ip
 	tcp
@@ -40,7 +47,8 @@ ip
 	ipmux
 
 misc
-	uartmini
+	armv6
+	uartmini	gpio
 	sdmmc	emmc
 	dma
 	vcore
