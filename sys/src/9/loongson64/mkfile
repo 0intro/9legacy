@@ -16,7 +16,7 @@ BY2PG=16384
 MAXBY2PG=16384
 REBOOTADDR=0xffffffff80003000
 
-DEVS=`{rc ../port/mkdevlist $CONF}
+DEVS=`{rc ../port64/mkdevlist $CONF}
 
 PORT=\
 	alarm.$O\
@@ -87,8 +87,8 @@ install:V:	$p$CONF
 	echo
 
 <../boot/bootmkfile
-<../port/portmkfile
-<|../port/mkbootrules $CONF
+<../port64/portmkfile
+<|../port64/mkbootrules $CONF
 
 l.$O:	$objtype.s
 
@@ -103,13 +103,13 @@ init.h:	init9.s initcode.c $objtype.s /sys/src/libc/9syscall/sys.h mkfile
 
 l.$O:	$objtype.s
 main.$O:	errstr.h init.h #reboot.h
-devether.$O:	../port/netif.h etherif.h
+devether.$O:	../port64/netif.h etherif.h
 clock.$O faultmips.$O mmu.$O trap.$O tmp.$O:	/$objtype/include/ureg.h
 
 %.clean:V:
 	rm -f $stem.c [9bz]$stem [9bz]$stem.gz boot$stem.* *.list
 
-# override ../port/portmkfile
+# override ../port64/portmkfile
 # create /boot/boot
 boot$CONF.out:	$CONF print.$O $BOOTDIR/boot.c $BOOTLIB
 	$BOOTDIR/mkboot $CONF > boot$CONF.c
