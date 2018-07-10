@@ -15,7 +15,7 @@
 
 #ifndef _SIZE_T
 #define _SIZE_T
-typedef unsigned long size_t;
+typedef unsigned long size_t;	/* even on 64-bit systems; see read(2) */
 #endif
 #ifndef _SSIZE_T
 #define _SSIZE_T

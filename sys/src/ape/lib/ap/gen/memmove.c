@@ -1,4 +1,5 @@
 #include <string.h>
+#include <inttypes.h>
 
 void*
 memmove(void *a1, const void *a2, size_t n)
@@ -6,7 +7,7 @@ memmove(void *a1, const void *a2, size_t n)
 	char *s1, *s2;
 	extern void abort(void);
 
-	if((long)n < 0)
+	if((intptr_t)n < 0)
 		abort();
 	if(a1 > a2)
 		goto back;

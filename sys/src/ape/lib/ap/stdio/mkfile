@@ -65,4 +65,4 @@ OFILES=\
 
 </sys/src/cmd/mksyslib
 
-CFLAGS=-c -D_POSIX_SOURCE -FTVw
+CFLAGS=-c -D_POSIX_SOURCE -FTVw -D_SUSV2_SOURCE

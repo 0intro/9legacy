@@ -31,12 +31,12 @@ static Arena arena;
 #define datoff		((int)((Bucket*)0)->data)
 #define nil		((void*)0)
 
-extern	void	*sbrk(unsigned long);
+extern	void	*sbrk(uintptr_t);
 
 void*
 malloc(size_t size)
 {
-	uint next;
+	uintptr_t next;
 	int pow, n;
 	Bucket *bp, *nbp;
 
@@ -68,11 +68,11 @@ good:
 		if((intptr_t)bp == -1)
 			return nil;
 
-		next = (uint)bp+size;
+		next = (uintptr_t)bp+size;
 		nbp = (Bucket*)next;
 		arena.btab[pow] = nbp;
 		for(n -= 2; n; n--) {
-			next = (uint)nbp+size;
+			next = (uintptr_t)nbp+size;
 			nbp->next = (Bucket*)next;
 			nbp->size = pow;
 			nbp = nbp->next;
@@ -100,7 +100,7 @@ free(void *ptr)
 		return;
 
 	/* Find the start of the structure */
-	bp = (Bucket*)((uint)ptr - datoff);
+	bp = (Bucket*)((uintptr_t)ptr - datoff);
 
 	if(bp->magic != MAGIC)
 		abort();
@@ -115,14 +115,14 @@ void*
 realloc(void *ptr, size_t n)
 {
 	void *new;
-	uint osize;
+	uintptr_t osize;
 	Bucket *bp;
 
 	if(ptr == nil)
 		return malloc(n);
 
 	/* Find the start of the structure */
-	bp = (Bucket*)((uint)ptr - datoff);
+	bp = (Bucket*)((uintptr_t)ptr - datoff);
 
 	if(bp->magic != MAGIC)
 		abort();
