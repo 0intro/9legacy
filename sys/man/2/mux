@@ -1,0 +1,185 @@
+.TH MUX 2
+.SH NAME
+Mux, muxinit, muxrpc, muxthreads \- protocol multiplexor
+.SH SYNOPSIS
+.B #include <mux.h>
+.PP
+.nf
+.B
+.ta +4n
+.ft B
+struct Mux
+{
+	uint mintag;
+	uint maxtag;
+	int (*settag)(Mux *mux, void *msg, uint tag);
+	int (*gettag)(Mux *mux, void *msg);
+	int (*send)(Mux *mux, void *msg);
+	void *(*recv)(Mux *mux);
+	void *(*nbrecv)(Mux *mux);
+	void *aux;
+
+	\&...   /* private fields follow */
+};
+.ta +\w'\fLvoid* 'u
+.PP
+.B
+void	muxinit(Mux *mux);
+.PP
+.B
+void*	muxrpc(Mux *mux, void *request);
+.PP
+.B
+void	muxprocs(Mux *mux);
+.PP
+.B
+Muxrpc*	muxrpcstart(Mux *mux, void *request);
+.PP
+.B
+void*	muxrpccanfinish(Muxrpc *rpc);
+.SH DESCRIPTION
+.I Libmux
+is a generic protocol multiplexor.
+A client program initializes a 
+.B Mux
+structure with information about the protocol
+(mainly in the form of helper functions)
+and can then use
+.I muxrpc
+to execute individual RPCs without worrying
+about details of multiplexing requests
+and demultiplexing responses.
+.PP
+.I Libmux
+assumes that the protocol messages contain a
+.I tag
+(or message ID) field that exists for the sole purpose of demultiplexing messages.
+.I Libmux
+chooses the tags and then calls a helper function
+to put them in the outgoing messages.
+.I Libmux
+calls another helper function to retrieve tags
+from incoming messages.
+It also calls helper functions to send and receive packets.
+.PP
+A client should allocate a
+.B Mux
+structure and then call
+.I muxinit
+to initialize the library's private elements.
+The client must initialize the following elements:
+.TP
+.I mintag\fR, \fPmaxtag
+The range of valid tags;
+.I maxtag
+is the maximum valid tag plus one, so that
+.IR maxtag \- mintag
+is equal to the number of valid tags.
+If
+.I libmux
+runs out of tags
+(all tags are being used for RPCs currently in progress),
+a new call to
+.IR muxrpc
+will block until an executing call finishes.
+.TP
+.I settag\fR, \fPgettag
+Set or get the tag value in a message.
+.TP
+.I send\fR, \fPrecv\fR, \fPnbrecv
+Send or receive protocol messages on the connection.
+.I Recv
+should block until a message is available and
+should return nil if the connection is closed.
+.I Nbrecv
+should not block; it returns nil if there is no
+message available to be read.
+.I Libmux
+will arrange that only one call to
+.I recv
+or
+.I nbrecv
+is active at a time.
+.TP
+.I aux
+An auxiliary pointer for use by the client.
+.PD
+Once a client has initialized the
+.B Mux
+structure, it can call
+.I muxrpc
+to execute RPCs.
+The
+.I request
+is the message passed to
+.I settag
+and
+.IR send .
+The return value is the response packet,
+as provided by
+.IR recv ,
+or
+nil if an error occurred.
+.I Muxprocs
+allocates new procs 
+(see
+.IR thread (2))
+in which to run
+.I send
+and
+.IR recv .
+After a call to
+.IR muxprocs ,
+.I muxrpc
+will run
+.I send
+and
+.I recv
+in these procs instead of in the calling proc.
+This is useful if the implementation of
+either (particularly
+.IR recv )
+blocks an entire proc
+and there are other threads in the calling proc
+that need to remain active.
+.PP
+.I Libmux
+also provides a non-blocking interface, useful for programs forced
+to use a
+.IR select (2)-based
+main loop.
+.I Muxrpcstart
+runs the first half of
+.IR muxrpc :
+it assigns a tag and sends the request,
+but does not wait for the reply.
+Instead it returns a pointer to a
+.B Muxrpc
+structure that represents the in-progress call.
+.I Muxrpccanfinish
+checks whether the given call
+can finish.
+If no mux procs have been started,
+.I muxrpccanfinish
+may call
+.I nbrecv
+to poll for newly arrived responses.
+.SH EXAMPLE
+See
+.B /sys/src/lib9pclient/fs.c
+for an example of using 
+.I libmux
+with
+9P
+(see
+.IR intro (5)).
+.SH SOURCE
+.B /sys/src/libmux
+.SH SEE ALSO
+.IR thread (2),
+.IR intro (5)
+.SH BUGS
+.I Libmux
+does not know how to free protocol messages,
+so message arriving with unexpected or invalid
+tags are leaked.

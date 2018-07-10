@@ -1,0 +1,15 @@
+</$objtype/mkfile
+
+LIB=/$objtype/lib/libmux.a
+
+OFILES=\
+	io.$O\
+	mux.$O\
+	queue.$O\
+	thread.$O\
+
+HFILES=\
+	/sys/include/mux.h\
+
+</sys/src/cmd/mksyslib
+
