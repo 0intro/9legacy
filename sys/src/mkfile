@@ -35,6 +35,7 @@ LIBS=\
 	libsunrpc\
 	libthread\
 	libventi\
+	libworker\
 
 
 CMDS=cmd\

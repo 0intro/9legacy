@@ -1,0 +1,57 @@
+.TH WORKER 2
+.SH NAME
+Worker, getworker, workerdebug \- auxiliary worker threads
+.SH SYNOPSIS
+.B #include <u.h>
+.br
+.B #include <libc.h>
+.br
+.B #include <thread.h>
+.br
+.B #include <worker.h>
+.PP
+.B
+typedef char* (*Worker)(void *arg, void **aux);
+.br
+.B
+int	getworker(Worker work, void *arg, Channel *rc);
+.br
+.B
+void	workerdebug(int);
+.B
+extern int (*workerthreadcreate)(void(*)(void*), void*, uint);
+.SH DESCRIPTION
+This library provices a pool of worker threads to handle user requests.
+Worker threads are created on demand and never destroyed.
+Idle workers are kept around waiting for more busy times.
+.PP
+.I Getworker
+allocates a new worker to perform
+.I work
+on the given
+.I arg ,
+as supplied by the caller. If
+.I rc
+is non null, the result value of
+.I work
+is sent through it upon completion.
+.PP
+The argument
+.I aux
+given to
+.I work
+points to a per-worker storage area that may hold a single pointer.
+This is useful, for example, to keep reply channels cached.
+.PP
+The global
+.I workerthreadcreate
+is used to create new worker thread. By default, it is initialized to
+.I threadcreate (2).
+Initialize with the address of
+.I proccreate
+to create worker processes instead of threads. The stack size is
+.I mainstacksize .
+.SH SOURCE
+.B /sys/src/libworker
+.SH BUGS
+This is a new library and is expected to evolve.
