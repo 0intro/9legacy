@@ -1,13 +1,10 @@
 /***** spin: spin.h *****/
 
-/* Copyright (c) 1989-2009 by Lucent Technologies, Bell Laboratories.     */
-/* All Rights Reserved.  This software is for educational purposes only.  */
-/* No guarantee whatsoever is expressed or implied by the distribution of */
-/* this code.  Permission is given to distribute this code provided that  */
-/* this introductory message is not removed and no monies are exchanged.  */
-/* Software written by Gerard J. Holzmann.  For tool documentation see:   */
-/*             http://spinroot.com/                                       */
-/* Send all bug-reports and/or questions to: bugs@spinroot.com            */
+/*
+ * This file is part of the public release of Spin. It is subject to the
+ * terms in the LICENSE file that is included in this source directory.
+ * Tool documentation is available at http://spinroot.com
+ */
 
 #ifndef SEEN_SPIN_H
 #define SEEN_SPIN_H
@@ -15,8 +12,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#if !defined(WIN32) && !defined(WIN64)
+ #include <unistd.h>
+#endif
 
-enum	    { INIV, PUTV, LOGV };	/* for pangen[14].c */
+enum	    { INIV, PUTV, LOGV }; /* used in pangen1.c */
 enum btypes { NONE, N_CLAIM, I_PROC, A_PROC, P_PROC, E_TRACE, N_TRACE };
 
 typedef struct Lextok {
@@ -60,6 +60,7 @@ typedef struct Symbol {
 	unsigned char	colnr;	/* for use with xspin during simulation */
 	unsigned char	isarray; /* set if decl specifies array bound */
 	unsigned char	*bscp;	/* block scope */
+	int	sc;		/* scope seq no -- set only for proctypes */
 	int	nbits;		/* optional width specifier */
 	int	nel;		/* 1 if scalar, >1 if array   */
 	int	setat;		/* last depth value changed   */
@@ -142,6 +143,7 @@ typedef struct Sequence {
 	Element	*frst;
 	Element	*last;		/* links onto continuations */
 	Element *extent;	/* last element in original */
+	int	minel;		/* minimum Seqno, set and used only in guided.c */
 	int	maxel;		/* 1+largest id in sequence */
 } Sequence;
 
@@ -163,6 +165,11 @@ typedef struct Lbreak {
 	Symbol	*l;
 	struct Lbreak	*nxt;
 } Lbreak;
+
+typedef struct L_List {
+	Lextok *n;
+	struct L_List	*nxt;
+} L_List;
 
 typedef struct RunList {
 	Symbol	*n;		/* name            */
@@ -186,8 +193,14 @@ typedef struct ProcList {
 	short	tn;		/* ordinal number */
 	unsigned char	det;	/* deterministic */
 	unsigned char   unsafe;	/* contains global var inits */
+	unsigned char	priority; /* process priority, if any */
 	struct ProcList	*nxt;	/* linked list */
 } ProcList;
+
+typedef struct QH {
+	int	n;
+	struct	QH *nxt;
+} QH;
 
 typedef	Lextok *Lexptr;
 
@@ -230,20 +243,21 @@ typedef	Lextok *Lexptr;
 #define MAXSCOPESZ	1024
 
 #ifndef max
-#define max(a,b) (((a)<(b)) ? (b) : (a))
+ #define max(a,b) (((a)<(b)) ? (b) : (a))
 #endif
 
 #ifdef PC
-	#define MFLAGS	"wb"
+ #define MFLAGS	"wb"
 #else
-	#define MFLAGS	"w"
+ #define MFLAGS	"w"
 #endif
 
 /***** prototype definitions *****/
 Element	*eval_sub(Element *);
 Element	*get_lab(Lextok *, int);
-Element	*huntele(Element *, int, int);
+Element	*huntele(Element *, unsigned int, int);
 Element	*huntstart(Element *);
+Element *mk_skip(void);
 Element	*target(Element *);
 
 Lextok	*do_unless(Lextok *, Lextok *);
@@ -254,6 +268,7 @@ Lextok	*nn(Lextok *, int, Lextok *, Lextok *);
 Lextok	*rem_lab(Symbol *, Lextok *, Symbol *);
 Lextok	*rem_var(Symbol *, Lextok *, Symbol *, Lextok *);
 Lextok	*tail_add(Lextok *, Lextok *);
+Lextok	*return_statement(Lextok *);
 
 ProcList *ready(Symbol *, Lextok *, Sequence *, int, Lextok *, enum btypes);
 
@@ -266,6 +281,7 @@ Symbol	*has_lab(Element *, int);
 Symbol	*lookup(char *);
 Symbol	*prep_inline(Symbol *, Lextok *);
 
+char	*put_inline(FILE *, char *);
 char	*emalloc(size_t);
 long	Rand(void);
 
@@ -274,6 +290,7 @@ int	any_undo(Lextok *);
 int	c_add_sv(FILE *);
 int	cast_val(int, int, int);
 int	checkvar(Symbol *, int);
+int	check_track(Lextok *);
 int	Cnt_flds(Lextok *);
 int	cnt_mpars(Lextok *);
 int	complete_rendez(void);
@@ -316,7 +333,6 @@ int	Sym_typ(Lextok *);
 int	tl_main(int, char *[]);
 int	Width_set(int *, int, Lextok *);
 int	yyparse(void);
-int	yywrap(void);
 int	yylex(void);
 
 void	AST_track(Lextok *, int);
@@ -327,7 +343,6 @@ void	c_state(Symbol *, Symbol *, Symbol *);
 void	c_add_def(FILE *);
 void	c_add_loc(FILE *, char *);
 void	c_add_locinit(FILE *, int, char *);
-void	c_add_use(FILE *);
 void	c_chandump(FILE *);
 void	c_preview(void);
 void	c_struct(FILE *, char *, Symbol *);
@@ -363,20 +378,22 @@ void	genunio(void);
 void	ini_struct(Symbol *);
 void	loose_ends(void);
 void	make_atomic(Sequence *, int);
+void	mark_last(void);
 void	match_trail(void);
 void	no_side_effects(char *);
 void	nochan_manip(Lextok *, Lextok *, int);
 void	non_fatal(char *, char *);
-void	ntimes(FILE *, int, int, char *c[]);
+void	ntimes(FILE *, int, int, const char *c[]);
 void	open_seq(int);
 void	p_talk(Element *, int);
-void	pickup_inline(Symbol *, Lextok *);
+void	pickup_inline(Symbol *, Lextok *, Lextok *);
 void	plunk_c_decls(FILE *);
 void	plunk_c_fcts(FILE *);
 void	plunk_expr(FILE *, char *);
 void	plunk_inline(FILE *, char *, int, int);
 void	prehint(Symbol *);
 void	preruse(FILE *, Lextok *);
+void	pretty_print(void);
 void	prune_opts(Lextok *);
 void	pstext(int, char *);
 void	pushbreak(void);
@@ -397,7 +414,6 @@ void	setptype(Lextok *, int, Lextok *);
 void	setuname(Lextok *);
 void	setutype(Lextok *, Symbol *, Lextok *);
 void	setxus(Lextok *, int);
-void	show_lab(void);
 void	Srand(unsigned);
 void	start_claim(int);
 void	struct_name(Lextok *, Symbol *, int, char *);
@@ -413,8 +429,13 @@ void	typ_ck(int, int, char *);
 void	undostmnt(Lextok *, int);
 void	unrem_Seq(void);
 void	unskip(int);
-void	varcheck(Element *, Element *);
 void	whoruns(int);
 void	wrapup(int);
 void	yyerror(char *, ...);
+
+extern	int unlink(const char *);
+
+#define TMP_FILE1 "._s_p_i_n_"
+#define TMP_FILE2 "._n_i_p_s_"
+
 #endif

@@ -1,16 +1,13 @@
 /***** tl_spin: tl_trans.c *****/
 
-/* Copyright (c) 1995-2003 by Lucent Technologies, Bell Laboratories.     */
-/* All Rights Reserved.  This software is for educational purposes only.  */
-/* No guarantee whatsoever is expressed or implied by the distribution of */
-/* this code.  Permission is given to distribute this code provided that  */
-/* this introductory message is not removed and no monies are exchanged.  */
-/* Software written by Gerard J. Holzmann.  For tool documentation see:   */
-/*             http://spinroot.com/                                       */
-/* Send all bug-reports and/or questions to: bugs@spinroot.com            */
-
-/* Based on the translation algorithm by Gerth, Peled, Vardi, and Wolper, */
-/* presented at the PSTV Conference, held in 1995, Warsaw, Poland 1995.   */
+/*
+ * This file is part of the public release of Spin. It is subject to the
+ * terms in the LICENSE file that is included in this source directory.
+ * Tool documentation is available at http://spinroot.com
+ *
+ * Based on the translation algorithm by Gerth, Peled, Vardi, and Wolper,
+ * presented at the PSTV Conference, held in 1995, Warsaw, Poland 1995.
+ */
 
 #include "tl.h"
 
@@ -23,7 +20,7 @@ static Mapping	*Mapped = (Mapping *) 0;
 static Graph	*Nodes_Set = (Graph *) 0;
 static Graph	*Nodes_Stack = (Graph *) 0;
 
-static char	dumpbuf[2048];
+static char	dumpbuf[4096];
 static int	Red_cnt  = 0;
 static int	Lab_cnt  = 0;
 static int	Base     = 0;
@@ -149,6 +146,8 @@ static void
 mk_grn(Node *n)
 {	Graph *p;
 
+	if (!n) return;
+
 	n = right_linked(n);
 more:
 	for (p = Nodes_Set; p; p = p->nxt)
@@ -168,6 +167,8 @@ more:
 static void
 mk_red(Node *n)
 {	Graph *p;
+
+	if (!n) return;
 
 	n = right_linked(n);
 	for (p = Nodes_Set; p; p = p->nxt)
@@ -256,6 +257,15 @@ dump_cond(Node *pp, Node *r, int first)
 
 	q = dupnode(pp);
 	q = rewrite(q);
+
+	if (q->ntyp == CEXPR)
+	{	if (!frst) fprintf(tl_out, " && ");
+		fprintf(tl_out, "c_expr { ");
+		dump_cond(q->lft, r, 1);
+		fprintf(tl_out, " } ");
+		frst = 0;
+		return frst;
+	}
 
 	if (q->ntyp == PREDICATE
 	||  q->ntyp == NOT
@@ -469,9 +479,11 @@ fixinit(Node *orig)
 
 	ng(tl_lookup("init"), ZS, ZN, ZN, ZN);
 	p1 = pop_stack();
-	p1->nxt = Nodes_Set;
-	p1->Other = p1->Old = orig;
-	Nodes_Set = p1;
+	if (p1)
+	{	p1->nxt = Nodes_Set;
+		p1->Other = p1->Old = orig;
+		Nodes_Set = p1;
+	}
 
 	for (g = Nodes_Set; g; g = g->nxt)
 	{	for (q1 = g->incoming; q1; q1 = q2)
@@ -549,6 +561,10 @@ common1:		sdump(n->lft);
 	case NEXT:	strcat(dumpbuf, "X");
 			goto common1;
 #endif
+	case CEXPR:	strcat(dumpbuf, "c_expr {");
+			sdump(n->lft);
+			strcat(dumpbuf, "}");
+			break;
 	case NOT:	strcat(dumpbuf, "!");
 			goto common1;
 	case TRUE:	strcat(dumpbuf, "T");
@@ -735,6 +751,7 @@ out:
 		break;
 	case PREDICATE:
 	case NOT:
+	case CEXPR:
 		if (can_release) releasenode(1, now);
 		push_stack(g);
 		break;
