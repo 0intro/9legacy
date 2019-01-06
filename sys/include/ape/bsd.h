@@ -39,6 +39,7 @@ extern int 	putenv(char*);
 extern int	strncasecmp(char*, char*,int);
 extern unsigned int arc4random(void);
 extern void arc4random_buf(void*, size_t);
+extern int getentropy(void*, size_t);
 
 extern int	getopt(int, char**, char*);
 extern int	opterr;
