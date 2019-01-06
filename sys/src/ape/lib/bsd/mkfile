@@ -4,6 +4,7 @@ APE=/sys/src/ape
 LIB=/$objtype/lib/ape/libbsd.a
 OFILES=\
 	accept.$O\
+	arc4random.$O\
 	bcopy.$O\
 	bind.$O\
 	connect.$O\
