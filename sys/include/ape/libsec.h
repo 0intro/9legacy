@@ -11,6 +11,15 @@
 typedef struct mpint mpint;
 #endif
 
+#ifndef _U32INT_
+#define _U32INT_
+typedef unsigned int u32int;
+#endif
+#ifndef _U64INT_
+#define _U64INT_
+typedef unsigned long long u64int;
+#endif
+
 /*
  * AES definitions
  */
