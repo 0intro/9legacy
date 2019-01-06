@@ -1,6 +1,8 @@
 #ifndef __netinet_in__
 #define __netinet_in__
 
+#include <sys/socket.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -138,6 +140,8 @@ extern unsigned short	htons(unsigned short x);
 extern unsigned long	inet_addr(char*);
 extern char*		inet_ntoa(struct in_addr);
 extern unsigned long	nptohl(void*);
+extern char*		inet_ntop(int, const void*, char*, socklen_t);
+extern int			inet_pton(int, const char*, void*);
 
 #ifdef __cplusplus
 }

@@ -7,6 +7,8 @@
 
 #pragma lib "/$M/lib/ape/libbsd.a"
 
+typedef int socklen_t;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
