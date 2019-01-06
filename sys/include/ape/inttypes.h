@@ -26,4 +26,19 @@ typedef unsigned long long uint64_t;
 typedef _intptr_t intptr_t;
 typedef _uintptr_t uintptr_t;
 
+typedef unsigned char u8int;
+typedef unsigned short u16int;
+#ifndef _U32INT_
+#define _U32INT_
+typedef unsigned int u32int;
+#endif
+#ifndef _U64INT_
+#define _U64INT_
+typedef unsigned long long u64int;
+#endif
+typedef unsigned char u_int8_t;
+typedef unsigned short u_int16_t;
+typedef unsigned int u_int32_t;
+typedef unsigned long long u_int64_t;
+
 #endif
