@@ -129,6 +129,7 @@ extern int rename(const char *, const char *);
 extern int access(const char *, int);
 extern long pathconf(const char *, int);
 extern long fpathconf(int, int);
+extern int fchdir(int);
 #ifdef __TYPES_H
 extern int chown(const char *, uid_t, gid_t);
 #endif
