@@ -81,6 +81,10 @@ extern int errno;
 /* from research unix */
 #define ETXTBSY		63
 
+/* Added in more recent 1003.x versions */
+#define EALREADY	64
+#define ECONNRESET	65
+
 #endif /* _POSIX_SOURCE */
 
 #endif /* __ERRNO */
