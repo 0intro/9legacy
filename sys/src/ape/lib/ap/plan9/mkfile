@@ -70,6 +70,7 @@ OFILES=\
 	opendir.$O\
 	pause.$O\
 	pipe.$O\
+	poll.$O\
 	profile.$O\
 	qlock.$O\
 	read.$O\
