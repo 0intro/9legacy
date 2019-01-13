@@ -85,6 +85,8 @@ extern int errno;
 #define EALREADY	64
 #define ECONNRESET	65
 
+#define EOVERFLOW	66
+
 #endif /* _POSIX_SOURCE */
 
 #endif /* __ERRNO */

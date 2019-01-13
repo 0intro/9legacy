@@ -78,6 +78,15 @@ char *sys_errlist[] = {
 	/* These added in 1003.1b-1993 */
 	"Operation canceled",
 	"Operation in progress"
+
+	/* from research unix */
+	"Text file is busy",			/* ETXTBSY */
+
+	/* Added in more recent 1003.x versions */
+	"Operation already in progress",	/* EALREADY */
+	"Connection reset by peer",		/* ECONNRESET */
+
+	"Value too large for defined data type",		/* EOVERFLOW */
 };
 #define	_IO_nerr	(sizeof sys_errlist/sizeof sys_errlist[0])
 int sys_nerr = _IO_nerr;
