@@ -25,6 +25,11 @@ typedef long ssize_t;
 typedef long time_t;
 #endif
 
+#ifndef _CLOCKID_T
+#define _CLOCKID_T
+typedef int clockid_t;
+#endif
+
 #ifdef _BSD_EXTENSION
 #ifndef _CADDR_T
 #define _CADDR_T

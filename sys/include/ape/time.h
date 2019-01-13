@@ -9,6 +9,9 @@
 /* obsolsecent, but required */
 #define CLK_TCK CLOCKS_PER_SEC
 
+#define CLOCK_REALTIME 0
+#define CLOCK_MONOTONIC 1
+
 #ifndef _CLOCK_T
 #define _CLOCK_T
 typedef long clock_t;
@@ -16,6 +19,10 @@ typedef long clock_t;
 #ifndef _TIME_T
 #define _TIME_T
 typedef long time_t;
+#endif
+#ifndef _CLOCKID_T
+#define _CLOCKID_T
+typedef int clockid_t;
 #endif
 
 struct tm {
@@ -28,6 +35,11 @@ struct tm {
 	int	tm_wday;
 	int	tm_yday;
 	int	tm_isdst;
+};
+
+struct timespec {
+	time_t	tv_sec;
+	long	tv_nsec;
 };
 
 #ifdef __cplusplus
@@ -43,6 +55,8 @@ extern char *ctime(const time_t *);
 extern struct tm *gmtime(const time_t *);
 extern struct tm *localtime(const time_t *);
 extern size_t strftime(char *, size_t, const char *, const struct tm *);
+extern int clock_gettime(clockid_t, struct timespec *);
+extern int clock_settime(clockid_t, struct timespec *);
 
 #ifdef _REENTRANT_SOURCE
 extern struct tm *gmtime_r(const time_t *, struct tm *);
