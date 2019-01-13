@@ -36,6 +36,8 @@ sysconf(int name)
 		return _POSIX_VERSION;
 	case _SC_LOGIN_NAME_MAX:
 		return L_cuserid;
+	case _SC_PAGESIZE:
+		return 4096;
 	}
 	errno = EINVAL;
 	return -1;
