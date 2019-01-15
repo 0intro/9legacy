@@ -10,6 +10,11 @@ typedef short		uid_t;
 typedef short		gid_t;
 typedef short		nlink_t;
 typedef int		pid_t;
+typedef unsigned char	u_char;
+typedef unsigned short	u_shurt;
+typedef unsigned int	u_int;
+typedef unsigned long	u_long;
+typedef uint32_t	in_addr_t;
 
 #ifndef _SIZE_T
 #define _SIZE_T

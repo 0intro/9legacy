@@ -120,11 +120,11 @@ struct in6_addr {
 };
 
 struct sockaddr_in6 {
-	int	sin6_family;
-	short	sin6_port;
-	unsigned int	sin6_flowinfo;	/* uint32_t */
+	sa_family_t	sin6_family;
+	in_port_t	sin6_port;
+	uint32_t	sin6_flowinfo;
 	struct in6_addr	sin6_addr;
-	unsigned int	sin6_scope_id;	/* uint32_t */
+	uint32_t	sin6_scope_id;
 };
 
 #define	IN6ADDR_ANY_INIT	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, }
