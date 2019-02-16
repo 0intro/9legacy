@@ -239,7 +239,12 @@ control(Tokenrow *trp)
 		break;
 
 	case KINCLUDE:
-		doinclude(trp);
+		doinclude(trp, 0);
+		trp->lp = trp->bp;
+		return;
+
+	case KINCLUDE_NEXT:
+		doinclude(trp, 1);
 		trp->lp = trp->bp;
 		return;
 

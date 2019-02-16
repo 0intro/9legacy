@@ -19,7 +19,7 @@ enum toktype { END, UNCLASS, NAME, NUMBER, STRING, CCON, NL, WS, DSHARP,
 		ASRSH, ASOR, ASAND, ELLIPS,
 		DSHARP1, NAME1, DEFINED, UMINUS };
 
-enum kwtype { KIF, KIFDEF, KIFNDEF, KELIF, KELSE, KENDIF, KINCLUDE, KDEFINE,
+enum kwtype { KIF, KIFDEF, KIFNDEF, KELIF, KELSE, KENDIF, KINCLUDE, KINCLUDE_NEXT, KDEFINE,
 		KUNDEF, KLINE, KERROR, KWARNING, KPRAGMA, KDEFINED,
 		KLINENO, KFILE, KDATE, KTIME, KSTDC, KEVAL };
 
@@ -62,6 +62,7 @@ typedef struct source {
 	int	fd;		/* input source */
 	int	ifdepth;	/* conditional nesting in include */
 	struct	source *next;	/* stack for #include */
+	int	pos;		/* next position for #include_next */
 } Source;
 
 typedef struct nlist {
@@ -109,7 +110,7 @@ Nlist	*lookup(Token *, int);
 void	control(Tokenrow *);
 void	dodefine(Tokenrow *);
 void	doadefine(Tokenrow *, int);
-void	doinclude(Tokenrow *);
+void	doinclude(Tokenrow *, int);
 void	doif(Tokenrow *, enum kwtype);
 void	expand(Tokenrow *, Nlist *, int);
 void	builtin(Tokenrow *, int);

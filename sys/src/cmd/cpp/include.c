@@ -6,12 +6,21 @@ Includelist	includelist[NINCLUDE];
 
 char	*objname;
 
+static int
+curpos(int next)
+{
+	if (next)
+		return cursource->pos;
+	return NINCLUDE;
+}
+
 void
-doinclude(Tokenrow *trp)
+doinclude(Tokenrow *trp, int next)
 {
 	char fname[256], iname[256], *p;
 	Includelist *ip;
-	int angled, len, fd, i;
+	Source *s;
+	int angled, len, fd, i, pos;
 
 	trp->tp += 1;
 	if (trp->tp>=trp->lp)
@@ -44,10 +53,11 @@ doinclude(Tokenrow *trp)
 	if (trp->tp < trp->lp || len==0)
 		goto syntax;
 	fname[len] = '\0';
+	pos = NINCLUDE;
 	if (fname[0]=='/') {
 		fd = open(fname, 0);
 		strcpy(iname, fname);
-	} else for (fd=-1,i=NINCLUDE-1; i>=0; i--) {
+	} else for (fd=-1,i=curpos(next)-1; i>=0; i--) {
 		ip = &includelist[i];
 		if (ip->file==NULL || ip->deleted || (angled && ip->always==0))
 			continue;
@@ -56,10 +66,12 @@ doinclude(Tokenrow *trp)
 		strcpy(iname, ip->file);
 		strcat(iname, "/");
 		strcat(iname, fname);
-		if ((fd = open(iname, 0)) >= 0)
+		if ((fd = open(iname, 0)) >= 0){
+			pos = i;
 			break;
+		}
 	}
-	if(fd < 0) {
+	if(fd < 0 && !next) {
 		strcpy(iname, cursource->filename);
 		p = strrchr(iname, '/');
 		if(p != NULL) {
@@ -67,6 +79,7 @@ doinclude(Tokenrow *trp)
 			strcat(iname, "/");
 			strcat(iname, fname);
 			fd = open(iname, 0);
+			pos = NINCLUDE-1;
 		}
 	}
 	if ( Mflag>1 || !angled&&Mflag==1 ) {
@@ -77,7 +90,8 @@ doinclude(Tokenrow *trp)
 	if (fd >= 0) {
 		if (++incdepth > 20)
 			error(FATAL, "#include too deeply nested");
-		setsource((char*)newstring((uchar*)iname, strlen(iname), 0), fd, NULL);
+		s = setsource((char*)newstring((uchar*)iname, strlen(iname), 0), fd, NULL);
+		s->pos = pos;
 		genline();
 	} else {
 		trp->tp = trp->bp+2;

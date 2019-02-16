@@ -604,6 +604,7 @@ setsource(char *name, int fd, char *str)
 	s->ins = INS;	
 	s->inl = s->inp+len;
 	s->inl[0] = s->inl[1] = EOB;
+	s->pos = NINCLUDE; /* outside of include dirs */
 	return s;
 }
 
