@@ -23,6 +23,7 @@ OFILES=\
 	chdir.$O\
 	chmod.$O\
 	chown.$O\
+	clock.$O\
 	close.$O\
 	convM2D.$O\
 	convD2M.$O\
@@ -58,6 +59,7 @@ OFILES=\
 	getppid.$O\
 	getpwnam.$O\
 	getpwuid.$O\
+	getrusage.$O\
 	getuid.$O\
 	isatty.$O\
 	kill.$O\
@@ -72,6 +74,7 @@ OFILES=\
 	pipe.$O\
 	poll.$O\
 	profile.$O\
+	pthread.$O\
 	qlock.$O\
 	read.$O\
 	rename.$O\

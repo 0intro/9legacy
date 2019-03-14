@@ -10,8 +10,8 @@
 #include <inttypes.h>
 
 typedef int socklen_t;
-typedef uint16_t short sa_family_t;
-typedef uint16_t short in_port_t;
+typedef uint16_t sa_family_t;
+typedef uint16_t in_port_t;
 
 #ifdef __cplusplus
 extern "C" {

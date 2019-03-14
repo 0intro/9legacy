@@ -1,6 +1,6 @@
 #ifndef __PTHREAD_H
 #define __PTHREAD_H
-#pragma lib "/$M/lib/ape/libap.a
+#pragma lib "/$M/lib/ape/libap.a"
 
 #include <unistd.h>
 #include <lock.h>

@@ -5,6 +5,14 @@
     This header file is an extension to ANSI/POSIX
 #endif
 
+enum {
+	RUSAGE_SELF = 0,
+	RUSAGE_CHILDREN = -1
+};
+
+#define	RUSAGE_SELF		RUSAGE_SELF
+#define	RUSAGE_CHILDREN		RUSAGE_CHILDREN
+
 struct rusage {
 	struct timeval ru_utime;	/* user time used */
 	struct timeval ru_stime;	/* system time used */
@@ -25,5 +33,15 @@ struct rusage {
 	long	ru_nivcsw;		/* involuntary " */
 #define	ru_last		ru_nivcsw
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern int getrusage(int, struct rusage *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !__RESOURCE_H__ */

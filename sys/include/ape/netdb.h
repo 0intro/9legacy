@@ -170,6 +170,9 @@ enum {
 #define	NI_NAMEREQD		NI_NAMEREQD
 #define	NI_DGRAM		NI_DGRAM
 
+#define	NI_MAXHOST	1025
+#define	NI_MAXSERV	32
+
 struct addrinfo {
 	int		ai_flags;
 	int		ai_family;

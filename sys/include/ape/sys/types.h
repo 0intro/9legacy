@@ -2,6 +2,9 @@
 #define __TYPES_H
 
 #pragma lib "/$M/lib/ape/libap.a"
+
+#include <inttypes.h>
+
 typedef	unsigned short	ino_t;
 typedef	unsigned short	dev_t;
 typedef	long long		off_t;
