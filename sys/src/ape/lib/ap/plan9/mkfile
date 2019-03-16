@@ -90,6 +90,7 @@ OFILES=\
 	sleep.$O\
 	sqrt.$O\
 	stat.$O\
+	syslog.$O\
 	system.$O\
 	tcgetattr.$O\
 	time.$O\

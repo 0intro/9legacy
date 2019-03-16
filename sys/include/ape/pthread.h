@@ -2,6 +2,7 @@
 #define __PTHREAD_H
 #pragma lib "/$M/lib/ape/libap.a"
 
+#include <sys/types.h>
 #include <unistd.h>
 #include <lock.h>
 
@@ -11,11 +12,7 @@ struct pthread_once {
 };
 typedef struct pthread_once pthread_once_t;
 
-struct pthread {
-	pid_t pid;
-};
-typedef struct pthread pthread_t;
-
+typedef pid_t pthread_t;
 typedef Lock pthread_mutex_t;
 
 #define PTHREAD_ONCE_INIT { 0 }

@@ -18,16 +18,13 @@ pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
 pthread_t
 pthread_self(void)
 {
-	pthread_t t;
-
-	t.pid = getpid();
-	return t;
+	return getpid();
 }
 
 int
 pthread_equal(pthread_t t1, pthread_t t2)
 {
-	return t1.pid == t2.pid;
+	return t1 == t2;
 }
 
 int
