@@ -2,6 +2,10 @@
 #define __POLL_H
 #pragma lib "/$M/lib/ape/libap.a"
 
+#ifndef	FD_SETSIZE
+#define	FD_SETSIZE	96
+#endif
+
 struct pollfd {
 	int fd;			/* file descriptor */
 	short events;	/* events to look for */

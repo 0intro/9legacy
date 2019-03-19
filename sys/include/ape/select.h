@@ -10,6 +10,9 @@
 /* BSD select, and adjunct types and macros */
 
 /* assume 96 fds is sufficient for fdset size */
+#ifndef FD_SETSIZE
+#define FD_SETSIZE	96
+#endif
 
 typedef struct fd_set {
 	long fds_bits[3];

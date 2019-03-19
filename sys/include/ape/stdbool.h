@@ -1,5 +1,5 @@
-#ifndef __STDLIB_H
-#define __STDLIB_H
+#ifndef __STDBOOL_H
+#define __STDBOOL_H
 
 #define bool int
 #define false 0

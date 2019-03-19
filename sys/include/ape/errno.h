@@ -12,7 +12,8 @@ extern int errno;
 
 #define E2BIG	1
 #define EACCES	2
-#define	EAGAIN	3
+#define EAGAIN	3
+#define EWOULDBLOCK	EAGAIN
 #define EBADF	4
 #define EBUSY	5
 #define ECHILD	6

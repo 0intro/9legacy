@@ -1,6 +1,8 @@
 #ifndef __netinet_in__
 #define __netinet_in__
 
+#include <sys/socket.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -97,7 +99,7 @@ struct in_addr {
 
 #define	INADDR_ANY		(unsigned long)0x00000000
 #define	INADDR_BROADCAST	(unsigned long)0xffffffff	/* must be masked */
-#define INADDR_NONE		(unsigned long)0xffffffff	/* -1 return */
+#define	INADDR_NONE		(unsigned long)0xffffffff	/* -1 return */
 
 #define	IN_LOOPBACKNET		127			/* official! */
 
@@ -111,6 +113,8 @@ struct sockaddr_in {
 	char	sin_zero[8];
 };
 
+#define	INET_ADDRSTRLEN	16
+
 struct in6_addr {
 	unsigned char	s6_addr[16];
 };
@@ -122,6 +126,13 @@ struct sockaddr_in6 {
 	struct in6_addr	sin6_addr;
 	uint32_t	sin6_scope_id;
 };
+
+#define	IN6ADDR_ANY_INIT	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, }
+#define	IN6ADDR_LOOPBACK_INIT	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, }
+#define	INET6_ADDRSTRLEN	46
+
+extern const struct in6_addr in6addr_any;
+extern const struct in6_addr in6addr_loopback;
 
 /*
  * Structure used to describe IP options.
@@ -151,6 +162,8 @@ extern unsigned short	htons(unsigned short x);
 extern unsigned long	inet_addr(char*);
 extern char*		inet_ntoa(struct in_addr);
 extern unsigned long	nptohl(void*);
+extern char*		inet_ntop(int, const void*, char*, socklen_t);
+extern int			inet_pton(int, const char*, void*);
 
 #ifdef __cplusplus
 }
