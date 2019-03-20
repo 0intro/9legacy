@@ -10,7 +10,7 @@ OFILES=\
 	connect.$O\
 	endhostent.$O\
 	ffs.$O\
-	gai_strerr.$O\
+	gai_strerror.$O\
 	getaddrinfo.$O\
 	getdtablesize.$O\
 	gethostbyname.$O\

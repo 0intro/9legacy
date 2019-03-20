@@ -5,7 +5,7 @@
 #define nil	((void*)0)
 #define nelem(a)	(sizeof(a)/sizeof((a)[0]))
 
-char *gaitab[] = {
+static char *gaitab[] = {
 [-EAI_BADFLAGS]	"bad flags",
 [-EAI_NONAME]	"authoratitive negative response",
 [-EAI_AGAIN]		"temporary lookup failure",
