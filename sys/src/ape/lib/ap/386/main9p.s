@@ -27,6 +27,7 @@ TEXT	_mainp(SB), 1, $(3*4+NPRIVATES*4)
 	MOVL	AX, 0(SP)
 	LEAL	inargv+0(FP), AX
 	MOVL	AX, 4(SP)
+	CALL	_init(SB)
 	MOVL	environ(SB), AX
 	MOVL	AX, 8(SP)
 	CALL	main(SB)

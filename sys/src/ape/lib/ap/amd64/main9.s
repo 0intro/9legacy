@@ -4,6 +4,7 @@
 	MOVL	inargc-8(FP), RARG
 	LEAQ	inargv+0(FP), AX
 	MOVQ	AX, 8(SP)
+	CALL	_init(SB)
 	MOVQ	environ(SB), AX
 	MOVQ	AX, 16(SP)
 	CALL	main(SB)

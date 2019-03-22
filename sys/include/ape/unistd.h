@@ -163,6 +163,8 @@ extern char *getlogin_r(char *, int);
 /* berkeley specific functions */
 #ifdef _BSD_EXTENSION
 #include <bsd.h>
+
+extern int getpagesize(void);
 #endif
 
 extern int gethostname(char *, size_t);

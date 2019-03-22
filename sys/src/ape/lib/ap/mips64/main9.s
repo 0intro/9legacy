@@ -5,6 +5,7 @@
 	MOVV	$inargv+0(FP), R2
 	MOVW	R1, 12(R29)
 	MOVV	R2, 16(R29)
+	JAL	_init(SB)
 	JAL	main(SB)
 loop:
 	MOVV	R1, 8(R29)

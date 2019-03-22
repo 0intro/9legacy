@@ -5,6 +5,7 @@
 	MOVW	$inargv+0(FP), R8
 	MOVW	R7, 4(R1)
 	MOVW	R8, 8(R1)
+	JMPL	_init(SB)
 	JMPL	main(SB)
 
 loop:

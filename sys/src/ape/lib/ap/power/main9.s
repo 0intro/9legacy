@@ -7,6 +7,7 @@ TEXT	_main(SB), 1, $16
 	MOVW	$inargv+0(FP), R4
 	MOVW	R3, 4(R1)
 	MOVW	R4, 8(R1)
+	BL	_init(SB)
 	BL	main(SB)
 loop:
 	MOVW	R3, 4(R1)

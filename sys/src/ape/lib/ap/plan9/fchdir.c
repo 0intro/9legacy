@@ -2,6 +2,7 @@
 #include <sys/stat.h>
 #include <limits.h>
 #include <errno.h>
+#include "lib.h"
 
 extern int _FD2PATH(int fd, char *buf, int nbuf);
 extern int _CHDIR(char *dirname);
@@ -11,7 +12,6 @@ fchdir(int fd)
 {
 	char buf[_POSIX_PATH_MAX];
 	struct stat s;
-	char buf[PATH_MAX];
 	int n;
 
 	if(fstat(fd, &s) < 0)

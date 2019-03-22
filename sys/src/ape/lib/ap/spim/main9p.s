@@ -39,6 +39,7 @@ TEXT	_mainp(SB), 1, $(3*4+NPRIVATES*4)
 	MOVW	R1, 4(R29)
 	MOVW	R2, 8(R29)
 	MOVW	R3, 12(R29)
+	JAL	_init(SB)
 	JAL	main(SB)
 loop:
 	MOVW	R1, 4(R29)

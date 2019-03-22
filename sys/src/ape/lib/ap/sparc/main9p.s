@@ -37,6 +37,7 @@ TEXT	_mainp(SB), 1, $(3*4+NPRIVATES*4)
 	MOVW	environ(SB), R9
 	MOVW	R8, 8(R1)
 	MOVW	R9, 12(R1)
+	JMPL	_init(SB)
 	JMPL	main(SB)
 
 loop:

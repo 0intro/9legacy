@@ -9,6 +9,7 @@ TEXT	_main(SB), 1, $16
 	MOVW	R(arg), 8(R(sp))
 	MOVW	inargc-4(FP), R(arg)
 	MOVW	R(arg), 4(R(sp))
+	BL	_init(SB)
 	BL	main(SB)
 loop:
 	MOVW	R(arg), 4(R(sp))

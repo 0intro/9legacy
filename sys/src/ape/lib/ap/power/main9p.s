@@ -30,6 +30,7 @@ TEXT	_mainp(SB), 1, $(3*4+NPRIVATES*4)
 	MOVW	R3, 4(R1)
 	MOVW	R4, 8(R1)
 	MOVW	R5, 12(R1)
+	BL	_init(SB)
 	BL	main(SB)
 loop:
 	MOVW	R3, 4(R1)

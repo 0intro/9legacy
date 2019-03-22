@@ -9,6 +9,7 @@ OFILES=\
 	_exit.$O\
 	_fdinfo.$O\
 	_getpw.$O\
+	_init.$O\
 	_nap.$O\
 	9mallocz.$O\
 	9iounit.$O\

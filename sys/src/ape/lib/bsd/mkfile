@@ -19,6 +19,7 @@ OFILES=\
 	getnameinfo.$O\
 	getopt.$O\
 	getpeername.$O\
+	getprogname.$O\
 	getprotobyname.$O\
 	getservbyaddr.$O\
 	getservbyname.$O\
@@ -43,6 +44,7 @@ OFILES=\
 	send.$O\
 	sendto.$O\
 	setlinebuf.$O\
+	setprogname.$O\
 	shutdown.$O\
 	_sock_ingetaddr.$O\
 	_sock_ipattr.$O\
