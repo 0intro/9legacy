@@ -11,6 +11,8 @@ fchdir(int fd)
 {
 	char buf[_POSIX_PATH_MAX];
 	struct stat s;
+	char buf[PATH_MAX];
+	int n;
 
 	if(fstat(fd, &s) < 0)
 		return -1;
@@ -18,7 +20,12 @@ fchdir(int fd)
 		errno = ENOTDIR;
 		return -1;
 	}
-	if(_FD2PATH(fd, buf, sizeof buf) < 0)
+	if(_FD2PATH(fd, buf, sizeof buf) < 0){
+		_syserrno();
 		return -1;
-	return _CHDIR(buf);
+	}
+	n = _CHDIR(buf);
+	if(n < 0)
+		_syserrno();
+	return n;
 }
