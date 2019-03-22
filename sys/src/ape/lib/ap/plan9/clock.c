@@ -26,6 +26,8 @@ clock_gettime(clockid_t clock_id, struct timespec *tp)
 int
 clock_settime(clockid_t clock_id, struct timespec *tp)
 {
+	USED(clock_id);
+	USED(tp);
 	errno = EPERM;
 	return -1;
 }

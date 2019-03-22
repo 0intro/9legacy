@@ -7,11 +7,9 @@
 
 #pragma lib "/$M/lib/ape/libbsd.a"
 
-#include <inttypes.h>
-
 typedef int socklen_t;
-typedef uint16_t sa_family_t;
-typedef uint16_t in_port_t;
+typedef unsigned short sa_family_t;
+typedef unsigned short in_port_t;
 
 #ifdef __cplusplus
 extern "C" {

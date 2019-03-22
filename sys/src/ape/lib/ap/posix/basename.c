@@ -10,10 +10,10 @@ basename(char *path)
 	if(path == NULL || path[0] == '\0')
 		return ".";
 	n = strlen(path);
-	if(n == 2 && path[0] == '/' && path[1] == '\0')
+	if(n == 1 && path[0] == '/' && path[1] == '\0')
 		return "/";
-	if(path[n-1] == '/')
-		path[n-1] = '\0';
+	while(path[n-1] == '/')
+		path[--n] = '\0';
 	p = strrchr(path, '/');
 	if(p == NULL)
 		return path;

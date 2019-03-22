@@ -66,6 +66,8 @@ syslog(int priority, const char *format, ...)
 	/* syslog => Mar 10 01:45:50 $hostname $prog[$pid]: $msg */
 	/* plan9  => $hostname Mar 10 01:45:50 $msg */
 
+	USED(priority);
+
 	/* TODO: lock */
 	t = time(NULL);
 	s = ctime(&t);

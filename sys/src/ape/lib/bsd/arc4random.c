@@ -1,6 +1,13 @@
 #include <u.h>
 #include <sys/types.h>
+#include <errno.h>
 #include <libsec.h>
+
+void
+arc4random_buf(void *buf, size_t nbytes)
+{
+	genrandom(buf, nbytes);
+}
 
 unsigned int
 arc4random(void)
@@ -9,12 +16,6 @@ arc4random(void)
 
 	arc4random_buf(&v, sizeof v);
 	return v;
-}
-
-void
-arc4random_buf(void *buf, size_t nbytes)
-{
-	genrandom(buf, nbytes);
 }
 
 int

@@ -122,9 +122,9 @@ struct in6_addr {
 struct sockaddr_in6 {
 	sa_family_t	sin6_family;
 	in_port_t	sin6_port;
-	uint32_t	sin6_flowinfo;
+	unsigned int	sin6_flowinfo;
 	struct in6_addr	sin6_addr;
-	uint32_t	sin6_scope_id;
+	unsigned int	sin6_scope_id;
 };
 
 #define	IN6ADDR_ANY_INIT	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, }

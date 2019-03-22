@@ -77,7 +77,7 @@ char *sys_errlist[] = {
 
 	/* These added in 1003.1b-1993 */
 	"Operation canceled",
-	"Operation in progress"
+	"Operation in progress",
 
 	/* from research unix */
 	"Text file is busy",			/* ETXTBSY */
