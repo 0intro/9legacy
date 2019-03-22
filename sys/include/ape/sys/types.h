@@ -3,8 +3,6 @@
 
 #pragma lib "/$M/lib/ape/libap.a"
 
-#include <inttypes.h>
-
 typedef	unsigned short	ino_t;
 typedef	unsigned short	dev_t;
 typedef	long long		off_t;
@@ -17,7 +15,7 @@ typedef unsigned char	u_char;
 typedef unsigned short	u_short;
 typedef unsigned int	u_int;
 typedef unsigned long	u_long;
-typedef uint32_t	in_addr_t;
+typedef unsigned int	in_addr_t;
 
 #ifndef _SIZE_T
 #define _SIZE_T
