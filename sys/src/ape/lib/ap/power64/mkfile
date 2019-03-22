@@ -3,6 +3,7 @@ APE=/sys/src/ape
 LIB=/$objtype/lib/ape/libap.a
 OFILES=\
 	_seek.$O\
+	argv0.$O\
 
 </sys/src/cmd/mksyslib
 
