@@ -163,9 +163,24 @@ issocket(int fd)
 /*
  * probably should do better than this
  */
-int getsockopt(int, int, int, void *, int *)
+int getsockopt(int fd, int level, int opt, void *v, int *len)
 {
-	return -1;
+	// should we check what fd is socket?
+	USED(fd);
+	USED(len);
+
+	if(level != SOL_SOCKET){
+		errno = ENOPROTOOPT;
+		return -1;
+	}
+	switch(opt){
+	case SO_ERROR:
+		*(int *)v = 0;
+		return 0;
+	default:
+		errno = EINVAL;
+		return -1;
+	}
 }
 
 int setsockopt(int, int, int, void *, int)
