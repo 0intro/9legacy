@@ -5,6 +5,10 @@
     This header file is an extension to ANSI/POSIX
 #endif
 
+#include <sys/time.h>
+
+#pragma lib "/$M/lib/ape/libap.a"
+
 enum {
 	RUSAGE_SELF = 0,
 	RUSAGE_CHILDREN = -1
