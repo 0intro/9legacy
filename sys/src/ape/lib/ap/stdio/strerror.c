@@ -87,6 +87,7 @@ char *sys_errlist[] = {
 	"Connection reset by peer",		/* ECONNRESET */
 
 	"Value too large for defined data type",		/* EOVERFLOW */
+	"Too many symbolick links encountered",		/* ELOOP */
 };
 #define	_IO_nerr	(sizeof sys_errlist/sizeof sys_errlist[0])
 int sys_nerr = _IO_nerr;
