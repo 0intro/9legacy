@@ -11,31 +11,37 @@
 #define	PRId16	"hd"
 #define	PRId32	"ld"
 #define	PRId64	"lld"
+#define	PRIdMAX	"lld"
 
 #define	PRIi8	"hhi"
 #define	PRIi16	"hi"
 #define	PRIi32	"li"
 #define	PRIi64	"lli"
+#define	PRIiMAX	"lli"
 
 #define	PRIu8	"hhu"
 #define	PRIu16	"hu"
 #define	PRIu32	"lu"
 #define	PRIu64	"llu"
+#define	PRIuMAX	"llu"
 
 #define	PRIo8	"hho"
 #define	PRIo16	"ho"
 #define	PRIo32	"lo"
 #define	PRIo64	"llo"
+#define	PRIoMAX	"llo"
 
 #define	PRIx8	"hhx"
 #define	PRIx16	"hx"
 #define	PRIx32	"lx"
 #define	PRIx64	"llx"
+#define	PRIxMAX	"llx"
 
 #define	PRIX8	"hhX"
 #define	PRIX16	"hX"
 #define	PRIX32	"lX"
 #define	PRIX64	"llX"
+#define	PRIXMAX	"llX"
 
 #ifdef _BITS64
 typedef long long _intptr_t;
