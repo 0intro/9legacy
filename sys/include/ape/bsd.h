@@ -50,8 +50,9 @@ extern int	optind;
 extern int	optopt;
 extern char	*optarg;
 extern char	*mktemp(char *);
+extern int	mkstemp(char *);
 extern char	*sys_errlist[];
-extern int		sys_nerr;
+extern int	sys_nerr;
 
 #ifdef __cplusplus
 }
