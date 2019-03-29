@@ -64,6 +64,10 @@ struct sigaction {
 };
 /* values for sa_flags */
 #define SA_NOCLDSTOP	1
+#define SA_ONSTACK	2
+#define SA_RESETHAND	3
+#define SA_RESTART	4
+#define SA_RESTORER	5
 
 /* first argument to sigprocmask */
 #define SIG_BLOCK	1
