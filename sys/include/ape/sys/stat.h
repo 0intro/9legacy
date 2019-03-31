@@ -26,6 +26,7 @@ struct	stat {
 #define	S__MASK		     0170000
 #ifdef _RESEARCH_SOURCE
 #define S_ISLNK(m)	(((m)&S__MASK) == 0120000)
+#define S_ISSOCK(m)	(((m)&S__MASK) == 0010000)
 #endif
 #define S_ISREG(m)	(((m)&S__MASK) == 0100000)
 #define S_ISDIR(m)	(((m)&S__MASK) == 0040000)

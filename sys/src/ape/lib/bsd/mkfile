@@ -33,6 +33,7 @@ OFILES=\
 	ip6const.$O\
 	listen.$O\
 	lstat.$O\
+	mkstemp.$O\
 	mktemp.$O\
 	ntohl.$O\
 	nptohl.$O\

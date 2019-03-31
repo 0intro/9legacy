@@ -55,6 +55,7 @@ OFILES=\
 	getgrnam.$O\
 	getgroups.$O\
 	getlogin.$O\
+	getpgid.$O\
 	getpgrp.$O\
 	getpid.$O\
 	getppid.$O\

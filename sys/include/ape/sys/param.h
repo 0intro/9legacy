@@ -10,6 +10,8 @@ extern "C" {
 #endif
 
 #define NOFILES_MAX 100
+#define MIN(a, b)	(((a)<(b)) ? (a) : (b))
+#define MAX(a, b)	(((a)>(b)) ? (a) : (b))
 
 #ifdef __cplusplus
 }

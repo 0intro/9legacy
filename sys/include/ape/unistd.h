@@ -116,6 +116,7 @@ extern int setuid(uid_t);
 extern int setgid(gid_t);
 extern int getgroups(int, gid_t *);
 extern pid_t getpgrp(void);
+extern int getpgid(pid_t);
 extern int setpgid(pid_t, pid_t);
 extern pid_t setsid(void);
 #endif
