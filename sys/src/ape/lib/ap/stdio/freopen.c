@@ -62,5 +62,6 @@ FILE *freopen(const char *name, const char *mode, FILE *f){
 	f->rp=0;
 	f->wp=0;
 	f->lp=0;
+	f->noverflow=-1;
 	return f;
 }

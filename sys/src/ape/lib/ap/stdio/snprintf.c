@@ -9,6 +9,7 @@ int snprintf(char *buf, size_t nbuf, const char *fmt, ...){
 	FILE *f=_IO_sopenw();
 	if(f==NULL)
 		return 0;
+	f->noverflow=0;
 	setvbuf(f, buf, _IOFBF, nbuf);
 	va_start(args, fmt);
 	n=vfprintf(f, fmt, args);

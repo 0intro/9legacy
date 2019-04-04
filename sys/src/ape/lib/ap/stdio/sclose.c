@@ -10,6 +10,7 @@ char *_IO_sclose(FILE *f){
 			free(f->buf);
 		f->state=CLOSED;
 		f->flags=0;
+		f->noverflow=-1;
 		return NULL;
 	case OPEN:
 		f->buf=malloc(1);
@@ -24,7 +25,10 @@ char *_IO_sclose(FILE *f){
 		if(f->wp==f->rp){
 			if(f->flags&BALLOC)
 				f->buf=realloc(f->buf, f->bufl+1);
-			if(f->buf==NULL) return NULL;
+			if(f->buf==NULL){
+				f->noverflow=-1;
+				return NULL;
+			}
 		}
 		*f->wp='\0';
 		f->flags=0;
@@ -32,5 +36,6 @@ char *_IO_sclose(FILE *f){
 	}
 	f->state=CLOSED;
 	f->flags=0;
+	f->noverflow=-1;
 	return (char *)f->buf;
 }

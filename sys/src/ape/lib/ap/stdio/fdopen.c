@@ -29,5 +29,6 @@ FILE *fdopen(const int fd, const char *mode){
 	f->rp=0;
 	f->wp=0;
 	f->lp=0;
+	f->noverflow=-1;
 	return f;
 }

@@ -14,5 +14,6 @@ FILE *_IO_sopenr(const char *s){
 	f->state=RD;
 	f->flags=STRING;
 	f->fd=-1;
+	f->noverflow=-1;
 	return f;
 }
