@@ -236,7 +236,7 @@ main(int argc, char **argv)
 	if(messagesize == 0){
 		messagesize = iounit(netfd);
 		if(messagesize == 0)
-			messagesize = 8192+IOHDRSZ;
+			messagesize = 16*1024+IOHDRSZ;
 	}
 
 	Workq = emallocz(sizeof(Fsrpc)*Nr_workbufs);
