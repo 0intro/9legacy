@@ -1,32 +1,53 @@
-#include <sys/types.h>
 #include <unistd.h>
-#include <fcntl.h>
+#include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+
+extern char **environ;
+extern int _envsize;
+extern int _envcnt;
 
 int
 putenv(char *s)
 {
-	int f, n;
+	int n;
+	char **p, *s1, *s2;
 	char *value;
-	char buf[300];
+	char name[300];
 
 	value = strchr(s, '=');
-	if (value) {
-		n = value-s;
-		if(n<=0 || n > sizeof(buf)-6)
-			return -1;
-		strcpy(buf, "/env/");
-		strncpy(buf+5, s, n);
-		buf[n+5] = 0;
-		f = creat(buf, 0666);
-		if(f < 0)
-			return 1;
-		value++;
-		n = strlen(value);
-		if(write(f, value, n) != n)
-			return -1;
-		close(f);
-		return 0;
-	} else
+	if(value == NULL){
+		errno = EINVAL;
 		return -1;
+	}
+	n = value-s;
+	if(n<=0 || n > sizeof(name)){
+		errno = EINVAL;
+		return -1;
+	}
+	strncpy(name, s, n);
+	name[n] = 0;
+
+	for(p = environ; *p; p++){
+		for(s1 = name, s2 = *p; *s1 == *s2; s1++, s2++)
+			continue;
+		if(*s1 == '\0' && *s2 == '='){
+			/* don't free old value */
+			*p = s;
+			return 0;
+		}
+	}
+	if(_envcnt >= _envsize-1){
+		n = _envsize*2+1;
+		p = realloc(environ, n*sizeof(char *));
+		if(p == NULL){
+			errno = ENOMEM;
+			return -1;
+		}
+		environ = p;
+		_envsize = n;
+	}
+	environ[_envcnt++] = s;
+	environ[_envcnt] = NULL;
+	return 0;
 }

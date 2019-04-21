@@ -44,6 +44,7 @@ OFILES=\
 	rresvport.$O\
 	send.$O\
 	sendto.$O\
+	setenv.$O\
 	setlinebuf.$O\
 	setprogname.$O\
 	shutdown.$O\
@@ -54,6 +55,7 @@ OFILES=\
 	strncasecmp.$O\
 	socket.$O\
 	socketpair.$O\
+	unsetenv.$O\
 	pty.$O\
 	writev.$O\
 	

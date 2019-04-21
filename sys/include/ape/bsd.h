@@ -36,6 +36,8 @@ extern int	rresvport(int*);
 extern int	rcmd(char**, int, char*, char*, char*, int*);
 extern int	strcasecmp(char*, char*);
 extern int 	putenv(char*);
+extern int	setenv(const char*, const char*, int);
+extern int	unsetenv(const char*);
 extern int	strncasecmp(char*, char*,int);
 extern unsigned int	arc4random(void);
 extern void	arc4random_buf(void*, size_t);
