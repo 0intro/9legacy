@@ -5,6 +5,6 @@
 int
 fsync(int)
 {
-	errno = EINVAL;
-	return -1;
+	/* TODO: should fsync return an error? */
+	return 0;
 }
