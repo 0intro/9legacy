@@ -77,6 +77,7 @@ OFILES=\
 	poll.$O\
 	profile.$O\
 	pthread.$O\
+	pthread_mutex.$O\
 	qlock.$O\
 	read.$O\
 	rename.$O\

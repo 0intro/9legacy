@@ -1,6 +1,4 @@
 #include <pthread.h>
-#include <errno.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 int
@@ -25,26 +23,4 @@ int
 pthread_equal(pthread_t t1, pthread_t t2)
 {
 	return t1 == t2;
-}
-
-int
-pthread_mutex_lock(pthread_mutex_t *mutex)
-{
-	lock(mutex);
-	return 0;
-}
-
-int
-pthread_mutex_unlock(pthread_mutex_t *mutex)
-{
-	unlock(mutex);
-	return 0;
-}
-
-int
-pthread_mutex_trylock(pthread_mutex_t *mutex)
-{
-	if(!canlock(mutex))
-		return EBUSY;
-	return 0;
 }
