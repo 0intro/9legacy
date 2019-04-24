@@ -8,11 +8,16 @@
 
 typedef struct pthread_once pthread_once_t;
 typedef pid_t pthread_t;
+typedef int pthread_attr_t;
 typedef struct pthread_mutex pthread_mutex_t;
 typedef int pthread_mutexattr_t;
 typedef struct pthread_cond pthread_cond_t;
 typedef int pthread_condattr_t;
 typedef struct pthread_key pthread_key_t;
+
+enum {
+	PTHREAD_THREADS_MAX = 1000
+};
 
 struct pthread_once {
 	Lock l;
@@ -43,9 +48,12 @@ extern "C" {
 #endif
 
 extern int	pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
-extern int	pthread_once(pthread_once_t *once_control, void (*)(void));
+extern int	pthread_once(pthread_once_t*, void (*)(void));
 extern pthread_t	pthread_self(void);
 extern int	pthread_equal(pthread_t, pthread_t);
+extern int	pthread_create(pthread_t*, pthread_attr_t*, void *(*)(void*), void*);
+extern int	pthread_exit(void*);
+extern int	pthread_join(pthread_t, void**);
 
 extern int	pthread_mutexattr_init(pthread_mutexattr_t*);
 extern int	pthread_mutexattr_destroy(pthread_mutexattr_t*);
