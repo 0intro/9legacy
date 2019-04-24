@@ -53,9 +53,8 @@ pthread_mutex_trylock(pthread_mutex_t *mutex)
 }
 
 int
-pthread_mutex_destroy(pthread_mutex_t *mutex)
+pthread_mutex_destroy(pthread_mutex_t *)
 {
-	if(!canlock(mutex->l))
-		return EBUSY;
+	/* TODO: should we check mutex is busy? */
 	return 0;
 }

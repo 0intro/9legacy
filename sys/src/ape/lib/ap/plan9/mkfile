@@ -78,6 +78,7 @@ OFILES=\
 	profile.$O\
 	pthread.$O\
 	pthread_mutex.$O\
+	pthread_cond.$O\
 	qlock.$O\
 	read.$O\
 	rename.$O\
