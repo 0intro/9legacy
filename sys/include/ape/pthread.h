@@ -12,7 +12,7 @@ typedef struct pthread_mutex pthread_mutex_t;
 typedef int pthread_mutexattr_t;
 typedef struct pthread_cond pthread_cond_t;
 typedef int pthread_condattr_t;
-typedef int pthread_key_t;
+typedef struct pthread_key pthread_key_t;
 
 struct pthread_once {
 	Lock l;
@@ -25,6 +25,10 @@ struct pthread_mutex {
 struct pthread_cond {
 	QLock l;
 	Rendez r;
+};
+struct pthread_key {
+	void **p;
+	void (*destroy)(void*);
 };
 
 #define PTHREAD_ONCE_INIT	{ 0 }
@@ -58,6 +62,11 @@ extern int	pthread_cond_wait(pthread_cond_t*, pthread_mutex_t*);
 extern int	pthread_cond_signal(pthread_cond_t*);
 extern int	pthread_cond_broadcast(pthread_cond_t*);
 extern int	pthread_cond_destroy(pthread_cond_t*);
+
+extern int	pthread_key_create(pthread_key_t*, void (*)(void*));
+extern int	pthread_key_delete(pthread_key_t);
+extern void	*pthread_getspecific(pthread_key_t);
+extern int	pthread_setspecific(pthread_key_t, const void*);
 
 #ifdef __cplusplus
 }
