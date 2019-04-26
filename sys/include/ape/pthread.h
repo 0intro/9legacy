@@ -29,7 +29,12 @@ struct pthread_mutex {
 };
 struct pthread_cond {
 	QLock l;
-	Rendez r;
+
+	struct {
+		QLock	*l;
+		QLp	*head;
+		QLp	*tail;
+	} r;
 };
 struct pthread_key {
 	void **p;

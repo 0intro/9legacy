@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <errno.h>
+#include "lib.h"
 
 int
 pthread_mutexattr_init(pthread_mutexattr_t *attr)

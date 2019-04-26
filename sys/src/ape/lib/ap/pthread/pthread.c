@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <errno.h>
+#include "lib.h"
 
 int
 pthread_once(pthread_once_t *once_control, void (*init_routine) (void))
