@@ -1,10 +1,13 @@
 #ifndef __PTHREAD_H
 #define __PTHREAD_H
-#pragma lib "/$M/lib/ape/libap.a"
+#pragma lib "/$M/lib/ape/libpthread.a"
 
+#define _LOCK_EXTENSION
+#define _QLOCK_EXTENSION
 #include <sys/types.h>
 #include <unistd.h>
 #include <lock.h>
+#include <qlock.h>
 
 typedef struct pthread_once pthread_once_t;
 typedef pid_t pthread_t;
@@ -24,21 +27,25 @@ struct pthread_once {
 	int once;
 };
 struct pthread_mutex {
-	Lock l;
+	QLock l;
+
+	Lock mu;
+	pthread_t pid;
+	int ref;
 	pthread_mutexattr_t attr;
 };
 struct pthread_cond {
 	QLock l;
-
-	struct {
-		QLock	*l;
-		QLp	*head;
-		QLp	*tail;
-	} r;
+	Rendez r;
 };
 struct pthread_key {
-	void **p;
+	Lock l;
 	void (*destroy)(void*);
+	struct {
+		pthread_t	pid;
+		const void	*p;
+	} *arenas;
+	int n;
 };
 
 #define PTHREAD_ONCE_INIT	{ 0 }
@@ -57,7 +64,7 @@ extern int	pthread_once(pthread_once_t*, void (*)(void));
 extern pthread_t	pthread_self(void);
 extern int	pthread_equal(pthread_t, pthread_t);
 extern int	pthread_create(pthread_t*, pthread_attr_t*, void *(*)(void*), void*);
-extern int	pthread_exit(void*);
+extern void	pthread_exit(void*);
 extern int	pthread_join(pthread_t, void**);
 
 extern int	pthread_mutexattr_init(pthread_mutexattr_t*);

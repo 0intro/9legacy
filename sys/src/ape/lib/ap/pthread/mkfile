@@ -1,0 +1,34 @@
+APE=/sys/src/ape
+<$APE/config
+LIB=/$objtype/lib/ape/libpthread.a
+OFILES=\
+	_pthread.$O\
+	cond_broadcast.$O\
+	cond_destroy.$O\
+	cond_init.$O\
+	cond_signal.$O\
+	cond_wait.$O\
+	create.$O\
+	equal.$O\
+	exit.$O\
+	getspecific.$O\
+	join.$O\
+	key_create.$O\
+	key_delete.$O\
+	mutexattr_destroy.$O\
+	mutexattr_init.$O\
+	mutexattr_settype.$O\
+	mutex_destroy.$O\
+	mutex_init.$O\
+	mutex_lock.$O\
+	mutex_trylock.$O\
+	mutex_unlock.$O\
+	once.$O\
+	self.$O\
+	setspecific.$O\
+
+HFILES=lib.h
+
+</sys/src/cmd/mksyslib
+
+CFLAGS=-c -D_POSIX_SOURCE -FTVw -D_SUSV2_SOURCE -D_PLAN9_SOURCE

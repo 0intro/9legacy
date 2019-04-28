@@ -1,3 +1,5 @@
+#define	nelem(a)	(sizeof(a)/sizeof((a)[0]))
+
 /* rfork */
 enum
 {
@@ -15,24 +17,25 @@ enum
 	RFNOMNT		= (1<<14)
 };
 
-typedef
-struct Waitmsg
-{
-	int	pid;		/* of loved one */
-	ulong	time[3];	/* of loved one & descendants */
-	char	*msg;
-} Waitmsg;
+typedef struct Thread Thread;
+struct Thread {
+	int	inuse;
+	pid_t	pid;
 
-typedef struct
-{
-	QLock	*l;
-	QLp	*head;
-	QLp	*tail;
-} Rendez;
+	Lock	l;
+	int	exited;
+	void	*ret;
+};
 
-extern	void	rsleep(Rendez*);	/* unlocks r->l, sleeps, locks r->l again */
-extern	int	rwakeup(Rendez*);
-extern	int	rwakeupall(Rendez*);
-extern	void**	privalloc(void);
-extern	void	privfree(void**);
-extern	Waitmsg	*wait(void);
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern Thread*	_pthreadalloc(void);
+extern void	_pthreadsetpid(Thread*, pthread_t);
+extern Thread*	_pthreadget(pthread_t);
+extern void	_pthreadfree(Thread*);
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,7 +1,7 @@
 APE=/sys/src/ape
 <$APE/config
 
-DIRS=gen math plan9 posix stdio syscall
+DIRS=gen math plan9 posix pthread stdio syscall
 
 default:V:	all
 

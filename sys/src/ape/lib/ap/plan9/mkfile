@@ -76,10 +76,6 @@ OFILES=\
 	pipe.$O\
 	poll.$O\
 	profile.$O\
-	pthread.$O\
-	pthread_mutex.$O\
-	pthread_cond.$O\
-	pthread_key.$O\
 	qlock.$O\
 	read.$O\
 	rename.$O\

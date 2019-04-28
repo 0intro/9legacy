@@ -26,6 +26,14 @@ struct QLock
 	QLp 	*tail;
 } QLock;
 
+typedef
+struct Rendez
+{
+	QLock	*l;
+	QLp	*head;
+	QLp	*tail;
+} Rendez;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,6 +41,10 @@ extern "C" {
 extern	void	qlock(QLock*);
 extern	void	qunlock(QLock*);
 extern	int	canqlock(QLock*);
+
+extern	void	rsleep(Rendez*);
+extern	int	rwakeup(Rendez*);
+extern	int	rwakeupall(Rendez*);
 
 #ifdef __cplusplus
 }

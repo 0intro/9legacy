@@ -14,22 +14,6 @@ typedef struct
 	long	sem;
 } Lock;
 
-typedef struct QLp QLp;
-struct QLp
-{
-	int	inuse;
-	QLp	*next;
-	char	state;
-};
-
-typedef struct
-{
-	Lock	lock;
-	int	locked;
-	QLp	*head;
-	QLp 	*tail;
-} QLock;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,8 +21,6 @@ extern "C" {
 extern	void	lock(Lock*);
 extern	void	unlock(Lock*);
 extern	int	canlock(Lock*);
-extern	void	qlock(QLock*);
-extern	void	qunlock(QLock*);
 extern	int	tas(int*);
 
 #ifdef __cplusplus
