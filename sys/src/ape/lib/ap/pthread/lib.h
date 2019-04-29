@@ -1,3 +1,5 @@
+#include <signal.h>
+
 #define	nelem(a)	(sizeof(a)/sizeof((a)[0]))
 
 /* rfork */
@@ -25,6 +27,8 @@ struct Thread {
 	Lock	l;
 	int	exited;
 	void	*ret;
+	sigset_t	sigset;
+	int	state;
 };
 
 #ifdef __cplusplus
@@ -33,6 +37,7 @@ extern "C" {
 
 extern Thread*	_pthreadalloc(void);
 extern void	_pthreadsetpid(Thread*, pthread_t);
+extern Thread*	_pthreadnew(pthread_t pid);
 extern Thread*	_pthreadget(pthread_t);
 extern void	_pthreadfree(Thread*);
 

@@ -25,7 +25,9 @@ OFILES=\
 	mutex_unlock.$O\
 	once.$O\
 	self.$O\
+	setcancelstate.$O\
 	setspecific.$O\
+	sigmask.$O\
 
 HFILES=lib.h
 

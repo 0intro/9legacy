@@ -19,7 +19,9 @@ typedef int pthread_condattr_t;
 typedef struct pthread_key pthread_key_t;
 
 enum {
-	PTHREAD_THREADS_MAX = 1000
+	PTHREAD_THREADS_MAX = 1000,
+
+	PTHREAD_CANCEL_DISABLE = 1,
 };
 
 struct pthread_once {
@@ -87,6 +89,14 @@ extern int	pthread_key_create(pthread_key_t*, void (*)(void*));
 extern int	pthread_key_delete(pthread_key_t);
 extern void	*pthread_getspecific(pthread_key_t);
 extern int	pthread_setspecific(pthread_key_t, const void*);
+
+extern int	pthread_setcancelstate(int, int*);
+
+#ifndef _PTHREAD_SIGMASK
+#define _PTHREAD_SIGMASK
+#include <signal.h>
+extern int	pthread_sigmask(int, const sigset_t*, sigset_t*);
+#endif
 
 #ifdef __cplusplus
 }

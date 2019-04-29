@@ -33,6 +33,32 @@ _pthreadsetpid(Thread *priv, pthread_t pid)
 }
 
 Thread *
+_pthreadnew(pthread_t pid)
+{
+	Thread *p, *ep, *freep = NULL;
+
+	ep = privileges+nelem(privileges);
+	lock(&privlock);
+	for(p = privileges; p < ep; p++){
+		if(p->inuse && p->pid == pid){
+			unlock(&privlock);
+			return p;
+		}
+		if(freep == NULL && !p->inuse)
+			freep = p;
+	}
+	if(freep == NULL){
+		unlock(&privlock);
+		return NULL;
+	}
+	memset(freep, 0, sizeof(*freep));
+	freep->inuse = 1;
+	freep->pid = pid;
+	unlock(&privlock);
+	return freep;
+}
+
+Thread *
 _pthreadget(pthread_t pid)
 {
 	Thread *p, *ep;
