@@ -63,11 +63,11 @@ _dirfstat(int fd)
 
 	nd = DIRSIZE;
 	for(i=0; i<2; i++){	/* should work by the second try */
-		d = malloc(sizeof(Dir) + nd);
+		d = malloc(sizeof(Dir) + BIT16SZ + nd);
 		if(d == nil)
 			return nil;
 		buf = (uchar*)&d[1];
-		n = _FSTAT(fd, buf, nd);
+		n = _FSTAT(fd, buf, BIT16SZ+nd);
 		if(n < BIT16SZ){
 			free(d);
 			return nil;
