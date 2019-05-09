@@ -4,7 +4,7 @@
 #include "lib.h"
 
 extern int	_RFORK(int);
-extern void	_syserrno(void);
+extern int	_RENDEZVOUS(unsigned long, unsigned long);
 
 int
 pthread_create(pthread_t *t, pthread_attr_t *attr, void *(*f)(void*), void *arg)
@@ -12,31 +12,30 @@ pthread_create(pthread_t *t, pthread_attr_t *attr, void *(*f)(void*), void *arg)
 	void *p;
 	int pid;
 	Thread *priv;
+	unsigned long tag;
 
 	if(attr != NULL)
 		return EINVAL;
 	priv = _pthreadalloc();
 	if(priv == NULL)
 		return EAGAIN;
-	lock(&priv->l);
+	tag = (unsigned long)priv;
 	pid = _RFORK(RFFDG|RFPROC|RFMEM);
-	if(pid < 0){
+	switch(pid){
+	case -1:
 		_syserrno();
 		unlock(&priv->l);
 		_pthreadfree(priv);
 		return errno;
-	}
-	if(pid == 0){
-		/* should wait for unlock by parent */
-		lock(&priv->l);
-		unlock(&priv->l);
-
+	case 0:
+		_RENDEZVOUS(tag, 0);
 		p = f(arg);
 		pthread_exit(p);
 		abort(); /* can't reach here */
+	default:
+		_pthreadsetpid(priv, pid);
+		_RENDEZVOUS(tag, 0);
+		*t = pid;
 	}
-	_pthreadsetpid(priv, pid);
-	*t = pid;
-	unlock(&priv->l);
 	return 0;
 }

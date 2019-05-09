@@ -35,6 +35,8 @@ struct Thread {
 extern "C" {
 #endif
 
+extern void	_syserrno(void);
+
 extern Thread*	_pthreadalloc(void);
 extern void	_pthreadsetpid(Thread*, pthread_t);
 extern Thread*	_pthreadnew(pthread_t pid);

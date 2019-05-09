@@ -25,8 +25,10 @@ _wait(void)
 	Waitmsg *w;
 
 	n = _AWAIT(buf, sizeof buf-1);
-	if(n < 0)
+	if(n < 0){
+		_syserrno();
 		return nil;
+	}
 	buf[n] = '\0';
 	if(getfields(buf, fld, nelem(fld)) != nelem(fld)){
 		errno = ENOBUFS;
