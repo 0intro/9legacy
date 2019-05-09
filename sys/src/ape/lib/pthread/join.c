@@ -83,17 +83,18 @@ pthread_join(pthread_t t, void **ret)
 	while((msg=_wait()) != NULL){
 		pid = msg->pid;
 		free(msg);
-		if(pid != t)
-			continue;
-		lock(&priv->l);
-		assert(priv->exited);
+		if(pid == t)
+			break;
+	}
+	lock(&priv->l);
+	if(priv->exited){
 		emitexits(ret, priv);
 		unlock(&priv->l);
-
 		_pthreadfree(priv);
 		unlock(&l);
 		return 0;
 	}
+	unlock(&priv->l);
 	unlock(&l);
 	return ESRCH;
 }
