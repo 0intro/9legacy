@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <lock.h>
 
 typedef unsigned int	uint;
 
@@ -25,6 +26,7 @@ typedef struct Arena Arena;
 struct Arena
 {
 	Bucket	*btab[MAX2SIZE];	
+	Lock	l;
 };
 static Arena arena;
 
@@ -48,9 +50,11 @@ malloc(size_t size)
 	return nil;
 good:
 	/* Allocate off this list */
+	lock(&arena.l);
 	bp = arena.btab[pow];
 	if(bp) {
 		arena.btab[pow] = bp->next;
+		unlock(&arena.l);
 
 		if(bp->magic != 0)
 			abort();
@@ -84,6 +88,7 @@ good:
 		if((intptr_t)bp == -1)
 			return nil;
 	}
+	unlock(&arena.l);
 		
 	bp->size = pow;
 	bp->magic = MAGIC;
@@ -106,9 +111,11 @@ free(void *ptr)
 		abort();
 
 	bp->magic = 0;
+	lock(&arena.l);
 	l = &arena.btab[bp->size];
 	bp->next = *l;
 	*l = bp;
+	unlock(&arena.l);
 }
 
 void*

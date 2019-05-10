@@ -1,7 +1,8 @@
 #include <pthread.h>
-#include <stdlib.h>
 #include <assert.h>
 #include "lib.h"
+
+extern void	_EXITS(char *);
 
 void
 pthread_exit(void *retval)
@@ -16,5 +17,5 @@ pthread_exit(void *retval)
 	priv->exited = 1;
 	priv->ret = retval;
 	unlock(&priv->l);
-	exit(0);
+	_EXITS(0);
 }
