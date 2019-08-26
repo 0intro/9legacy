@@ -11,6 +11,5 @@ FILE *_IO_sopenw(void){
 	f->state=OPEN;
 	f->flags=STRING;
 	f->fd=-1;
-	f->noverflow=-1;
 	return f;
 }

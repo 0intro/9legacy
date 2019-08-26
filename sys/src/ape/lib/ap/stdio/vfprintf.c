@@ -150,7 +150,7 @@ static int nprint;
 int
 vfprintf(FILE *f, const char *as, va_list args)
 {
-	int tfl, flags, width, precision, written;
+	int tfl, flags, width, precision;
 	unsigned char *s;
 
 	nprint = 0;
@@ -203,10 +203,7 @@ vfprintf(FILE *f, const char *as, va_list args)
 			nprint++;
 		}
 	}
-	written = nprint;
-	if(f->noverflow > 0)
-		written += f->noverflow;
-	return ferror(f)? -1: written;
+	return ferror(f)? -1: nprint;
 }
 
 static int

@@ -37,8 +37,7 @@ typedef struct{
 	unsigned char *lp;	/* actual write pointer used when line-buffering */
 	size_t bufl;	/* actual length of buffer */
 	unsigned char unbuf[1];	/* tiny buffer for unbuffered io (used for ungetc?) */
-	int junk;
-	int noverflow;
+	int	junk;
 }FILE;
 
 typedef off_t fpos_t;

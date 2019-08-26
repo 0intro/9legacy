@@ -47,12 +47,8 @@ int _IO_putc(int c, FILE *f){
 				 * which would have written if enough space had been available.
 				 * however sprintf is not.
 				 */
-				if(f->noverflow < 0){
-					f->state=ERR;
-					return EOF;
-				}
-				f->noverflow++;
-				goto end;
+				f->state=WR;
+				return c&0xff;
 			}
 			if(f->buf==NULL){
 				f->state=ERR;
@@ -105,7 +101,6 @@ int _IO_putc(int c, FILE *f){
 		}
 		*f->wp++=c;
 	}
-end:
 	f->state=WR;
 	/*
 	 * Make sure EOF looks different from putc(-1)
