@@ -6,6 +6,8 @@
 
 #include "arm.h"
 
+static KMap* kmapp(ulong pa);
+
 #define L1X(va)		FEXT((va), 20, 12)
 #define L2X(va)		FEXT((va), 12, 8)
 #define L2AP(ap)	l2ap(ap)
@@ -16,6 +18,7 @@ enum {
 	L1lo		= UZERO/MiB,		/* L1X(UZERO)? */
 	L1hi		= (USTKTOP+MiB-1)/MiB,	/* L1X(USTKTOP+MiB-1)? */
 	L2size		= 256*sizeof(PTE),
+	KMAPADDR	= 0xFFF00000,
 };
 
 /*
@@ -25,16 +28,19 @@ void
 mmuinit(void *a)
 {
 	PTE *l1, *l2;
-	uintptr pa, va;
+	uintptr pa, pe, va;
 
 	l1 = (PTE*)a;
 	l2 = (PTE*)PADDR(L2);
 
 	/*
-	 * map all of ram at KZERO
+	 * map ram between KZERO and VIRTIO
 	 */
 	va = KZERO;
-	for(pa = PHYSDRAM; pa < PHYSDRAM+soc.dramsize; pa += MiB){
+	pe = VIRTPCI - KZERO;
+	if(pe > soc.dramsize)
+		pe = soc.dramsize;
+	for(pa = PHYSDRAM; pa < PHYSDRAM+pe; pa += MiB){
 		l1[L1X(va)] = pa|Dom0|L1AP(Krw)|Section|L1ptedramattrs;
 		va += MiB;
 	}
@@ -77,7 +83,8 @@ mmuinit(void *a)
 void
 mmuinit1()
 {
-	PTE *l1;
+	PTE *l1, *l2;
+	uintptr va;
 
 	l1 = m->mmul1;
 
@@ -87,6 +94,21 @@ mmuinit1()
 	l1[L1X(PHYSDRAM)] = 0;
 	cachedwbtlb(&l1[L1X(PHYSDRAM)], sizeof(PTE));
 	mmuinvalidateaddr(PHYSDRAM);
+
+	/*
+	 * make a local mapping for highest MB of virtual space
+	 * containing kmap area and exception vectors
+	 */
+	if(m->machno == 0)
+		m->kmapl2 = (PTE*)L2;
+	else{
+		va = HVECTORS;
+		m->kmapl2 = l2 = mallocalign(L2size, L2size, 0, 0);
+		l1[L1X(va)] = PADDR(l2)|Dom0|Coarse;
+		l2[L2X(va)] = PHYSDRAM|L2AP(Krw)|Small|L2ptedramattrs;
+		cachedwbtlb(&l1[L1X(va)], sizeof(PTE));
+		mmuinvalidateaddr(va);
+	}
 }
 
 static void
@@ -94,12 +116,16 @@ mmul2empty(Proc* proc, int clear)
 {
 	PTE *l1;
 	Page **l2, *page;
+	KMap *k;
 
 	l1 = m->mmul1;
 	l2 = &proc->mmul2;
 	for(page = *l2; page != nil; page = page->next){
-		if(clear)
-			memset(UINT2PTR(page->va), 0, L2size);
+		if(clear){
+			k = kmap(page);
+			memset((void*)VA(k), 0, L2size);
+			kunmap(k);
+		}
 		l1[page->daddr] = Fault;
 		l2 = &page->next;
 	}
@@ -130,6 +156,8 @@ mmul1empty(void)
 			memset(l1, 0, m->mmul1hi*sizeof(PTE));
 		m->mmul1hi = 0;
 	}
+	if(m->kmapl2 != nil)
+		memset(m->kmapl2, 0, NKMAPS*sizeof(PTE));
 }
 
 void
@@ -148,8 +176,8 @@ mmuswitch(Proc* proc)
 
 	/* move in new map */
 	l1 = m->mmul1;
-	if(proc != nil)
-	for(page = proc->mmul2; page != nil; page = page->next){
+	if(proc != nil){
+	  for(page = proc->mmul2; page != nil; page = page->next){
 		x = page->daddr;
 		l1[x] = PPN(page->pa)|Dom0|Coarse;
 		if(x >= L1lo + m->mmul1lo && x < L1hi - m->mmul1hi){
@@ -158,11 +186,16 @@ mmuswitch(Proc* proc)
 			else
 				m->mmul1hi = L1hi - x;
 		}
+	  }
+	  if(proc->nkmap)
+		memmove(m->kmapl2, proc->kmaptab, sizeof(proc->kmaptab));
 	}
 
 	/* make sure map is in memory */
 	/* could be smarter about how much? */
 	cachedwbtlb(&l1[L1X(UZERO)], (L1hi - L1lo)*sizeof(PTE));
+	if(proc != nil && proc->nkmap)
+		cachedwbtlb(m->kmapl2, sizeof(proc->kmaptab));
 
 	/* lose any possible stale tlb entries */
 	mmuinvalidate();
@@ -211,6 +244,7 @@ putmmu(uintptr va, uintptr pa, Page* page)
 	int x, s;
 	Page *pg;
 	PTE *l1, *pte;
+	KMap *k;
 
 	/*
 	 * disable interrupts to prevent flushmmu (called from hzclock)
@@ -223,11 +257,13 @@ putmmu(uintptr va, uintptr pa, Page* page)
 		/* l2 pages only have 256 entries - wastes 3K per 1M of address space */
 		if(up->mmul2cache == nil){
 			spllo();
-			pg = newpage(1, 0, 0);
+			pg = newpage(0, 0, 0);
 			splhi();
 			/* if newpage slept, we might be on a different cpu */
 			l1 = &m->mmul1[x];
-			pg->va = VA(kmap(pg));
+			//k = kmap(pg);
+			//pg->va = VA(k);
+			//kunmap(k);
 		}else{
 			pg = up->mmul2cache;
 			up->mmul2cache = pg->next;
@@ -236,8 +272,11 @@ putmmu(uintptr va, uintptr pa, Page* page)
 		pg->next = up->mmul2;
 		up->mmul2 = pg;
 
-		/* force l2 page to memory (armv6) */
-		cachedwbtlb((void *)pg->va, L2size);
+		/* force l2 page to memory */
+		k = kmap(pg);
+		memset((void*)VA(k), 0, L2size);
+		cachedwbtlb((void*)VA(k), L2size);
+		kunmap(k);
 
 		*l1 = PPN(pg->pa)|Dom0|Coarse;
 		cachedwbtlb(l1, sizeof *l1);
@@ -249,7 +288,8 @@ putmmu(uintptr va, uintptr pa, Page* page)
 				m->mmul1hi = L1hi - x;
 		}
 	}
-	pte = UINT2PTR(KADDR(PPN(*l1)));
+	k = kmapp(PPN(*l1));
+	pte = (PTE*)VA(k);
 
 	/* protection bits are
 	 *	PTERONLY|PTEVALID;
@@ -265,13 +305,15 @@ putmmu(uintptr va, uintptr pa, Page* page)
 		x |= L2AP(Uro);
 	pte[L2X(va)] = PPN(pa)|x;
 	cachedwbtlb(&pte[L2X(va)], sizeof(PTE));
+	kunmap(k);
 
 	/* clear out the current entry */
 	mmuinvalidateaddr(PPN(va));
 
 	if(page->cachectl[m->machno] == PG_TXTFLUSH){
 		/* pio() sets PG_TXTFLUSH whenever a text pg has been written */
-		cachedwbse((void*)(page->pa|KZERO), BY2PG);
+		if(cankaddr(page->pa))
+			cachedwbse((void*)(page->pa|KZERO), BY2PG);
 		cacheiinvse((void*)page->va, BY2PG);
 		page->cachectl[m->machno] = PG_NOFLUSH;
 	}
@@ -312,8 +354,8 @@ mmuuncache(void* v, usize size)
 uintptr
 cankaddr(uintptr pa)
 {
-	if(pa < PHYSDRAM + memsize)		/* assumes PHYSDRAM is 0 */
-		return PHYSDRAM + memsize - pa;
+	if((pa - PHYSDRAM) < VIRTPCI-KZERO)
+		return PHYSDRAM + VIRTPCI-KZERO - pa;
 	return 0;
 }
 
@@ -370,6 +412,7 @@ checkmmu(uintptr va, uintptr pa)
 {
 	int x;
 	PTE *l1, *pte;
+	KMap *k;
 
 	x = L1X(va);
 	l1 = &m->mmul1[x];
@@ -377,15 +420,64 @@ checkmmu(uintptr va, uintptr pa)
 		iprint("checkmmu cpu%d va=%lux l1 %p=%ux\n", m->machno, va, l1, *l1);
 		return;
 	}
-	pte = KADDR(PPN(*l1));
+	k = kmapp(PPN(*l1));
+	pte = (PTE*)VA(k);
 	pte += L2X(va);
 	if(pa == ~0 || (pa != 0 && PPN(*pte) != pa))
 		iprint("checkmmu va=%lux pa=%lux l1 %p=%ux pte %p=%ux\n", va, pa, l1, *l1, pte, *pte);
+	kunmap(k);
+}
+
+static KMap*
+kmapp(ulong pa)
+{
+	int s, i;
+	uintptr va;
+
+	if(cankaddr(pa))
+		return KADDR(pa);
+	if(up == nil)
+		panic("kmap without up %#p", getcallerpc(&pa));
+	s = splhi();
+	if(up->nkmap == NKMAPS)
+		panic("kmap overflow %#p", getcallerpc(&pa));
+	for(i = 0; i < NKMAPS; i++)
+		if(up->kmaptab[i] == 0)
+			break;
+	if(i == NKMAPS)
+		panic("can't happen");
+	up->nkmap++;
+	va = KMAPADDR + i*BY2PG;
+	up->kmaptab[i] = pa | L2AP(Krw)|Small|L2ptedramattrs;
+	m->kmapl2[i] = up->kmaptab[i];
+	cachedwbtlb(&m->kmapl2[i], sizeof(PTE));
+	mmuinvalidateaddr(va);
+	splx(s);
+	return (KMap*)va;
+}
+
+KMap*
+kmap(Page *p)
+{
+	return kmapp(p->pa);
 }
 
 void
 kunmap(KMap *k)
 {
-	USED(k);
+	int i;
+	uintptr va;
+
 	coherence();
+	va = (uintptr)k;
+	if(L1X(va) != L1X(KMAPADDR))
+		return;
+	/* wasteful: only needed for text pages aliased within data cache */
+	cachedwbse((void*)PPN(va), BY2PG);
+	i = L2X(va);
+	up->kmaptab[i] = 0;
+	m->kmapl2[i] = 0;
+	up->nkmap--;
+	cachedwbtlb(&m->kmapl2[i], sizeof(PTE));
+	mmuinvalidateaddr(va);
 }

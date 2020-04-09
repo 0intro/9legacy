@@ -535,10 +535,12 @@ confinit(void)
 	case 0xA03111:
 		break;
 	case 0xB03111:
+	case 0xB03112:
 		conf.mem[1].base = 1*GiB;
 		conf.mem[1].limit = 2*GiB;
 		break;
 	case 0xC03111:
+	case 0xC03112:
 		conf.mem[1].base = 1*GiB;
 		conf.mem[1].limit = 0xFFF00000;
 		break;
@@ -570,6 +572,8 @@ confinit(void)
 	}
 
 	conf.upages = (conf.npage*80)/100;
+	if(conf.npage - conf.upages > 256*MiB/BY2PG)
+		conf.upages = conf.npage - 256*MiB/BY2PG;
 	conf.ialloc = ((conf.npage-conf.upages)/2)*BY2PG;
 
 	/* set up other configuration parameters */

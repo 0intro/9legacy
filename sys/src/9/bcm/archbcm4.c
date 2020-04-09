@@ -20,7 +20,7 @@ typedef struct Mboxes Mboxes;
 #define	POWERREGS	(VIRTIO+0x100000)
 
 Soc soc = {
-	.dramsize	= 0x7D000000,
+	.dramsize	= 0xFC000000,
 	.physio		= 0xFE000000,
 	.busdram	= 0xC0000000,
 	.busio		= 0x7E000000,
