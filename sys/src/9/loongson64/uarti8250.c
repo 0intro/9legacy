@@ -3,7 +3,7 @@
  */
 
 #include "u.h"
-#include "../port/lib.h"
+#include "../port64/lib.h"
 #include "mem.h"
 #include "dat.h"
 #include "fns.h"
