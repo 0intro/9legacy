@@ -1,13 +1,10 @@
 /***** spin: sched.c *****/
 
-/* Copyright (c) 1989-2003 by Lucent Technologies, Bell Laboratories.     */
-/* All Rights Reserved.  This software is for educational purposes only.  */
-/* No guarantee whatsoever is expressed or implied by the distribution of */
-/* this code.  Permission is given to distribute this code provided that  */
-/* this introductory message is not removed and no monies are exchanged.  */
-/* Software written by Gerard J. Holzmann.  For tool documentation see:   */
-/*             http://spinroot.com/                                       */
-/* Send all bug-reports and/or questions to: bugs@spinroot.com            */
+/*
+ * This file is part of the public release of Spin. It is subject to the
+ * terms in the LICENSE file that is included in this source directory.
+ * Tool documentation is available at http://spinroot.com
+ */
 
 #include <stdlib.h>
 #include "spin.h"
@@ -19,22 +16,26 @@ extern Ordered	*all_names;
 extern Symbol	*Fname, *context;
 extern int	lineno, nr_errs, dumptab, xspin, jumpsteps, columns;
 extern int	u_sync, Elcnt, interactive, TstOnly, cutoff;
-extern short	has_enabled;
-extern int	limited_vis, old_scope_rules, product, nclaims;
+extern short	has_enabled, has_priority, has_code, replay;
+extern int	limited_vis, product, nclaims, old_priority_rules;
+extern int	old_scope_rules, scope_seq[128], scope_level, has_stdin;
+
+extern int	pc_highest(Lextok *n);
 
 RunList		*X   = (RunList  *) 0;
 RunList		*run = (RunList  *) 0;
 RunList		*LastX  = (RunList  *) 0; /* previous executing proc */
 ProcList	*rdy = (ProcList *) 0;
 Element		*LastStep = ZE;
-int		nproc=0, nstop=0, Tval=0;
+int		nproc=0, nstop=0, Tval=0, Priority_Sum = 0;
 int		Rvous=0, depth=0, nrRdy=0, MadeChoice;
 short		Have_claim=0, Skip_claim=0;
 
-static int	Priority_Sum = 0;
 static void	setlocals(RunList *);
 static void	setparams(RunList *, ProcList *, Lextok *);
 static void	talk(RunList *);
+
+extern char	*which_mtype(const char *);
 
 void
 runnable(ProcList *p, int weight, int noparams)
@@ -44,11 +45,15 @@ runnable(ProcList *p, int weight, int noparams)
 	r->tn = p->tn;
 	r->b  = p->b;
 	r->pid = nproc++ - nstop + Skip_claim;
+	r->priority = weight;
+	p->priority = (unsigned char) weight; /* not quite the best place of course */
 
 	if (!noparams && ((verbose&4) || (verbose&32)))
-		printf("Starting %s with pid %d\n",
+	{	printf("Starting %s with pid %d",
 			p->n?p->n->name:"--", r->pid);
-
+		if (has_priority) printf(" priority %d", r->priority);
+		printf("\n");
+	}
 	if (!p->s)
 		fatal("parsing error, no sequence %s",
 			p->n?p->n->name:"--");
@@ -61,7 +66,9 @@ runnable(ProcList *p, int weight, int noparams)
 
 	r->nxt = run;
 	r->prov = p->prov;
-	r->priority = weight;
+	if (weight < 1 || weight > 255)
+	{	fatal("bad process priority, valid range: 1..255", (char *) 0);
+	}
 
 	if (noparams) setlocals(r);
 	Priority_Sum += weight;
@@ -80,20 +87,65 @@ ready(Symbol *n, Lextok *p, Sequence *s, int det, Lextok *prov, enum btypes b)
 	r->s = s;
 	r->b = b;
 	r->prov = prov;
-	r->tn = nrRdy++;
+	r->tn = (short) nrRdy++;
+	n->sc = scope_seq[scope_level];	/* scope_level should be 0 */
+
 	if (det != 0 && det != 1)
 	{	fprintf(stderr, "spin: bad value for det (cannot happen)\n");
 	}
-	r->det = (short) det;
+	r->det = (unsigned char) det;
 	r->nxt = rdy;
 	rdy = r;
 
 	for (fp  = p, j = 0;  fp;  fp = fp->rgt)
 	for (fpt = fp->lft;  fpt; fpt = fpt->rgt)
-		j++;	/* count # of parameters */
+	{	j++;	/* count # of parameters */
+	}
 	Npars = max(Npars, j);
 
 	return rdy;
+}
+
+void
+check_mtypes(Lextok *pnm, Lextok *args)	/* proctype name, actual params */
+{	ProcList *p;
+	Lextok *fp, *fpt, *at;
+	char *s, *t;
+
+	if (pnm && pnm->sym)
+	for (p = rdy; p; p = p->nxt)
+	{	if (strcmp(pnm->sym->name, p->n->name) == 0)
+		{	/* found */
+			break;
+		}
+	}
+	if (!p)
+	{	fatal("cannot find proctype '%s'",
+		(pnm && pnm->sym)?pnm->sym->name:"?");
+	}
+
+	for (fp  = p->p, at = args; fp; fp = fp->rgt)
+	for (fpt = fp->lft; fpt; fpt = fpt->rgt, at = at->rgt)
+	{
+		if (fp->lft->val != MTYPE)
+		{	continue;
+		}
+		s = "_unnamed_";
+		if (fp->lft->sym->mtype_name)
+		{	t = fp->lft->sym->mtype_name->name;
+		} else
+		{	t = "_unnamed_";
+		}
+		if (at->lft->ntyp != CONST)
+		{	fatal("wrong arg type '%s'", at->lft->sym->name);
+		}
+		s = which_mtype(at->lft->sym->name);
+		if (strcmp(s, t) != 0)
+		{	printf("spin: %s:%d, Error: '%s' is type '%s', but should be type '%s'\n",
+				pnm->fn->name, pnm->ln,
+				at->lft->sym->name, s, t);
+			fatal("wrong arg type '%s'", at->lft->sym->name);
+	}	}
 }
 
 int
@@ -101,8 +153,10 @@ find_maxel(Symbol *s)
 {	ProcList *p;
 
 	for (p = rdy; p; p = p->nxt)
-		if (p->n == s)
-			return p->s->maxel++;
+	{	if (p->n == s)
+		{	return p->s->maxel++;
+	}	}
+
 	return Elcnt++;
 }
 
@@ -137,8 +191,9 @@ announce(char *w)
 			run->pid - Have_claim, run->n->name);
 			pstext(run->pid - Have_claim, Buf);
 		} else
-			printf("proc %d = %s\n",
-			run->pid - Have_claim, run->n->name);
+		{	printf("proc %d = %s\n",
+				run->pid - Have_claim, run->n->name);
+		}
 		return;
 	}
 
@@ -171,9 +226,11 @@ enable(Lextok *m)
 	Symbol *s = m->sym;	/* proctype name */
 	Lextok *n = m->lft;	/* actual parameters */
 
-	if (m->val < 1) m->val = 1;	/* minimum priority */
+	if (m->val < 1)
+	{	m->val = 1;	/* minimum priority */
+	}
 	for (p = rdy; p; p = p->nxt)
-		if (strcmp(s->name, p->n->name) == 0)
+	{	if (strcmp(s->name, p->n->name) == 0)
 		{	if (nproc-nstop >= MAXP)
 			{	printf("spin: too many processes (%d max)\n", MAXP);
 				break;
@@ -182,8 +239,9 @@ enable(Lextok *m)
 			announce((char *) 0);
 			setparams(run, p, n);
 			setlocals(run); /* after setparams */
+			check_mtypes(m, m->lft);
 			return run->pid - Have_claim + Skip_claim; /* effective simu pid */
-		}
+	}	}
 	return 0; /* process not found */
 }
 
@@ -301,7 +359,7 @@ wrapup(int fini)
 		nproc - Have_claim + Skip_claim,
 		(xspin || nproc!=1)?"es":"");
 short_cut:
-	if (xspin) alldone(0);	/* avoid an abort from xspin */
+	if (s_trail || xspin) alldone(0);	/* avoid an abort from xspin */
 	if (fini)  alldone(1);
 }
 
@@ -345,6 +403,24 @@ silent_moves(Element *e)
 	return e;
 }
 
+static int
+x_can_run(void)	/* the currently selected process in X can run */
+{
+	if (X->prov && !eval(X->prov))
+	{
+if (0) printf("pid %d cannot run: not provided\n", X->pid);
+		return 0;
+	}
+	if (has_priority && !old_priority_rules)
+	{	Lextok *n = nn(ZN, CONST, ZN, ZN);
+		n->val = X->pid;
+if (0) printf("pid %d %s run (priority)\n", X->pid, pc_highest(n)?"can":"cannot");
+		return pc_highest(n);
+	}
+if (0) printf("pid %d can run\n", X->pid);
+	return 1;
+}
+
 static RunList *
 pickproc(RunList *Y)
 {	SeqList *z; Element *has_else;
@@ -356,7 +432,25 @@ pickproc(RunList *Y)
 		return NULL;
 	}
 	if (!interactive || depth < jumpsteps)
-	{	/* was: j = (int) Rand()%(nproc-nstop); */
+	{	if (has_priority && !old_priority_rules)	/* new 6.3.2 */
+		{	j = Rand()%(nproc-nstop);
+			for (X = run; X; X = X->nxt)
+			{	if (j-- <= 0)
+					break;
+			}
+			if (X == NULL)
+			{	fatal("unexpected, pickproc", (char *)0);
+			}
+			j = nproc - nstop;
+			while (j-- > 0)
+			{	if (x_can_run())
+				{	Y = X;
+					break;
+				}
+				X = (X->nxt)?X->nxt:run;
+			}
+			return Y;
+		}
 		if (Priority_Sum < nproc-nstop)
 			fatal("cannot happen - weights", (char *)0);
 		j = (int) Rand()%Priority_Sum;
@@ -367,6 +461,7 @@ pickproc(RunList *Y)
 			X = X->nxt;
 			if (!X) { Y = NULL; X = run; }
 		}
+
 	} else
 	{	int only_choice = -1;
 		int no_choice = 0, proc_no_ch, proc_k;
@@ -378,8 +473,7 @@ try_more:	for (X = run, k = 1; X; X = X->nxt)
 
 			Choices[X->pid] = (short) k;
 
-			if (!X->pc
-			||  (X->prov && !eval(X->prov)))
+			if (!X->pc || !x_can_run())
 			{	if (X == run)
 					Choices[X->pid] = 0;
 				continue;
@@ -512,8 +606,10 @@ multi_claims(void)
 		}	}
 		printf("\n");
 		printf("  only one claim is used in a verification run\n");
-		printf("  choose which one with ./pan -N name (defaults to -N %s)\n",
+		printf("  choose which one with ./pan -a -N name (defaults to -N %s)\n",
 			q?q->n->name:"--");
+		printf("  or use e.g.: spin -search -ltl %s %s\n",
+			q?q->n->name:"--", Fname?Fname->name:"filename");
 	}
 }
 
@@ -532,6 +628,10 @@ sched(void)
 		dumplabels();
 		return;
 	}
+	if (has_code && !analyze)
+	{	printf("spin: warning: c_code fragments remain uninterpreted\n");
+		printf("      in random simulations with spin; use ./pan -r instead\n");
+	}
 
 	if (has_enabled && u_sync > 0)
 	{	printf("spin: error, cannot use 'enabled()' in ");
@@ -542,15 +642,19 @@ sched(void)
 	{	sync_product();
 		alldone(0);
 	}
-	if (analyze)
+	if (analyze && (!replay || has_code))
 	{	gensrc();
 		multi_claims();
 		return;
+	}
+	if (replay && !has_code)
+	{	return;
 	}
 	if (s_trail)
 	{	match_trail();
 		return;
 	}
+
 	if (claimproc)
 	printf("warning: never claim not used in random simulation\n");
 	if (eventmap)
@@ -583,9 +687,9 @@ sched(void)
 		depth++; LastStep = ZE;
 		oX = X;	/* a rendezvous could change it */
 		go = 1;
-		if (X->prov && X->pc
+		if (X->pc
 		&& !(X->pc->status & D_ATOM)
-		&& !eval(X->prov))
+		&& !x_can_run())
 		{	if (!xspin && ((verbose&32) || (verbose&4)))
 			{	p_talk(X->pc, 1);
 				printf("\t<<Not Enabled>>\n");
@@ -597,9 +701,10 @@ sched(void)
 			&& ((verbose&32) || (verbose&4)))
 			{	if (X == oX)
 				if (!(e->status & D_ATOM) || (verbose&32)) /* no talking in d_steps */
-				{	p_talk(X->pc, 1);
+				{	if (!LastStep) LastStep = X->pc;
+					/* A. Tanaka, changed order */
+					p_talk(LastStep, 1);
 					printf("	[");
-					if (!LastStep) LastStep = X->pc;
 					comment(stdout, LastStep->n, 0);
 					printf("]\n");
 				}
@@ -653,13 +758,15 @@ sched(void)
 				X = (X->nxt) ? X->nxt : run;
 			} else
 			{	if (p_blocked(X->pid))
-				{	if (Tval) break;
-					Tval = 1;
-					if (depth >= jumpsteps)
+				{	if (Tval && !has_stdin)
+					{	break;
+					}
+					if (!Tval && depth >= jumpsteps)
 					{	oX = X;
 						X = (RunList *) 0; /* to suppress indent */
 						dotag(stdout, "timeout\n");
 						X = oX;
+						Tval = 1;
 		}	}	}	}
 
 		if (!run || !X) break;	/* new 5.0 */
@@ -708,7 +815,7 @@ complete_rendez(void)
 				printf("	[");
 				comment(stdout, s_was->n, 0);
 				printf("]\n");
-				tmp = orun; orun = X; X = tmp;
+				tmp = orun; /* orun = X; */ X = tmp;
 				if (!LastStep) LastStep = X->pc;
 				p_talk(LastStep, 1);
 				printf("	[");
@@ -747,6 +854,7 @@ addsymbol(RunList *r, Symbol  *s)
 	t->name = s->name;
 	t->type = s->type;
 	t->hidden = s->hidden;
+	t->isarray = s->isarray;
 	t->nbits  = s->nbits;
 	t->nel  = s->nel;
 	t->ini  = s->ini;
@@ -862,9 +970,11 @@ findloc(Symbol *s)
 		return ZS;
 	}
 	for (r = X->symtab; r; r = r->next)
-		if (strcmp(r->name, s->name) == 0
-		&& (old_scope_rules || strcmp((const char *)r->bscp, (const char *)s->bscp) == 0))
-			break;
+	{	if (strcmp(r->name, s->name) == 0
+		&& (old_scope_rules
+		 || strcmp((const char *)r->bscp, (const char *)s->bscp) == 0))
+		{	break;
+	}	}
 	if (!r)
 	{	addsymbol(X, s);
 		r = X->symtab;
@@ -932,7 +1042,11 @@ whoruns(int lnr)
 		printf(" -");
 	else
 		printf("%2d", X->pid - Have_claim);
-	printf(" (%s) ", X->n->name);
+	if (old_priority_rules)
+	{	printf(" (%s) ", X->n->name);
+	} else
+	{	printf(" (%s:%d) ", X->n->name, X->priority);
+	}
 }
 
 static void
@@ -1011,8 +1125,9 @@ remotelab(Lextok *n)
 	{	fatal("remote ref to label '%s' inside d_step",
 			n->sym->name);
 	}
-	if ((i = find_lab(n->sym, n->lft->sym, 1)) == 0)
-		fatal("unknown labelname: %s", n->sym->name);
+	if ((i = find_lab(n->sym, n->lft->sym, 1)) == 0)	/* remotelab */
+	{	fatal("unknown labelname: %s", n->sym->name);
+	}
 	return i;
 }
 
@@ -1038,7 +1153,8 @@ remotevar(Lextok *n)
 	}	}
 
 	if (prno < 0)
-		return 0;	/* non-existing process */
+	{	return 0;	/* non-existing process */
+	}
 #if 0
 	i = nproc - nstop;
 	for (Y = run; Y; Y = Y->nxt)
@@ -1056,12 +1172,13 @@ remotevar(Lextok *n)
 		}
 		if (strcmp(n->sym->name, "_p") == 0)
 		{	if (Y->pc)
-				return Y->pc->seqno;
+			{	return Y->pc->seqno;
+			}
 			/* harmless, can only happen with -t */
 			return 0;
 		}
-#if 1
-		/* new 4.0 allow remote variables */
+
+		/* check remote variables */
 		oX = X;
 		X = Y;
 
@@ -1069,17 +1186,20 @@ remotevar(Lextok *n)
 		n->lft = n->rgt;
 
 		os = n->sym;
-		n->sym = findloc(n->sym);
-
+		if (!n->sym->context)
+		{	n->sym->context = Y->n;
+		}
+		{ int rs = old_scope_rules;
+		  old_scope_rules = 1; /* 6.4.0 */
+		  n->sym = findloc(n->sym);
+		  old_scope_rules = rs;
+		}
 		i = getval(n);
 
 		n->sym = os;
 		n->lft = onl;
 		X = oX;
 		return i;
-#else
-		break;
-#endif
 	}
 	printf("remote ref: %s[%d] ", n->lft->sym->name, prno-added);
 	non_fatal("%s not found", n->sym->name);

@@ -1,13 +1,10 @@
 /***** spin: pangen5.c *****/
 
-/* Copyright (c) 1999-2003 by Lucent Technologies, Bell Laboratories.     */
-/* All Rights Reserved.  This software is for educational purposes only.  */
-/* No guarantee whatsoever is expressed or implied by the distribution of */
-/* this code.  Permission is given to distribute this code provided that  */
-/* this introductory message is not removed and no monies are exchanged.  */
-/* Software written by Gerard J. Holzmann.  For tool documentation see:   */
-/*             http://spinroot.com/                                       */
-/* Send all bug-reports and/or questions to: bugs@spinroot.com            */
+/*
+ * This file is part of the public release of Spin. It is subject to the
+ * terms in the LICENSE file that is included in this source directory.
+ * Tool documentation is available at http://spinroot.com
+ */
 
 #include "spin.h"
 #include "y.tab.h"
@@ -140,6 +137,7 @@ eligible(FSM_trans *v)
 	||  lt->ntyp == C_CODE
 	||  lt->ntyp == C_EXPR
 	||  has_lab(el, 0)		/* any label at all */
+	||  lt->ntyp == SET_P		/* to prevent multiple set_p merges */
 
 	||  lt->ntyp == DO
 	||  lt->ntyp == UNLESS
@@ -324,14 +322,17 @@ FSM_MERGER(/* char *pname */ void)	/* find candidates for safely merging steps *
 		lt = t->step->n;
 #if 0
 	4.1.3:
-	an rv send operation inside an atomic, *loses* atomicity
-	when executed
-	and should therefore never be merged with a subsequent
+	an rv send operation ('s') inside an atomic, *loses* atomicity
+	when executed, and should therefore never be merged with a subsequent
 	statement within the atomic sequence
-	the same is not true for non-rv send operations
+	the same is not true for non-rv send operations;
+	6.2.2:
+	RUN statements can start a new process at a higher priority level
+	which interferes with statement merging, so it too is not a suitable
+	merge target
 #endif
 
-		if (lt->ntyp == 'c'	/* potentially blocking stmnts */
+		if ((lt->ntyp == 'c' && !any_oper(lt->lft, RUN)) /* 2nd clause 6.2.2 */
 		||  lt->ntyp == 'r'
 		||  (lt->ntyp == 's' && u_sync == 0))	/* added !u_sync in 4.1.3 */
 		{	if (!canfill_in(t))		/* atomic, non-global, etc. */
@@ -534,6 +535,7 @@ ana_var(FSM_trans *t, Lextok *now, int usage)
 	if (now->sym->name[0] == '_'
 	&&  (strcmp(now->sym->name, "_") == 0
 	||   strcmp(now->sym->name, "_pid") == 0
+	||   strcmp(now->sym->name, "_priority") == 0
 	||   strcmp(now->sym->name, "_last") == 0))
 		return;
 
@@ -590,10 +592,17 @@ ana_stmnt(FSM_trans *t, Lextok *now, int usage)
 	case C_EXPR:
 		break;
 
+	case ',': /* reached with SET_P and array initializers */
+		if (now->lft && now->lft->rgt)
+		{	ana_stmnt(t, now->lft->rgt, RVAL);
+		}
+		break;
+
 	case '!':	
 	case UMIN:
 	case '~':
 	case ENABLED:
+	case GET_P:
 	case PC_VAL:
 	case LEN:
 	case FULL:
@@ -603,6 +612,11 @@ ana_stmnt(FSM_trans *t, Lextok *now, int usage)
 	case ASSERT:
 	case 'c':
 		ana_stmnt(t, now->lft, RVAL);
+		break;
+
+	case SET_P:
+		ana_stmnt(t, now->lft, RVAL); /* ',' */
+		ana_stmnt(t, now->lft->rgt, RVAL);
 		break;
 
 	case '/':
@@ -628,8 +642,11 @@ ana_stmnt(FSM_trans *t, Lextok *now, int usage)
 		break;
 
 	case ASGN:
+		if (check_track(now) == STRUCT) { break; }
+
 		ana_stmnt(t, now->lft, LVAL);
-		ana_stmnt(t, now->rgt, RVAL);
+		if (now->rgt->ntyp)
+			ana_stmnt(t, now->rgt, RVAL);
 		break;
 
 	case PRINT:
@@ -681,9 +698,9 @@ ana_stmnt(FSM_trans *t, Lextok *now, int usage)
 		break;
 
 	default:
-		printf("spin: %s:%d, bad node type %d (ana_stmnt)\n",
+		if (0) printf("spin: %s:%d, bad node type %d (ana_stmnt)\n",
 			now->fn->name, now->ln, now->ntyp);
-		fatal("aborting", (char *) 0);
+		fatal("aborting (ana_stmnt)", (char *) 0);
 	}
 }
 
@@ -830,9 +847,15 @@ ana_seq(Sequence *s)
 		{	if (e->n->ntyp == GOTO)
 			{	g = get_lab(e->n, 1);
 				g = huntele(g, e->status, -1);
+				if (!g)
+				{	fatal("unexpected error 2", (char *) 0);
+				}
 				To = g->seqno;
 			} else if (e->nxt)
 			{	g = huntele(e->nxt, e->status, -1);
+				if (!g)
+				{	fatal("unexpected error 3", (char *) 0);
+				}
 				To = g->seqno;
 			} else
 				To = 0;
