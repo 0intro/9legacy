@@ -36,7 +36,7 @@ if(test -f $1){
 	}
 	html
 	head
-	cat $1 | aux/htmlsanitize
+	cat $1
 	tail
 	exit 0
 }
@@ -46,7 +46,6 @@ if(test -d $1){
 	# exclude stuff that we don't want to publish with grep -v
 	ls -lp $1 | grep -v ' _| snap$| (9k|nix|pac)' |
 		sed 's/ . [0-9]+ / /' |
-		aux/htmlsanitize |
 		sed 's; ([^ /]+)$; <a href="\1">\1</a>;'
 	tail
 	exit 0
