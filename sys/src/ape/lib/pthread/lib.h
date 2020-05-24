@@ -1,5 +1,3 @@
-#include <signal.h>
-
 #define	nelem(a)	(sizeof(a)/sizeof((a)[0]))
 
 /* rfork */
@@ -27,7 +25,6 @@ struct Thread {
 	Lock	l;
 	int	exited;
 	void	*ret;
-	sigset_t	sigset;
 	int	state;
 };
 
