@@ -115,6 +115,8 @@ struct sockaddr {
 	char	sa_data[108];
 };
 
+#define	sockaddr_storage	sockaddr
+
 /*
  * Structure used by kernel to pass protocol
  * information in raw sockets.

@@ -43,6 +43,10 @@
 #define	PRIX64	"llX"
 #define	PRIXMAX	"llX"
 
+#define	SCNoMAX	"llo"
+#define	SCNuMAX	"llu"
+#define	SCNxMAX	"llx"
+
 #ifdef _BITS64
 typedef long long _intptr_t;
 typedef unsigned long long _uintptr_t;
