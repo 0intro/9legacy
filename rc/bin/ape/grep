@@ -3,23 +3,27 @@
 rfork e
 
 opts=()
-files=()
-argv0=$0
-while(! ~ $#* 0){
-	switch($1){
-	case -e
-		opts=($opts $1 $2)
-		shift
-	case -[cfinsv]
-		opts=($opts $1)
-	case -q
-		opts=($opts -s)
-	case -*
-		echo $argv0 $1 not supported >[2=1]
-		exit 'not supported'
-	case *
-		files=($files $1)
-	}
-	shift
+flagfmt='c,e pattern,E,f patternfile,i,l,n,q,s,v'
+args='[file ...]'
+if(! ifs=() eval `{aux/getflags $*}){
+	aux/usage
+	eixt usage
 }
-exec /$cputype/bin/grep $opts $files
+chars=`{echo $flagfmt | sed 's/(.)[^,]*,/\1 /g'}
+for(i in $chars){
+	name=flag$i
+	switch($i){
+	case E
+		# ignore
+	case [ef]
+		if(! ~ $#$name 0)
+			opts=($opts -$i $$name)
+	case [qs]
+		if(! ~ $#$name 0 && ! ~ -s $opts)
+			opts=($opts -s)
+	case *
+		if(! ~ $#$name 0)
+			opts=($opts -$i)
+	}
+}
+exec /$cputype/bin/grep $opts $*
