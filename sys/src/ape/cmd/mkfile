@@ -5,6 +5,7 @@ TARG=basename\
 	cc\
 	dirname\
 	kill\
+	printf\
 	uname
 
 DIRS=\
@@ -49,6 +50,12 @@ cc.$O: cc.c
 
 $O.cc: cc.$O
 	mk -f /sys/src/cmd/mkfile $O.cc
+
+printf.$O: printf.c
+	mk -f /sys/src/cmd/mkfile printf.$O
+
+$O.printf: printf.$O
+	mk -f /sys/src/cmd/mkfile $O.printf
 
 install.rc:V: $BIN/psh
 
