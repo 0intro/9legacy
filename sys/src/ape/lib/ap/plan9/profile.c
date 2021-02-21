@@ -2,6 +2,7 @@
 #include	<stdlib.h>
 #include	<string.h>
 #include	<unistd.h>
+#include	<inttypes.h>
 #include	<errno.h>
 #include	<sys/types.h>
 #include	<fcntl.h>
@@ -21,7 +22,7 @@ typedef unsigned long long uvlong;
 
 #include	"/sys/include/tos.h"
 
-extern	void*	sbrk(ulong);
+extern	void*	sbrk(uintptr_t);
 extern	long	_callpc(void**);
 extern	long	_savearg(void);
 extern	void	_cycles(uvlong*);	/* 64-bit value of the cycle counter if there is one, 0 if there isn't */
