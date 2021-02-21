@@ -403,8 +403,11 @@ tlsClient(int fd, TLSconn *conn)
 	}
 	sprint(dname, "#a/tls/%s/data", buf);
 	data = open(dname, ORDWR);
-	if(data < 0)
+	if(data < 0) {
+		close(hand);
+		close(ctl);
 		return -1;
+	}
 	fprint(ctl, "fd %d 0x%x", fd, ProtocolVersion);
 	tls = tlsClient2(ctl, hand, conn->sessionID, conn->sessionIDlen, conn->trace);
 	close(fd);
@@ -1434,7 +1437,7 @@ tlsConnectionFree(TlsConnection *c)
 	tlsSecClose(c->sec);
 	freebytes(c->sid);
 	freebytes(c->cert);
-	memset(c, 0, sizeof(c));
+	memset(c, 0, sizeof(*c));
 	free(c);
 }
 
@@ -1545,12 +1548,14 @@ initCiphers(void)
 	j = open("#a/tls/encalgs", OREAD);
 	if(j < 0){
 		werrstr("can't open #a/tls/encalgs: %r");
+		unlock(&ciphLock);
 		return 0;
 	}
 	n = read(j, s, MaxAlgF-1);
 	close(j);
 	if(n <= 0){
 		werrstr("nothing in #a/tls/encalgs: %r");
+		unlock(&ciphLock);
 		return 0;
 	}
 	s[n] = 0;
@@ -1569,12 +1574,14 @@ initCiphers(void)
 	j = open("#a/tls/hashalgs", OREAD);
 	if(j < 0){
 		werrstr("can't open #a/tls/hashalgs: %r");
+		unlock(&ciphLock);
 		return 0;
 	}
 	n = read(j, s, MaxAlgF-1);
 	close(j);
 	if(n <= 0){
 		werrstr("nothing in #a/tls/hashalgs: %r");
+		unlock(&ciphLock);
 		return 0;
 	}
 	s[n] = 0;
