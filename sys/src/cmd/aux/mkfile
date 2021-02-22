@@ -15,6 +15,7 @@ TARG=\
 	depend\
 	disksim\
 	getflags\
+	htmlsanitize\
 	lines\
 	listen\
 	listen1\
