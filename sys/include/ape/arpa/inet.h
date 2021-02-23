@@ -97,6 +97,7 @@ struct in_addr {
 
 #define	INADDR_ANY		(unsigned long)0x00000000
 #define	INADDR_BROADCAST	(unsigned long)0xffffffff	/* must be masked */
+#define	INADDR_NONE		(unsigned long)0xffffffff	/* -1 return */
 
 #define	IN_LOOPBACKNET		127			/* official! */
 
@@ -109,6 +110,27 @@ struct sockaddr_in {
 	struct	in_addr sin_addr;
 	char	sin_zero[8];
 };
+
+#define INET_ADDRSTRLEN 16
+
+struct in6_addr {
+	unsigned char	s6_addr[16];
+};
+
+struct sockaddr_in6 {
+	int		sin6_family;
+	short		sin6_port;
+	unsigned int	sin6_flowinfo;		/* uint32_t */
+	struct in6_addr	sin6_addr;
+	unsigned int	sin6_scope_id;		/* uint32_t */
+};
+
+#define IN6ADDR_ANY_INIT		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, }
+#define IN6ADDR_LOOPBACK_INIT	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, }
+#define INET6_ADDRSTRLEN 46
+
+extern const struct in6_addr in6addr_any;
+extern const struct in6_addr in6addr_loopback;
 
 /*
  * Structure used to describe IP options.
@@ -138,6 +160,10 @@ extern unsigned short	htons(unsigned short x);
 extern unsigned long	inet_addr(char*);
 extern char*		inet_ntoa(struct in_addr);
 extern unsigned long	nptohl(void*);
+
+/* _SUSV2_SOURCE ? */
+const char*		inet_ntop(int, const void*, char*, int);
+int          		inet_pton(int, const char*, void*);
 
 #ifdef __cplusplus
 }

@@ -19,6 +19,7 @@ enum {
 typedef long long vlong;
 typedef unsigned long ulong;
 typedef unsigned long long uvlong;
+typedef unsigned long uint;
 
 #include	"/sys/include/tos.h"
 

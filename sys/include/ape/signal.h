@@ -46,7 +46,7 @@ typedef int sig_atomic_t;
 extern "C" {
 #endif
 
-extern void (*signal(int, void (*)()))();
+extern void (*signal(int, void (*)(int)))(int);
 extern int raise(int);
 
 #ifdef __cplusplus

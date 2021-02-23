@@ -1,3 +1,6 @@
+#ifndef _LIBC_H_
+#define _LIBC_H_ 1
+
 #define _LOCK_EXTENSION
 #define _QLOCK_EXTENSION
 #define _BSD_EXTENSION
@@ -89,10 +92,10 @@ extern	long	_PREAD(int, void*, long, long long);
 extern	long	_PWRITE(int, void*, long, long long);
 extern	long	_READ(int, void*, long);
 extern	int	_REMOVE(const char*);
-extern	int	_RENDEZVOUS(unsigned long, unsigned long);
+extern	void*	_RENDEZVOUS(void*, void*);
 extern	int	_RFORK(int);
-extern	int	_SEGATTACH(int, char*, void*, unsigned long);
-extern	int	_SEGBRK(void*, void*);
+extern	void*	_SEGATTACH(int, char*, void*, unsigned long);
+extern	void*	_SEGBRK(void*, void*);
 extern	int	_SEGDETACH(void*);
 extern	int	_SEGFLUSH(void*, unsigned long);
 extern	int	_SEGFREE(void*, unsigned long);
@@ -102,10 +105,10 @@ extern	int	_STAT(const char*, unsigned char*, int);
 extern	Waitmsg*	_WAIT(void);
 extern	long	_WRITE(int, const void*, long);
 extern	int	_WSTAT(const char*, unsigned char*, int);
-extern 	void *_MALLOCZ(int, int);
-extern	int	_WERRSTR(char*, ...);
 extern	long	_READN(int, void*, long);
 extern	int	_IOUNIT(int);
+
+extern 	void *_MALLOCZ(int, int);		/* not a syscall */
 
 #define dirstat _dirstat
 #define dirfstat _dirfstat
@@ -113,28 +116,43 @@ extern	int	_IOUNIT(int);
 #define OREAD 0
 #define OWRITE 1
 #define ORDWR 2
-#define OCEXEC 32
+#define	OEXEC	3	/* execute, == read but check execute permission */
+#define	OTRUNC	16	/* or'ed in (except for exec), truncate file first */
+#define	OCEXEC	32	/* or'ed in, close on exec */
+#define	ORCLOSE	64	/* or'ed in, remove on close */
+#define	OEXCL	0x1000	/* or'ed in, exclusive use (create only) */
 
 #define AREAD 4
 #define AWRITE 2
 #define AEXEC 1
 #define AEXIST 0
 
+#ifdef thisisallgoingtoendintears
 #define open _OPEN
 #define close _CLOSE
 #define read _READ
 #define write _WRITE
-#define _exits(s) _exit(s && *(char*)s ? 1 : 0)
-#define exits(s) exit(s && *(char*)s ? 1 : 0)
 #define create _CREATE
 #define pread _PREAD
+#define seek _SEEK
+#endif
+
+/* we don't have fauth(), so let this slide */
+#define seek(fd, off, dir)	lseek(fd, off, dir)
+#define	fauth _FAUTH
+/* neither iounit */
+#define iounit	_IOUNIT
+#define wait	_WAIT
+
+#define create(file, omode, perm)	open(file, (omode) |O_CREAT | O_TRUNC, perm)
 #define readn _READN
 #define mallocz _MALLOCZ
-#define iounit	_IOUNIT
 
+#define _exits(s) _exit(s && *(char*)s ? 1 : 0)
+#define exits(s) exit(s && *(char*)s ? 1 : 0)
 /* assume being called as in event.c */
 #define postnote(x, pid, msg) kill(pid, SIGTERM)
-#define atnotify(x, y) signal(SIGTERM, ekill)
+#define atnotify(x, y) signal(SIGTERM, NULL)
 
 #define ERRMAX 128
 
@@ -151,10 +169,13 @@ int  dec32(uchar *, int, char *, int);
 int  enc32(char *, int, uchar *, int);
 int  dec64(uchar *, int, char *, int);
 int  enc64(char *, int, uchar *, int);
+int decrypt(void*, void*, int);
+int encrypt(void*, void*, int);
 
 extern	vlong	nsec(void);
 
 extern void sysfatal(char*, ...);
 
 extern	ulong	truerand(void);			/* uses /dev/random */
-extern	int	getfields(char*, char**, int, int, char*);
+
+#endif	/* _LIBC_H_ */

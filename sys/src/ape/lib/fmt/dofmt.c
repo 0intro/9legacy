@@ -330,6 +330,7 @@ __ifmt(Fmt *f)
 	char buf[70], *p, *conv;
 	uvlong vu;
 	ulong u;
+	uintptr_t pu;
 	int neg, base, i, n, fl, w, isv;
 
 	neg = 0;
@@ -349,7 +350,12 @@ __ifmt(Fmt *f)
 		break;
 	}
 	if(f->r == 'p'){
-		u = (uintptr_t)va_arg(f->args, void*);
+		pu = va_arg(f->args, uintptr_t);
+		if(sizeof(uintptr_t) == sizeof(uvlong)){
+			vu = pu;
+			isv = 1;
+		}else
+			u = pu;
 		f->r = 'x';
 		fl |= FmtUnsigned;
 	}else if(fl & FmtVLong){

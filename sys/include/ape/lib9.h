@@ -60,16 +60,17 @@ extern char *argv0;
 #define	ARGC()		_argc
 
 extern	int	errstr(char*, unsigned int);
-extern	int	bind(char*, char*, int);
+extern	int	_BIND(const char*, const char*, int);
+#define	bind(name, old, flag)	_BIND(name, old, flag)
 extern	int	mount(int, int, char*, int, char*);
 extern	int	unmount(char*, char*);
 extern	int	rfork(int);
-extern	int	segattach(int, char*, void*, unsigned long);
-extern	int	segbrk(void*, void*);
+extern	void*	segattach(int, char*, void*, unsigned long);
+extern	void*	segbrk(void*, void*);
 extern	int	segdetach(void*);
 extern	int	segflush(void*, unsigned long);
 extern	int	segfree(void*, unsigned long);
-extern	unsigned long	rendezvous(unsigned long, unsigned long);
+extern	void*	rendezvous(void*, void*);
 extern	unsigned long	getfcr(void);
 extern	unsigned long	getfsr(void);
 extern	void		setfcr(unsigned long);

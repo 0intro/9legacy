@@ -5,6 +5,9 @@
 #include <stdarg.h>
 #include <math.h>
 #include <ctype.h>
+#define _PLAN9_SOURCE
+#include <qlock.h>
+
 static int icvt_f(FILE *f, va_list *args, int store, int width, int type);
 static int icvt_x(FILE *f, va_list *args, int store, int width, int type);
 static int icvt_sq(FILE *f, va_list *args, int store, int width, int type);
@@ -58,12 +61,16 @@ icvt_x,	0,	0,	0,	0,	0,	0,	0,	/*  x  y  z  {  |  }  ~ ^? */
 #define	wungetc(c, f)		(++width, nungetc(c, f))
 static int nread, ncvt;
 static const char *fmtp;
+static QLock scanlock;	/* lazy solution */
 
-int vfscanf(FILE *f, const char *s, va_list args){
+static int
+vfscanf0(FILE *f, const char *s, va_list args)
+{
 	int c, width, type, store;
 	nread=0;
 	ncvt=0;
 	fmtp=s;
+
 	for(;*fmtp;fmtp++) switch(*fmtp){
 	default:
 		if(isspace(*fmtp)){
@@ -102,8 +109,21 @@ int vfscanf(FILE *f, const char *s, va_list args){
 		if(*fmtp=='\0') break;
 		if(store) ncvt++;
 	}
-	return ncvt;	
+	return ncvt;
 }
+
+int
+vfscanf(FILE *f, const char *s, va_list args)
+{
+	int r;
+
+	qlock(&scanlock);
+	r = vfscanf0(f, s, args);
+	qunlock(&scanlock);
+
+	return r;
+}
+
 static int icvt_n(FILE *f, va_list *args, int store, int width, int type){
 	USED(f, width);
 	if(store){
@@ -278,7 +298,7 @@ Done:
 }
 static int icvt_s(FILE *f, va_list *args, int store, int width, int type){
 	int c, nn;
-	register char *s;
+	char *s;
 
 	USED(type);
 	s = 0;
@@ -308,7 +328,7 @@ Done:
 }
 static int icvt_c(FILE *f, va_list *args, int store, int width, int type){
 	int c;
-	register char *s;
+	char *s;
 
 	USED(type);
 	s = 0;
@@ -342,8 +362,9 @@ static int match(int c, const char *pat){
 }
 static int icvt_sq(FILE *f, va_list *args, int store, int width, int type){
 	int c, nn;
-	register char *s;
-	register const char *pat;
+	char *s;
+	const char *pat;
+
 	USED(type);
 	s = 0;
 	pat=++fmtp;

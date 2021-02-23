@@ -55,6 +55,9 @@ extern	int	isspacerune(Rune);
 extern	int	istitlerune(Rune);
 extern	int	isupperrune(Rune);
 
+extern	void	rerrstr(char*, unsigned int);		/* gross */
+extern	int	getfields(char*, char**, int, int, char*);	/* gross */
+
 #if defined(__cplusplus)
 }
 #endif

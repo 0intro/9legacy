@@ -14,6 +14,7 @@
 #include <stdarg.h>
 #include <inttypes.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include "fmt.h"
 #include "fmtdef.h"
 

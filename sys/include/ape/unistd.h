@@ -143,6 +143,9 @@ extern ssize_t write(int, const void *, size_t);
 #ifdef __TYPES_H
 extern int ftruncate(int, off_t);
 extern off_t lseek(int, off_t, int);
+
+extern ssize_t pread(int, void*, size_t, off_t);
+extern ssize_t pwrite(int, void*, size_t, off_t);
 #endif
 
 /* device- and class-specific functions */
@@ -159,6 +162,8 @@ extern char *getlogin_r(char *, int);
 #ifdef _BSD_EXTENSION
 #include <bsd.h>
 #endif
+
+int gethostname(char *, size_t);
 
 #ifdef __cplusplus
 }

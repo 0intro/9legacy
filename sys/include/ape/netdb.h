@@ -114,6 +114,77 @@ extern char *hstrerror(int);
 
 #define __HOST_SVC_NOT_AVAIL 99		/* libc internal use only */
 
+enum {
+	AI_PASSIVE		= 0x01,
+	AI_CANONNAME	= 0x02,
+	AI_NUMERICHOST	= 0x04,		/* ignored */
+	AI_V4MAPPED		= 0x08,
+	AI_ALL			= 0x10,		/* ignored */
+	AI_ADDRCONFIG	= 0x20,		/* ignored */
+	AI_NUMERICSERV	= 0x400,
+};
+
+#define	AI_PASSIVE		AI_PASSIVE
+#define	AI_CANONNAME	AI_CANONNAME
+#define	AI_NUMERICHOST	AI_NUMERICHOST
+#define	AI_V4MAPPED		AI_V4MAPPED
+#define	AI_ALL			AI_ALL
+#define	AI_ADDRCONFIG	AI_ADDRCONFIG
+#define	AI_NUMERICSERV	AI_NUMERICSERV
+
+enum {
+	EAI_BADFLAGS	= -1,
+	EAI_NONAME		= -2,
+	EAI_AGAIN		= -3,
+	EAI_FAIL		= -4,
+	EAI_FAMILY		= -6,
+	EAI_SOCKTYPE		= -7,
+	EAI_SERVICE		= -8,
+	EAI_MEMORY		= -10,
+	EAI_SYSTEM		= -11,
+	EAI_OVERFLOW	= -12,
+};
+#define	EAI_BADFLAGS	EAI_BADFLAGS
+#define	EAI_NONAME		EAI_NONAME
+#define	EAI_AGAIN		EAI_AGAIN
+#define	EAI_FAIL		EAI_FAIL
+#define	EAI_FAMILY		EAI_FAMILY
+#define	EAI_SOCKTYPE		EAI_SOCKTYPE
+#define	EAI_SERVICE		EAI_SERVICE
+#define	EAI_MEMORY		EAI_MEMORY
+#define	EAI_SYSTEM		EAI_SYSTEM
+#define	EAI_OVERFLOW	EAI_OVERFLOW
+
+enum {
+	NI_NUMERICHOST	= 1<<0,
+	NI_NUMERICSERV	= 1<<1,
+	NI_NOFQDN		= 1<<2,
+	NI_NAMEREQD		= 1<<3,
+	NI_DGRAM		= 1<<4,
+};
+#define	NI_NUMERICHOST	NI_NUMERICHOST
+#define	NI_NUMERICSERV	NI_NUMERICSERV
+#define	NI_NOFQDN		NI_NOFQDN
+#define	NI_NAMEREQD		NI_NAMEREQD
+#define	NI_DGRAM		NI_DGRAM
+
+struct addrinfo {
+	int		ai_flags;
+	int		ai_family;
+	int		ai_socktype;
+	int		ai_protocol;
+	int		ai_addrlen;
+	struct sockaddr	*ai_addr;
+	char		*ai_canonname;
+	struct addrinfo	*ai_next;
+};
+
+/* _SUSV2_SOURCE? */
+int		getaddrinfo(const char*, const char*, const struct addrinfo*, struct addrinfo**);
+void		freeaddrinfo(struct addrinfo *);
+int		getnameinfo(const struct sockaddr *, int, char*, long, char*, long, int);
+const char*	gai_strerror(int);
+
 #ifdef __cplusplus
 }
 #endif
