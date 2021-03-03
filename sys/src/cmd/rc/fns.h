@@ -64,3 +64,4 @@ int	wordchr(Rune);
 void	yyerror(char*);
 int	yylex(void);
 int	yyparse(void);
+int	parse(void);

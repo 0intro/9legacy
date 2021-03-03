@@ -181,7 +181,8 @@ main(int argc, char *argv[])
 	ARGBEGIN {
 	case 'd': case 'e': case 'i': case 'l':
 	case 'p': case 'r': case 's': case 'v':
-	case 'x': case 'I': case 'V':
+	case 'x': case 'D': case 'I': case 'V':
+	case 'Y':
 		flag[ARGC()] = flagset;
 		break;
 	case 'c':
@@ -950,7 +951,7 @@ Xrdcmds(void)
 			promptstr="% ";
 	}
 	Noerror();
-	if(yyparse()){
+	if((flag['Y'] ? yyparse : parse)()){
 		if(!p->iflag || p->eof && !Eintr()){
 			if(p->cmdfile)
 				efree(p->cmdfile);

@@ -1,5 +1,5 @@
 %term FOR IN WHILE IF NOT TWIDDLE BANG SUBSHELL SWITCH FN
-%term WORD REDIR DUP PIPE SUB
+%term WORD REDIR REDIRW DUP PIPE SUB
 %term SIMPLE ARGLIST WORDS BRACE PAREN PCMD PIPEFD /* not used in syntax */
 /* operator priorities -- lowest first */
 %left IF WHILE FOR SWITCH ')' NOT
@@ -19,7 +19,7 @@
 %type<tree> line paren brace body cmdsa cmdsan assign epilog redir
 %type<tree> cmd simple first word comword keyword words
 %type<tree> NOT FOR IN WHILE IF TWIDDLE BANG SUBSHELL SWITCH FN
-%type<tree> WORD REDIR DUP PIPE
+%type<tree> WORD REDIR REDIRW DUP PIPE
 %%
 rc:				{ return 1;}
 |	line '\n'		{return !compile($1);}
@@ -86,7 +86,7 @@ comword: '$' word		{$$=tree1('$', $2);}
 |	'`' brace		{$$=tree2('`', (struct tree*)0, $2);}
 |	'`' word brace		{$$=tree2('`', $2, $3);}
 |	'(' words ')'		{$$=tree1(PAREN, $2);}
-|	REDIR brace		{$$=mung1($1, $2); $$->type=PIPEFD;}
+|	REDIRW brace		{$$=mung1($1, $2); $$->type=PIPEFD;}
 keyword: FOR|IN|WHILE|IF|NOT|TWIDDLE|BANG|SUBSHELL|SWITCH|FN
 words:				{$$=(struct tree*)0;}
 |	words word		{$$=tree2(WORDS, $1, $2);}

@@ -113,16 +113,19 @@ pprompt(void)
 	doprompt = 0;
 }
 
-void
+int
 skipwhite(void)
 {
 	Rune c;
+	int skipped;
 
+	skipped = 0;
 	for(;;){
 		c = nextc();
 		/* Why did this used to be  if(!inquote && c=='#') ?? */
 		if(c=='#'){
 			incomm = 1;
+			skipped = 1;
 			for(;;){
 				c = nextc();
 				if(c=='\n' || c==EOF) {
@@ -132,9 +135,12 @@ skipwhite(void)
 				advance();
 			}
 		}
-		if(c==' ' || c=='\t')
+		if(c==' ' || c=='\t'){
+			skipped = 1;
 			advance();
-		else return;
+		}
+		else
+			return skipped;
 	}
 }
 
@@ -187,7 +193,7 @@ yylex(void)
 {
 	Rune c, d = nextc();
 	char *w = tok;
-	struct tree *t;
+	tree *t;
 
 	yylval.tree = 0;
 	/*
@@ -197,11 +203,11 @@ yylex(void)
 	 * consume the `('.  Otherwise, if the next character is the first
 	 * character of a simple or compound word, we insert a `^' before it.
 	 */
-	if(lastword){
+	if(lastword && flag['Y']){
 		lastword = 0;
 		if(d=='('){
 			advance();
-			strcpy(tok, "( [SUB]");
+			strcpy(tok, "(");
 			return SUB;
 		}
 		if(wordchr(d) || d=='\'' || d=='`' || d=='$' || d=='"'){
@@ -209,7 +215,8 @@ yylex(void)
 			return '^';
 		}
 	}
-	skipwhite();
+	if(skipwhite() && !flag['Y'])
+		return ' ';
 	switch(c = advance()){
 	case EOF:
 		lastdol = 0;
@@ -230,7 +237,8 @@ yylex(void)
 	case '&':
 		lastdol = 0;
 		if(nextis('&')){
-			skipnl();
+			if(flag['Y'])
+				skipnl();
 			strcpy(tok, "&&");
 			return ANDAND;
 		}
@@ -239,7 +247,8 @@ yylex(void)
 	case '|':
 		lastdol = 0;
 		if(nextis(c)){
-			skipnl();
+			if(flag['Y'])
+				skipnl();
 			strcpy(tok, "||");
 			return OROR;
 		}
@@ -328,8 +337,13 @@ yylex(void)
 		}
 		*w='\0';
 		yylval.tree = t;
-		if(t->type==PIPE)
+		if(t->type==PIPE && flag['Y'])
 			skipnl();
+		if(t->type==REDIR){
+			skipwhite();
+			if(nextc() == '{')
+				t->type = REDIRW;
+		}
 		return t->type;
 	case '\'':
 		lastdol = 0;

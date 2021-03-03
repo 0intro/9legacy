@@ -48,7 +48,10 @@ pfmt(io *f, char *fmt, ...)
 			pstr(f, va_arg(ap, char *));
 			break;
 		case 't':
-			pcmd(f, va_arg(ap, struct tree *));
+			pcmd(f, va_arg(ap, tree *));
+			break;
+		case 'u':
+			pcmdu(f, va_arg(ap, tree *));
 			break;
 		case 'v':
 			pval(f, va_arg(ap, struct word *));
@@ -271,7 +274,7 @@ io*
 opencore(char *s, int len)
 {
 	io *f = new(struct io);
-	uchar *buf = emalloc(len);
+	char *buf = emalloc(len);
 
 	f->fd = -1 /*open("/dev/null", 0)*/;
 	f->bufp = f->strp = buf;

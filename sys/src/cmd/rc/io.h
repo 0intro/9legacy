@@ -3,8 +3,8 @@
 
 struct io{
 	int	fd;
-	uchar	*bufp, *ebuf, *strp;
-	uchar	buf[NBUF];
+	char	*bufp, *ebuf, *strp;
+	char	buf[NBUF];
 	uchar	output;		/* flag */
 };
 io *err;
@@ -25,6 +25,7 @@ void pquo(io*, char*);
 void pwrd(io*, char*);
 void pstr(io*, char*);
 void pcmd(io*, tree*);
+void pcmdu(io*, tree*);
 void pval(io*, word*);
 void pfnc(io*, thread*);
 void pfmt(io*, char*, ...);

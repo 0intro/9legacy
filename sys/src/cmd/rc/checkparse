@@ -1,0 +1,22 @@
+#!/bin/rc
+
+aflag=false
+if(~ $1 -a){
+	aflag=true
+	shift
+}
+
+files=$*
+if(~ $#files 0){
+	files=`{
+		echo ./test.rc
+		grep -l '^#!/bin/rc' /bin/* /bin/*/* >/dev/null >[2=1]
+	}
+}
+
+for(i in $files){
+	if(! diff <{./o.rc -DY $i >[2=1]} <{./o.rc -D $i >[2=1]}){
+		echo '^^^' $i
+		~ $aflag false && exit bad
+	}
+}
