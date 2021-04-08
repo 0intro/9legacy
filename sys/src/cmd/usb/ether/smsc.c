@@ -15,10 +15,9 @@ enum {
 	Resettime	= 1000,
 	E2pbusytime	= 1000,
 	Afcdefault	= 0xF830A1,
-//	Hsburst		= 37,	/* from original linux driver */
-	Hsburst		= 8,
+	Hsburst		= 24,
 	Fsburst		= 129,
-	Defbulkdly	= 0x2000,
+	Defbulkdly	= 1000,
 
 	Ethp8021q	= 0x8100,
 	MACoffset 	= 1,
@@ -101,6 +100,8 @@ enum {
 		Anegcomp= 1<<6,
 		Linkdown= 1<<4,
 };
+
+static int burstcap = Hsburst, bulkdelay = Defbulkdly;
 
 static int
 wr(Dev *d, int reg, int val)
@@ -238,12 +239,13 @@ smscinit(Ether *ether)
 	wr(d, Addrh, GET2(ether->addr+4));
 	if(Doburst){
 		wr(d, Hwcfg, (rr(d,Hwcfg)&~Rxdoff)|Bir|Mef|Bce);
-		wr(d, Burstcap, Hsburst);
+		wr(d, Burstcap, burstcap);
+		wr(d, Bulkdelay, bulkdelay);
 	}else{
 		wr(d, Hwcfg, (rr(d,Hwcfg)&~(Rxdoff|Mef|Bce))|Bir);
 		wr(d, Burstcap, 0);
+		wr(d, Bulkdelay, 0);
 	}
-	wr(d, Bulkdelay, Defbulkdly);
 	wr(d, Intsts, ~0);
 	wr(d, Ledgpio, Ledspd|Ledlnk|Ledfdx);
 	wr(d, Flow, 0);
@@ -274,7 +276,7 @@ smscbread(Ether *e, Buf *bp)
 	rbp = e->aux;
 	if(rbp->ndata < 4){
 		rbp->rp = rbp->data;
-		rbp->ndata = read(e->epin->dfd, rbp->rp, Doburst? Hsburst*512:
+		rbp->ndata = read(e->epin->dfd, rbp->rp, Doburst? burstcap*512:
 			Maxpkt);
 		if(rbp->ndata < 0)
 			return -1;
@@ -285,20 +287,24 @@ smscbread(Ether *e, Buf *bp)
 		return 0;
 	}
 	hd = GET4(rbp->rp);
+	rbp->rp += 4;
+	rbp->ndata -= 4;
 	n = hd >> 16;
-	m = (n + 4 + 3) & ~3;
-	if(n < 6 || m > rbp->ndata){
+	if(n < 6 || n > rbp->ndata){
 		werrstr("frame length");
 		fprint(2, "smsc length error packet %d buf %d\n", n, rbp->ndata);
 		rbp->ndata = 0;
 		return 0;
 	}
+	m = n;
+	if(rbp->ndata - m < 4)
+		m = rbp->ndata;
 	if(hd & Rxerror){
 		fprint(2, "smsc rx error %8.8ux\n", hd);
 		n = 0;
 	}else{
 		bp->rp = bp->data + Hdrsize;
-		memmove(bp->rp, rbp->rp+4, n);
+		memmove(bp->rp, rbp->rp, n);
 	}
 	bp->ndata = n;
 	rbp->rp += m;
@@ -377,7 +383,7 @@ smscreset(Ether *ether)
 			deprint(2, "%s: smsc reset done\n", argv0);
 			ether->name = "smsc";
 			if(Doburst){
-				ether->bufsize = Hsburst*512;
+				ether->bufsize = burstcap*512;
 				ether->aux = emallocz(sizeof(Buf) +
 					ether->bufsize - Maxpkt, 1);
 			}else{
