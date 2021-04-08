@@ -1,0 +1,27 @@
+# mkfile for lzip - LZMA lossless data compressor
+</$objtype/mkfile
+
+TARG=lzip
+OFILES=decoder.$O \
+	encoder.$O \
+	encoder_base.$O \
+	fast_encoder.$O \
+	file_index.$O \
+	list.$O \
+	main.$O
+
+HFILES=decoder.h \
+	encoder.h \
+	encoder_base.h \
+	fast_encoder.h \
+	file_index.h \
+	lzip.h \
+	stdbool.h
+
+BIN=/$objtype/bin
+
+</sys/src/cmd/mkone
+
+CC = pcc -c
+CFLAGS = -FTVw -I. -D_SUSV2_SOURCE -D_POSIX_SOURCE -D_PLAN9_SOURCE
+LD = pcc # -p
