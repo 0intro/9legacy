@@ -29,7 +29,7 @@ typedef uvlong		Tval;
 #define BOOT_MAGIC	(0x160<<16) || magic == ((0x160<<16)|3)
 
 /*
- *  machine dependent definitions used by ../port/dat.h
+ *  machine dependent definitions used by ../port64/dat.h
  */
 
 struct Lock
@@ -130,7 +130,7 @@ struct Notsave
 	ulong	nonempty;
 };
 
-#include "../port/portdat.h"
+#include "../port64/portdat.h"
 
 /* First FIVE members' offsets known by l.s */
 struct Mach
