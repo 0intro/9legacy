@@ -9,7 +9,7 @@ if(! ifs=() eval `{aux/getflags $*}){
 	aux/usage
 	eixt usage
 }
-chars=`{echo $flagfmt | sed 's/(.)[^,]*,/\1 /g'}
+chars=`{echo $flagfmt | /$cputype/bin/sed 's/(.)[^,]*,/\1 /g'}
 for(i in $chars){
 	name=flag$i
 	switch($i){
