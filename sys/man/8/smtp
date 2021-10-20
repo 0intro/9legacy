@@ -70,7 +70,7 @@ This option implies
 .BR -s .
 .TP
 .B -A
-autistic server: don't wait for an SMTP greeting banner
+avoidant server: don't wait for an SMTP greeting banner
 but immediately send a
 .L NOOP
 command to provoke the server into responding.
