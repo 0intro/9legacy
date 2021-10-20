@@ -35,7 +35,7 @@ String	*reply;		/* last reply */
 String	*toline;
 
 int	alarmscale;
-int	autistic;
+int	avoidant;
 int	debug;		/* true if we're debugging */
 int	filter;
 int	insecure;
@@ -122,8 +122,8 @@ main(int argc, char **argv)
 		tryauth = 1;
 		trysecure = 1;
 		break;
-	case 'A':	/* autistic: won't talk to us until we talk (Verizon) */
-		autistic = 1;
+	case 'A':	/* avoidant: won't talk to us until we talk (Verizon) */
+		avoidant = 1;
 		break;
 	case 'b':
 		if (bustedmx >= Maxbustedmx)
@@ -477,7 +477,7 @@ hello(char *me, int encrypted)
 		 * answers a call.  Send a no-op in the hope of making it
 		 * talk.
 		 */
-		if (autistic) {
+		if (avoidant) {
 			dBprint("NOOP\r\n");
 			getreply();	/* consume the smtp greeting */
 			/* next reply will be response to noop */
