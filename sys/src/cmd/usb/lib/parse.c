@@ -66,6 +66,11 @@ parseiface(Usbdev *d, Conf *c, uchar *b, int n, Iface **ipp, Altc **app)
 	}
 	if(c->iface[ifid] == nil)
 		c->iface[ifid] = emallocz(sizeof(Iface), 1);
+	else{
+		/* hack to avoid unsupported uasp disk interface */
+		if(dip->bInterfaceClass == Clstorage && dip->bInterfaceProtocol != 0x50)
+			return 0;
+	}
 	ip = c->iface[ifid];
 	class = dip->bInterfaceClass;
 	subclass = dip->bInterfaceSubClass;
@@ -164,6 +169,7 @@ parsedesc(Usbdev *d, Conf *c, uchar *b, int n)
 	Ep 	*ep;
 	Altc	*altc;
 	char	*hd;
+	int	ok;
 
 	assert(d != nil && c != nil);
 	tot = 0;
@@ -174,6 +180,7 @@ parsedesc(Usbdev *d, Conf *c, uchar *b, int n)
 		if(d->ddesc[nd] == nil)
 			break;
 
+	ok = 1;
 	while(n > 2 && b[0] != 0 && b[0] <= n){
 		len = b[0];
 		if(usbdebug>1){
@@ -189,7 +196,7 @@ parsedesc(Usbdev *d, Conf *c, uchar *b, int n)
 			ddprint(2, "%s\tparsedesc: %r", argv0);
 			break;
 		case Diface:
-			if(parseiface(d, c, b, n, &ip, &altc) < 0){
+			if((ok = parseiface(d, c, b, n, &ip, &altc)) < 0){
 				ddprint(2, "%s\tparsedesc: %r\n", argv0);
 				return -1;
 			}
@@ -199,6 +206,8 @@ parsedesc(Usbdev *d, Conf *c, uchar *b, int n)
 				werrstr("unexpected endpoint descriptor");
 				break;
 			}
+			if(!ok)
+				break;
 			if(parseendpt(d, c, ip, altc, b, n, &ep) < 0){
 				ddprint(2, "%s\tparsedesc: %r\n", argv0);
 				return -1;
