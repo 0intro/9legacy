@@ -362,6 +362,8 @@ getmaxpkt(Dev *d, int islow)
 		dd->bMaxPacketSize0 = 64;
 	if(usbcmd(d, Rd2h|Rstd|Rdev, Rgetdesc, Ddev<<8|0, 0, buf, sizeof(buf)) < 0)
 		return -1;
+	if((dd->bcdUSB[1] & 0xF) == 3)
+		return 1 << dd->bMaxPacketSize0;
 	return dd->bMaxPacketSize0;
 }
 
