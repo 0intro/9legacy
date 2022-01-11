@@ -41,6 +41,13 @@ atomically
 increment and decrement (respectively) the integer pointed to by
 .IR p ,
 and return the resulting value after the operation.
+On architectures with a weak memory model, both operations
+are implemented with a barrier to memory reordering.
+In other words, all loads and stores
+which precede the increment / decrement in program order
+will be observed before it,
+and the increment / decrement will be observed before any loads
+and stores which follow it in program order.
 .PP
 .I Cas
 performs a compare and swap on the word pointed to by
