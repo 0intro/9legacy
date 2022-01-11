@@ -31,6 +31,7 @@ fail:
 
 TEXT _xinc(SB), $0	/* void	_xinc(long *); */
 TEXT ainc(SB), $0	/* long ainc(long *); */
+	DMB
 spinainc:
 	LDREX(0,3)	/*	LDREX	0(R0),R3	*/
 	ADD	$1,R3
@@ -44,6 +45,7 @@ spinainc:
 
 TEXT _xdec(SB), $0	/* long _xdec(long *); */
 TEXT adec(SB), $0	/* long adec(long *); */
+	DMB
 spinadec:
 	LDREX(0,3)	/*	LDREX	0(R0),R3	*/
 	SUB	$1,R3
