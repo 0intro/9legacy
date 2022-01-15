@@ -38,6 +38,7 @@ link
 	ethervt6102	pci ethermii
 	ethervt6105m	pci ethermii
 	ethervirtio	pci
+	ethervirtio10	pci
 	ethermedium
 	netdevmedium
 	loopbackmedium

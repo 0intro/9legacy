@@ -66,6 +66,7 @@ link
 	etherm10g	pci ethermii
 	ether82598	pci
 	ethervirtio	pci
+	ethervirtio10	pci
 
 	ethermedium
 	netdevmedium
