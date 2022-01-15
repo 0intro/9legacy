@@ -92,6 +92,7 @@ misc
 	sdiahci		pci sdscsi
 	sdaoe		sdscsi
 	sdvirtio	pci sdscsi
+	sdvirtio10	pci sdscsi
 
 ip
 	tcp
