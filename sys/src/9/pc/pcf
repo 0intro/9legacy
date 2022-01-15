@@ -70,6 +70,9 @@ link
 	etherwavelan	wavelan devi82365 cis pci
 	ethervirtio		pci
 	ethervirtio10	pci
+	etheriwl	pci wifi
+	etherwpi	pci wifi
+	etherrt2860	pci wifi
 
 	ethermedium
 	pcmciamodem
