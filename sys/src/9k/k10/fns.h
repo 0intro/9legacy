@@ -96,6 +96,8 @@ void	pause(void);
 int	pciscan(int, Pcidev**);
 ulong	pcibarsize(Pcidev*, int);
 int	pcicap(Pcidev*, int);
+int	pcihtcap(Pcidev*, int);
+int	pcienumcaps(Pcidev*, int (*fmatch)(Pcidev*, int, int, int), int);
 int	pcicfgr8(Pcidev*, int);
 int	pcicfgr16(Pcidev*, int);
 int	pcicfgr32(Pcidev*, int);
