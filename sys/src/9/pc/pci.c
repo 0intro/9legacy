@@ -1405,9 +1405,9 @@ pciclrmwi(Pcidev* p)
 }
 
 int
-pcicap(Pcidev* p, int cap)
+pcienumcaps(Pcidev* p, int (*fmatch)(Pcidev*, int, int, int), int arg)
 {
-	int i, c, off;
+	int i, r, cap, off;
 
 	/* status register bit 4 has capabilities */
 	if((pcicfgr16(p, PciPSR) & 1<<4) == 0)
@@ -1428,15 +1428,51 @@ pcicap(Pcidev* p, int cap)
 		if(off < 0x40 || (off & 3))
 			break;
 		off &= ~3;
-		c = pcicfgr8(p, off);
-		if(c == 0xff)
+		cap = pcicfgr8(p, off);
+		if(cap == 0xff)
 			break;
-		if(c == cap)
+		r = (*fmatch)(p, cap, off, arg);
+		if(r < 0)
+			break;
+		if(r == 0)
 			return off;
 		off++;
 	}
 
 	return -1;
+}
+
+static int
+matchcap(Pcidev*, int cap, int, int arg)
+{
+	return cap != arg;
+}
+
+static int
+matchhtcap(Pcidev* p, int cap, int off, int arg)
+{
+	int mask;
+
+	if(cap != PciCapHTC)
+		return 1;
+	if(arg == 0x00 || arg == 0x20)
+		mask = 0xE0;
+	else
+		mask = 0xF8;
+	cap = pcicfgr8(p, off+3);
+	return (cap & mask) != arg;
+}
+
+int
+pcicap(Pcidev* p, int cap)
+{
+	return pcienumcaps(p, matchcap, cap);
+}
+
+int
+pcihtcap(Pcidev* p, int cap)
+{
+	return pcienumcaps(p, matchhtcap, cap);
 }
 
 int
