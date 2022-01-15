@@ -50,6 +50,7 @@ misc
 	mtrr
 	sdata		pci sdscsi
 	sdvirtio	pci sdscsi
+	sdvirtio10	pci sdscsi
 
 	uarti8250
 	uartpci
