@@ -71,6 +71,7 @@ link
 #	etherm10g	pci ethermii		# vast firmware
 #	ether82598	pci
 	ethervirtio	pci
+	ethervirtio10	pci
 
 	ethermedium
 	pcmciamodem
