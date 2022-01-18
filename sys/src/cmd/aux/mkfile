@@ -52,7 +52,8 @@ DIRS=mnihongo\
 	flashfs\
 	gps\
 	na\
-	vga
+	vga\
+	vmware
 
 all:V:	$DIRS
 
