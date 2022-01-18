@@ -54,7 +54,8 @@ DIRS=mnihongo\
 	gps\
 	na\
 	vga\
-	vmware
+	vmware\
+	realemu
 
 all:V:	$DIRS
 
