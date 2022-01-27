@@ -317,14 +317,14 @@ sysretfmt(int syscallno, va_list list, Ar0* ar0, uvlong start, uvlong stop)
 	default:
 		if(ar0->i == -1)
 			errstr = up->errstr;
-		fmtprint(&fmt, " = %d", ar0->i);
+		fmtprint(&fmt, " = %d", (int)ar0->i);
 		break;
 	case ALARM:
 	case _WRITE:
 	case PWRITE:
 		if(ar0->l == -1)
 			errstr = up->errstr;
-		fmtprint(&fmt, " = %ld", ar0->l);
+		fmtprint(&fmt, " = %ld", (long)ar0->l);
 		break;
 	case EXEC:
 	case SEGBRK:
@@ -339,10 +339,10 @@ sysretfmt(int syscallno, va_list list, Ar0* ar0, uvlong start, uvlong stop)
 		l = va_arg(list, unsigned long);
 		if(ar0->i > 0){
 			fmtuserstring(&fmt, a, " ");
-			fmtprint(&fmt, "%lud = %d", l, ar0->i);
+			fmtprint(&fmt, "%lud = %d", l, (int)ar0->i);
 		}
 		else{
-			fmtprint(&fmt, "%#p/\"\" %lud = %d", a, l, ar0->i);
+			fmtprint(&fmt, "%#p/\"\" %lud = %d", a, l, (int)ar0->i);
 			errstr = up->errstr;
 		}
 		break;
@@ -355,10 +355,10 @@ sysretfmt(int syscallno, va_list list, Ar0* ar0, uvlong start, uvlong stop)
 			l = va_arg(list, unsigned long);
 		if(ar0->i > 0){
 			fmtuserstring(&fmt, a, " ");
-			fmtprint(&fmt, "%lud = %d", l, ar0->i);
+			fmtprint(&fmt, "%lud = %d", l, (int)ar0->i);
 		}
 		else{
-			fmtprint(&fmt, "\"\" %lud = %d", l, ar0->i);
+			fmtprint(&fmt, "\"\" %lud = %d", l, (int)ar0->i);
 			errstr = up->errstr;
 		}
 		break;
@@ -369,10 +369,10 @@ sysretfmt(int syscallno, va_list list, Ar0* ar0, uvlong start, uvlong stop)
 		l = va_arg(list, unsigned long);
 		if(ar0->i > 0){
 			fmtuserstring(&fmt, a, " ");
-			fmtprint(&fmt, "%lud = %d", l, ar0->i);
+			fmtprint(&fmt, "%lud = %d", l, (int)ar0->i);
 		}
 		else{
-			fmtprint(&fmt, "\"\" %lud = %d", l, ar0->i);
+			fmtprint(&fmt, "\"\" %lud = %d", l, (int)ar0->i);
 			errstr = up->errstr;
 		}
 		break;
@@ -395,7 +395,7 @@ sysretfmt(int syscallno, va_list list, Ar0* ar0, uvlong start, uvlong stop)
 			vl = va_arg(list, vlong);
 			fmtprint(&fmt, " %lld", vl);
 		}
-		fmtprint(&fmt, " = %d", ar0->i);
+		fmtprint(&fmt, " = %d", (int)ar0->i);
 		break;
 	}
 	fmtprint(&fmt, " %s %#llud %#llud\n", errstr, start, stop);
