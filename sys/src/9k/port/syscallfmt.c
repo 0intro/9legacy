@@ -293,6 +293,11 @@ syscallfmt(int syscallno, va_list list)
 			fmtprint(&fmt, " %lld", vl);
 		}
 		break;
+	case NSEC:
+		/* compilers on 32-bit systems insert &ret as only argument */
+		if (sizeof(void *) < sizeof(vlong))
+			fmtprint(&fmt, "%#p", va_arg(list, vlong*));
+		break;
 	}
 	up->syscalltrace = fmtstrflush(&fmt);
 }
@@ -325,6 +330,9 @@ sysretfmt(int syscallno, va_list list, Ar0* ar0, uvlong start, uvlong stop)
 		if(ar0->l == -1)
 			errstr = up->errstr;
 		fmtprint(&fmt, " = %ld", (long)ar0->l);
+		break;
+	case NSEC:
+		fmtprint(&fmt, " = %lld", ar0->vl);
 		break;
 	case EXEC:
 	case SEGBRK:
