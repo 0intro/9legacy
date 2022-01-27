@@ -11,8 +11,10 @@ fault(uintptr addr, int read)
 	Segment *s;
 	char *sps;
 
+	if(up == nil)
+		panic("fault: nil up");
 	if(up->nlocks)
-		iprint("fault nlocks %d addr %#p\n", up->nlocks, addr);
+		print("fault: addr %#p: nlocks %d\n", addr, up->nlocks);
 
 	sps = up->psstate;
 	up->psstate = "Fault";
@@ -32,7 +34,7 @@ fault(uintptr addr, int read)
 			return -1;
 		}
 
-		if(fixfault(s, addr, read, 1) == 0)
+		if(fixfault(s, addr, read, 1) == 0)	/* qunlocks s->lk */
 			break;
 
 		/*
@@ -60,6 +62,9 @@ faulterror(char *s, Chan *c, int freemem)
 	}
 	pexit(s, freemem);
 }
+
+void	(*checkaddr)(ulong, Segment *, Page *);
+ulong	addr2check;
 
 int
 fixfault(Segment *s, uintptr addr, int read, int dommuput)
@@ -170,6 +175,8 @@ fixfault(Segment *s, uintptr addr, int read, int dommuput)
 			}
 		}
 
+		if (checkaddr && addr == addr2check)
+			(*checkaddr)(addr, s, *pg);
 		mmuphys = PPN((*pg)->pa) |PTEWRITE|PTEUNCACHED|PTEVALID;
 		(*pg)->modref = PG_MOD|PG_REF;
 		break;
@@ -309,7 +316,7 @@ vmemchr(void *s, int c, int n)
 			return t;
 		a += r;
 		n -= r;
-		if((a & KZERO) != KZERO)
+		if(a < KZERO)
 			validaddr(UINT2PTR(a), 1, 0);
 	}
 
