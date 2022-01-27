@@ -123,6 +123,7 @@ amd64 +dev
 	qmalloc
 	random
 	syscall
+	syscallfmt
 	trap
 	vsvm
 
