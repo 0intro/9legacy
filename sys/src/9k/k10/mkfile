@@ -15,6 +15,8 @@ p=9
 
 OBJ=$MACH $CONF.root.$O $DEVS $PORT
 
+CFLAGS=-FVw
+
 # $LIB seems to be in random order, invoke it multiple times
 $p$CONF:	$CONF.c $OBJ $LIB
 	$CC $CFLAGS '-DKERNDATE='`{date -n} $CONF.c
