@@ -23,6 +23,7 @@ loop:
 	MOVW	R13, R(ARG)		/* return new value */
 	SCW(13, 12, 14)	// SC_W	R13, R12, R14 /* R13 -> (R12) maybe, R14=0 if ok */
 	BNE	R14, loop
+	SYNC
 	RET
 
 TEXT adec(SB), 1, $-4			/* long adec(long*); */
@@ -35,6 +36,7 @@ loop1:
 	MOVW	R13, R(ARG)		/* return new value */
 	SCW(13, 12, 14)	// SC_W R13, R12, R14 /* R13 -> (R12) maybe, R14=0 if ok */
 	BNE	R14, loop1
+	SYNC
 	RET
 
 /*
