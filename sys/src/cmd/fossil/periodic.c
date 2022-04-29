@@ -57,6 +57,8 @@ periodicThread(void *a)
 	t = ct + p->msec;		/* call p->f at or after this time */
 
 	for(;;){
+		if(t - ct > p->msec)	/* time went backwards? */
+			t = ct + p->msec;
 		ts = t - ct;		/* ms. to next cycle's start */
 		if(ts > 1000)
 			ts = 1000;	/* bound sleep duration */
