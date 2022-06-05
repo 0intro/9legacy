@@ -94,6 +94,22 @@ Binit(Biobuf *bp, int f, int mode)
 }
 
 Biobuf*
+Bfdopen(int f, int mode)
+{
+	Biobuf *bp;
+
+	bp = malloc(sizeof(Biobuf));
+	if(bp == 0)
+		return 0;
+	if(Binits(bp, f, mode, bp->b, sizeof(bp->b)) != 0){
+		free(bp);
+		return 0;
+	}
+	bp->flag = Bmagic;			/* mark bp open & malloced */
+	return bp;
+}
+
+Biobuf*
 Bopen(char *name, int mode)
 {
 	Biobuf *bp;
@@ -112,9 +128,9 @@ Bopen(char *name, int mode)
 	}
 	if(f < 0)
 		return 0;
-	bp = malloc(sizeof(Biobuf));
-	Binits(bp, f, mode, bp->b, sizeof(bp->b));
-	bp->flag = Bmagic;			/* mark bp open & malloced */
+	bp = Bfdopen(f, mode);
+	if(bp == 0)
+		close(f);
 	return bp;
 }
 
