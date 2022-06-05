@@ -113,6 +113,8 @@ sys	- sys sys
 			+	- sys sys
 		fax	- sys sys
 			+	- sys sys
+		firmware	- sys sys
+			+	- sys sys
 		ghostscript	- sys sys
 			+	- sys sys
 		git		- sys sys
