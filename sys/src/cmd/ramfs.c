@@ -35,6 +35,7 @@ struct Fid
 
 struct Ram
 {
+	long	ref;
 	short	busy;
 	short	open;
 	long	parent;		/* index in Ram array */
@@ -287,6 +288,7 @@ rattach(Fid *f)
 	f->busy = 1;
 	f->rclose = 0;
 	f->ram = &ram[0];
+	f->ram->ref++;
 	rhdr.qid = f->ram->qid;
 	if(thdr.uname[0])
 		f->user = estrdup(thdr.uname);
@@ -379,8 +381,12 @@ rwalk(Fid *f)
 	}
 	if(rhdr.nwqid > 0)
 		err = nil;	/* didn't get everything in 9P2000 right! */
-	if(rhdr.nwqid == thdr.nwname)	/* update the fid after a successful walk */
+	if(rhdr.nwqid == thdr.nwname){	/* update the fid after a successful walk */
+		if(nf == nil)
+			f->ram->ref--;
 		f->ram = fram;
+		f->ram->ref++;
+	}
 	return err;
 }
 
@@ -461,10 +467,11 @@ rcreate(Fid *f)
 		if(r->busy && parent==r->parent)
 		if(strcmp((char*)name, r->name)==0)
 			return Einuse;
-	for(r=ram; r->busy; r++)
+	for(r=ram; r->busy || r->ref; r++)
 		if(r == &ram[maxnram-1] && (r = ramexpand(r)) == nil)
 			return "no free ram resources";
 	r->busy = 1;
+	r->ref = 1;
 	r->qid.path = ++path;
 	r->qid.vers = 0;
 	if(prm & DMDIR)
@@ -625,6 +632,7 @@ rclunk(Fid *f)
 		e = realremove(f->ram);
 	f->busy = 0;
 	f->open = 0;
+	f->ram->ref--;
 	f->ram = 0;
 	return e;
 }
@@ -639,6 +647,7 @@ rremove(Fid *f)
 	f->busy = 0;
 	f->open = 0;
 	r = f->ram;
+	f->ram->ref--;
 	f->ram = 0;
 	if(r->busy == 0)
 		return Enotexist;
