@@ -89,6 +89,27 @@ auth(char *buf, int n, int ctlfd)
 }
 
 /*
+ * mount factotum after auth
+ */
+static void
+mountfactotum(int ctlfd)
+{
+	int fd;
+
+	fd = open("/srv/factotum", ORDWR);
+	if (fd < 0) {
+		syslog(0, "ssh", "can't open /srv/factotum: %r");
+		hangup(ctlfd);
+		exits("open");
+	}
+	if (mount(fd, -1, "/mnt", MREPL, "") < 0) {
+		syslog(0, "ssh", "can't mount /srv/factotum in /mnt: %r");
+		hangup(ctlfd);
+		exits("can't mount");
+	}
+}
+
+/*
  * mount tunnel if there isn't one visible.
  */
 static void
@@ -135,6 +156,7 @@ authnewns(int ctlfd, char *buf, int size, int n)
 		return 0;
 
 	auth(buf, n, ctlfd);
+	mountfactotum(ctlfd);
 
 	p = strchr(buf, '@');
 	if (p == nil)
