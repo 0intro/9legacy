@@ -52,6 +52,8 @@ static struct {
 	"power", "/nvram", 0, sizeof(Nvrsafe),	/* OK for Ucu */
 	"arm", "#F/flash/flash0", 0x100000, sizeof(Nvrsafe),
 	"arm", "#F/flash/flash", 0x100000, sizeof(Nvrsafe),
+	"arm", "#S/sdM0/nvram", 0, sizeof(Nvrsafe),
+	"arm", "#S/sdM0/dos", -1, sizeof(Nvrsafe),	/* OK for Raspberry Pi */
 	"debug", "/tmp/nvram", 0, sizeof(Nvrsafe),
 };
 
