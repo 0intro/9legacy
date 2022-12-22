@@ -711,7 +711,6 @@ datafault(Ureg *ureg, int user)
 		panic("terminal exception at %#lux", ureg->pc);
 		break;
 	case 0x4:		/* icache maint fault */
-	case 0x6:		/* access flag fault (page) */
 	case 0x8:		/* precise external abort, non-xlat'n */
 	case 0x28:
 	case 0x16:		/* imprecise ext. abort, non-xlt'n */
@@ -721,7 +720,6 @@ datafault(Ureg *ureg, int user)
 		break;
 	case 0xc:		/* l1 translation, precise ext. abort */
 	case 0x2c:
-	case 0xe:		/* l2 translation, precise ext. abort */
 	case 0x2e:
 		panic("external translation abort %#lux pc %#lux addr %#p",
 			fsr, ureg->pc, va);
@@ -734,6 +732,7 @@ datafault(Ureg *ureg, int user)
 		break;
 	case 0x5:		/* translation fault, no section entry */
 	case 0x7:		/* translation fault, no page entry */
+	case 0xe:		/* l2 translation, precise ext. abort */
 		faultarm(ureg, va, user, !writetomem(inst));
 		break;
 	case 0x9:
@@ -750,6 +749,7 @@ datafault(Ureg *ureg, int user)
 			panic("kernel access violation: pc %#lux va %#p",
 				ureg->pc, va);
 		break;
+	case 0x6:		/* access flag fault (page) */
 	case 0xd:
 	case 0xf:
 		/* permission error, copy on write or real permission error */

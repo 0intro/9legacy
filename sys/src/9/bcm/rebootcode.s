@@ -4,6 +4,7 @@
 #include "arm.s"
 
 #define PTEDRAM		(Dom0|L1AP(Krw)|Section)
+#define PTELPAE		(1<<10|3<<8|1<<0)	/* AF | ShareInner | Block */
 
 #define WFI	WORD	$0xe320f003	/* wait for interrupt */
 #define WFE	WORD	$0xe320f002	/* wait for event */
@@ -30,8 +31,13 @@ TEXT	main(SB), 1, $-4
 
 	/* redo double map of first MiB PHYSDRAM = KZERO */
 	MOVW	12(R(MACH)), R2		/* m->mmul1 (virtual addr) */
-	MOVW	$PTEDRAM, R1		/* PTE bits */
+	MRC	CpSC, 0, R3, C(CpTTB), C(0), CpTTBctl
+	AND.S	$EAElpae, R3
+	MOVW.EQ	$PTEDRAM, R1		/* PTE bits (non-lpae) */
+	MOVW.NE	$PTELPAE, R1		/* PTE bits (lpae) */
 	MOVW	R1, (R2)
+	MOVW	$0, R1
+	MOVW	R1, 4(R2)
 	DSB
 	MCR	CpSC, 0, R2, C(CpCACHE), C(CpCACHEwb), CpCACHEse
 

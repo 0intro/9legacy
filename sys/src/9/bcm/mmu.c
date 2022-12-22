@@ -21,8 +21,14 @@ enum {
 	KMAPADDR	= 0xFFF00000,
 };
 
+ulong ttbcr = 0;
+ulong mair0;
+void lpapageinit(void) {}
+
 /*
- * Set up initial PTEs for cpu0 (called with mmu off)
+ * Set up initial PTEs
+ *   Called before main, with mmu off, to initialise cpu0's tables
+ *   Called from launchinit to clone cpu0's tables for other cpus
  */
 void
 mmuinit(void *a)
@@ -31,6 +37,10 @@ mmuinit(void *a)
 	uintptr pa, pe, va;
 
 	l1 = (PTE*)a;
+	if((uintptr)l1 != PADDR(L1)){
+		memmove(l1, m->mmul1, L1SIZE);
+		return;
+	}
 	l2 = (PTE*)PADDR(L2);
 
 	/*
@@ -63,12 +73,12 @@ mmuinit(void *a)
 		l1[L1X(va)] = pa|Dom0|L1AP(Krw)|Section|L1noexec;
 	/*
 	 * pi4 hack: ether and pcie are in segment 0xFD5xxxxx not 0xFE5xxxxx
-	 *           gisb is in segment 0xFC4xxxxx not FE4xxxxx
+	 *           gisb is in segment 0xFC4xxxxx not FE4xxxxx (and we map it at va FE6xxxxx)
 	 */
 	va = VIRTIO + 0x500000;
 	pa = soc.physio - 0x1000000 + 0x500000;
 	l1[L1X(va)] = pa|Dom0|L1AP(Krw)|Section|L1noexec;
-	va = VIRTIO + 0x400000;
+	va = VIRTIO + 0x600000;
 	pa = soc.physio - 0x2000000 + 0x400000;
 	l1[L1X(va)] = pa|Dom0|L1AP(Krw)|Section|L1noexec;
 	

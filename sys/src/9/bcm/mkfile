@@ -51,7 +51,7 @@ OBJ=\
 	fpiarm.$O\
 	fpimem.$O\
 	main.$O\
-	mmu.$O\
+#	mmu.$O\
 	syscall.$O\
 #	trap.$O\
 	$DEVS\
