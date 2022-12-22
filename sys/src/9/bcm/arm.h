@@ -227,6 +227,7 @@
  */
 #define CpTLDlock	0			/* TLB lockdown registers */
 #define CpTLDpreload	1			/* TLB preload */
+#define CpTLDmair	2
 
 #define CpTLDi		0			/* TLB instr. lockdown reg. */
 #define CpTLDd		1			/* " data " " */
@@ -269,6 +270,14 @@
 #define CpTTBowb	(3<<3)	/* outer write-back no write-allocate */
 #define CpTTBs	(1<<1)	/* page table in shareable memory */
 #define CpTTBbase	~0x7F		/* mask off control bits */
+
+/*
+ * CpTTBctl bits
+ */
+#define EAElpae		(1<<31)		/* large phyiscal address extension */
+#define SH0inner	(3<<12)		/* TTB0 inner shareable */
+#define ORGN0wb		(1<<10)		/* TTB0 outer region writeback cacheable */
+#define IRGN0wb		(1<<8)		/* TTB0 inner region writeback cacheable */
 
 /*
  * MMU page table entries.

@@ -31,7 +31,7 @@ enum {
 uintptr kseg0 = KZERO;
 Mach*	machaddr[MAXMACH];
 Conf	conf;
-ulong	memsize = 128*1024*1024;
+uvlong	memsize = 128*1024*1024;
 
 /*
  * Option arguments from the command line.
@@ -269,7 +269,7 @@ launchinit(int ncpus)
 		memset(mm, 0, MACHSIZE);
 		mm->machno = mach;
 
-		memmove(l1, m->mmul1, L1SIZE);  /* clone cpu0's l1 table */
+		mmuinit(l1);  /* clone cpu0's l1 table */
 		cachedwbse(l1, L1SIZE);
 		mm->mmul1 = l1;
 		cachedwbse(mm, MACHSIZE);
@@ -308,6 +308,8 @@ main(void)
 	ataginit((Atag*)BOOTARGS);
 	confinit();		/* figures out amount of memory */
 	xinit();
+	/* set clock rate to arm_freq from config.txt (default pi1:700Mhz pi2:900MHz) */
+	setclkrate(ClkArm, 0);
 	uartconsinit();
 	screeninit();
 
@@ -321,8 +323,7 @@ main(void)
 		for(;;)
 			;
 	}
-	/* set clock rate to arm_freq from config.txt (default pi1:700Mhz pi2:900MHz) */
-	setclkrate(ClkArm, 0);
+	print("vcore reports memory = 0x%llux\n", conf.mem[0].limit);
 	trapinit();
 	clockinit();
 	printinit();
@@ -340,6 +341,7 @@ main(void)
 	links();
 	chandevreset();			/* most devices are discovered here */
 	pageinit();
+	lpapageinit();
 	swapinit();
 	userinit();
 	launchinit(getncpus());
@@ -506,6 +508,7 @@ userinit(void)
 void
 confinit(void)
 {
+	extern ulong ttbcr;
 	int i, userpcnt;
 	ulong kpages;
 	uintptr pa;
@@ -518,7 +521,7 @@ confinit(void)
 			cpuserver = 0;
 	}
 	if((p = getconf("*maxmem")) != nil){
-		memsize = strtoul(p, 0, 0) - PHYSDRAM;
+		memsize = strtoull(p, 0, 0) - PHYSDRAM;
 		if (memsize < 16*MB)		/* sanity */
 			memsize = 16*MB;
 	}
@@ -540,21 +543,31 @@ confinit(void)
 		break;
 	case 0xC00000:
 		conf.mem[1].base = 1*GiB;
-		conf.mem[1].limit = 0xFFF00000;
+		conf.mem[1].limit = 0xFF000000;
 		break;
 	case 0xD00000:
 		conf.mem[1].base = 1*GiB;
-		conf.mem[1].limit = 0xFFF00000;
+		conf.mem[1].limit = 0xFF000000;
+		if(ttbcr){
+			/* lpae supported */
+			conf.himem.base = 4LL*GiB;
+			conf.himem.limit = 8LL*GiB;
+		}
 		break;
 	}
 	if(conf.mem[1].limit > soc.dramsize)
 		conf.mem[1].limit = soc.dramsize;
 	if(p != nil){
-		if(memsize < conf.mem[0].limit){
-			conf.mem[0].limit = memsize;
-			conf.mem[1].limit = 0;
-		}else if(memsize >= conf.mem[1].base && memsize < conf.mem[1].limit)
-			conf.mem[1].limit = memsize;
+		for(i = 0; i < nelem(conf.mem); i++){
+			if(memsize < conf.mem[i].base)
+				conf.mem[i].limit = conf.mem[i].base;
+			else if(memsize < conf.mem[i].limit)
+				conf.mem[i].limit = memsize;
+		}
+		if(memsize < conf.himem.base)
+			conf.himem.limit = conf.himem.base;
+		else if(memsize < conf.himem.limit)
+			conf.himem.limit = memsize;
 	}
 
 	if(p = getconf("*kernelpercent"))
@@ -564,6 +577,7 @@ confinit(void)
 
 	conf.npage = 0;
 	pa = PADDR(PGROUND(PTR2UINT(end)));
+	pa += BY2PG;
 
 	/*
 	 *  we assume that the kernel is at the beginning of one of the
@@ -577,6 +591,7 @@ confinit(void)
 		conf.mem[i].npage = (conf.mem[i].limit - conf.mem[i].base)/BY2PG;
 		conf.npage += conf.mem[i].npage;
 	}
+	conf.himem.npage = (conf.himem.limit - conf.himem.base)/BY2PG;
 
 	if(userpcnt < 10 || userpcnt > 99)
 		userpcnt = 90;
@@ -586,7 +601,7 @@ confinit(void)
 	conf.ialloc = ((conf.npage-conf.upages)/2)*BY2PG;
 
 	/* set up other configuration parameters */
-	conf.nproc = 100 + ((conf.npage*BY2PG)/MB)*5;
+	conf.nproc = 100 + (conf.npage/(MB/BY2PG))*5;
 	if(cpuserver)
 		conf.nproc *= 3;
 	if(conf.nproc > 2000)

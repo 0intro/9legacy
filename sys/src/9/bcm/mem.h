@@ -41,17 +41,17 @@
 #define	KZERO		KSEG0			/* kernel address space */
 #define CONFADDR	(KZERO+0x100)		/* unparsed plan9.ini */
 #define	MACHADDR	(KZERO+0x2000)		/* Mach structure */
-#define	L2		(KZERO+0x3000)		/* L2 ptes for vectors etc */
+#define	L2		(KZERO+0x3000)		/* L2 ptes for vectors etc (non-lpae) */
 #define	VCBUFFER	(KZERO+0x3400)		/* videocore mailbox buffer */
 #define	FIQSTKTOP	(KZERO+0x4000)		/* FIQ stack */
 #define	L1		(KZERO+0x4000)		/* tt ptes: 16KiB aligned */
 #define	KTZERO		(KZERO+0x8000)		/* kernel text start */
-#define	VIRTPCI		0xFD000000		/* pcie address space (pi4 only) */
+#define	VIRTPCI		0xFC000000		/* pcie address space (pi4 only) */
+#define	FRAMEBUFFER	0xFD000000		/* video framebuffer */
 #define VIRTIO		0xFE000000		/* i/o registers */
 #define	IOSIZE		(10*MiB)
 #define	ARMLOCAL	(VIRTIO+IOSIZE)		/* armv7 only */
-#define	VGPIO		(ARMLOCAL+MiB)		/* virtual gpio for pi3 ACT LED */
-#define	FRAMEBUFFER	(VGPIO+MiB)		/* video framebuffer */
+#define	VGPIO		(ARMLOCAL+2*MiB)	/* virtual gpio for pi3 ACT LED */
 
 #define	UZERO		0			/* user segment */
 #define	UTZERO		(UZERO+BY2PG)		/* user text start */
@@ -82,7 +82,7 @@
 #define	PTEPERTAB	(PTEMAPMEM/BY2PG)
 #define	SEGMAPSIZE	1984
 #define	SSEGMAPSIZE	16
-#define	PPN(x)		((x)&~(BY2PG-1))
+#define	PPN(x)		((x) & (~(BY2PG-1) | PTEHIMEM))
 
 /*
  * With a little work these move to port.
@@ -92,6 +92,7 @@
 #define	PTEWRITE	(1<<1)
 #define	PTEUNCACHED	(1<<2)
 #define PTEKERNEL	(1<<3)
+#define PTEHIMEM	(0xF<<8)
 
 /*
  * Physical machine information from here on.
