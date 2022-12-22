@@ -325,7 +325,7 @@ bind(Ctlr *ctlr, Udev *udev, Cmdbuf *cb)
 	if(ctlr->buf != nil)
 		cmderror(cb, "already bound to a device");
 	maxpkt = strtol(cb->f[6], 0, 0);
-	if(maxpkt < 8 || maxpkt > 512)
+	if(maxpkt < 8)
 		cmderror(cb, "bad maxpkt");
 	bufsize = strtol(cb->f[5], 0, 0);
 	if(bufsize < maxpkt || bufsize > 32*1024)
