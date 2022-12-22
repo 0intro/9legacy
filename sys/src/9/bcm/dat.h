@@ -28,6 +28,7 @@ typedef struct PhysUart	PhysUart;
 typedef struct PMMU	PMMU;
 typedef struct Proc	Proc;
 typedef u32int		PTE;
+typedef	u64int		LPTE;
 typedef struct Soc	Soc;
 typedef struct Uart	Uart;
 typedef struct Ureg	Ureg;
@@ -96,11 +97,11 @@ enum
 
 struct Confmem
 {
-	uintptr	base;
+	uvlong	base;
 	usize	npage;
-	uintptr	limit;
-	uintptr	kbase;
-	uintptr	klimit;
+	uvlong	limit;
+	uvlong	kbase;
+	uvlong	klimit;
 };
 
 struct Conf
@@ -108,6 +109,7 @@ struct Conf
 	ulong	nmach;		/* processors */
 	ulong	nproc;		/* processes */
 	Confmem	mem[2];		/* physical memory */
+	Confmem himem;		/* physical memory above 4GiB */
 	ulong	npage;		/* total physical pages of memory */
 	usize	upages;		/* user page pool */
 	ulong	copymode;	/* 0 is copy on write, 1 is copy on reference */
@@ -155,11 +157,17 @@ struct Notsave {
  */
 struct MMMU
 {
-	PTE*	mmul1;		/* l1 for this processor */
+	union {
+		PTE*	mmul1;	/* l1 for this processor */
+		LPTE*	mmull1;	/* l1 for this processor (long descriptors) */
+	};
 	int	mmul1lo;
 	int	mmul1hi;
 	int	mmupid;
-	PTE*	kmapl2;		/* l2 for section containing kmap area and vectors */
+	union {
+		PTE*	kmapl2;	/* l2 for section containing kmap area and vectors */
+		LPTE*	kmapll2;/* as above (long descriptors) */
+	};
 };
 
 /*
@@ -172,7 +180,10 @@ struct PMMU
 	Page*	mmul2;
 	Page*	mmul2cache;	/* free mmu pages */
 	int	nkmap;
-	PTE	kmaptab[NKMAPS];
+	union {
+		PTE	kmaptab[NKMAPS];
+		LPTE	kmapltab[NKMAPS];
+	};
 };
 
 #include "../port/portdat.h"
@@ -260,7 +271,7 @@ extern register Mach* m;			/* R10 */
 extern register Proc* up;			/* R9 */
 extern uintptr kseg0;
 extern Mach* machaddr[MAXMACH];
-extern ulong memsize;
+extern uvlong memsize;
 extern int normalprint;
 
 /*

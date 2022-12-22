@@ -441,7 +441,6 @@ trap(Ureg *ureg)
 			panic("terminal exception at %#lux", ureg->pc);
 			break;
 		case 0x4:		/* icache maint fault */
-		case 0x6:		/* access flag fault (page) */
 		case 0x8:		/* precise external abort, non-xlat'n */
 		case 0x28:
 		case 0xc:		/* l1 translation, precise ext. abort */
@@ -474,6 +473,7 @@ trap(Ureg *ureg)
 				panic("kernel access violation: pc %#lux va %#p",
 					ureg->pc, va);
 			break;
+		case 0x6:		/* access flag fault (page) */
 		case 0xd:
 		case 0xf:
 			/* permission error, copy on write or real permission error */

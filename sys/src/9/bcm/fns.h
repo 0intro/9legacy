@@ -77,6 +77,7 @@ extern int isaconfig(char*, int, ISAConf*);
 extern int l2ap(int);
 extern void l2cacheuwbinv(void);
 extern void links(void);
+extern void lpapageinit(void);
 extern void mmuinit(void*);
 extern void mmuinit1(void);
 extern void mmuinvalidate(void);

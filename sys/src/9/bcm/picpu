@@ -49,6 +49,7 @@ ip
 
 misc
 	armv6
+	mmu
 	trap
 	uartmini	gpio
 	sdmmc	emmc
