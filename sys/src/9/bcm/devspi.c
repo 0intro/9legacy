@@ -171,7 +171,7 @@ spiopen(Chan* c, int omode)
 	Spi *spi;
 
 	c = devopen(c, omode, spidir, nelem(spidir), devgen);
-	if(c->qid.type & QTDIR)
+	if(c->qid.path < Qspi)
 		return c;
 
 	spi = &spidev[DEVID(c->qid.path)];
@@ -197,7 +197,7 @@ spiclose(Chan *c)
 {
 	Spi *spi;
 
-	if(c->qid.type & QTDIR)
+	if(c->qid.path < Qspi)
 		return;
 	if((c->flag & COPEN) == 0)
 		return;
