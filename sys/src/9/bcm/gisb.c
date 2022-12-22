@@ -13,7 +13,7 @@
 /*
  * GISB arbiter registers
  */
-static u32int *regs = (u32int*)(VIRTIO + 0x400000);
+static u32int *regs = (u32int*)(VIRTIO + 0x600000);
 
 enum {
 	ArbMasterMask	= 0x004/4,
