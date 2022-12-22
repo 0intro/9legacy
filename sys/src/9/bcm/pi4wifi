@@ -53,6 +53,7 @@ ip
 
 misc
 	armv7
+	mmu64
 	trap4
 	uartmini	gpio
 	sdmmc

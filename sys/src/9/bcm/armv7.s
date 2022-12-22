@@ -76,14 +76,38 @@ _ramZ:
 	BL	mmuinit(SB)
 
 	/*
-	 * set up domain access control and page table base
+	 * set up domain access control, translation mode and page table base
 	 */
 	MOVW	$Client, R1
 	MCR	CpSC, 0, R1, C(CpDAC), C(0)
+
+	MOVW	$PADDR(L1), R1
+
+	MOVW	ttbcr(SB), R2
+	MCR	CpSC, 0, R2, C(CpTTB), C(0), CpTTBctl
+	BARRIERS
+	AND.S	$EAElpae, R2
+	BNE	lpae0
+
 	MOVW	$PADDR(L1), R1
 	ORR	$(CpTTBs|CpTTBowba|CpTTBiwba), R1
 	MCR	CpSC, 0, R1, C(CpTTB), C(0)
 	MCR	CpSC, 0, R1, C(CpTTB), C(0), CpTTB1	/* cortex has two */
+	B	lpaex0
+
+lpae0:
+	ADD	$(L1SIZE-64), R1
+
+	BARRIERS
+	MOVW	$0, R2
+	MCRR(CpSC, 0, 1, 2, CpTTB) /* TTBR0 */
+
+	MOVW	mair0(SB), R2
+	MCR	CpSC, 0, R2, C(CpTLD), C(CpTLDmair)
+	ISB
+	MCR	CpSC, 0, R0, C(CpTLB), C(CpTLBinvu), CpTLBinv
+	BARRIERS
+lpaex0:
 
 	/*
 	 * invalidate my caches before enabling
@@ -187,15 +211,39 @@ reset:
 	ADD	$(MACHSIZE-4), R(MACH), R13
 
 	/*
-	 * set up domain access control and page table base
+	 * set up domain access control, translation mode and page table base
 	 */
 	MOVW	$Client, R1
 	MCR	CpSC, 0, R1, C(CpDAC), C(0)
+
 	MOVW	12(R(MACH)), R1	/* m->mmul1 */
 	SUB	$KZERO, R1		/* phys addr */
+
+	MOVW	ttbcr(SB), R2
+	MCR	CpSC, 0, R2, C(CpTTB), C(0), CpTTBctl
+	AND.S	$EAElpae, R2
+	BNE	lpae
+
 	ORR	$(CpTTBs|CpTTBowba|CpTTBiwba), R1
 	MCR	CpSC, 0, R1, C(CpTTB), C(0)
 	MCR	CpSC, 0, R1, C(CpTTB), C(0), CpTTB1	/* cortex has two */
+	B	lpaex
+
+lpae:
+	/*
+	 * L0 page table (4 entries)
+	 */
+	ADD	$(L1SIZE-64), R1
+
+	BARRIERS
+	MOVW	$0, R2
+	MCRR(CpSC, 0, 1, 2, CpTTB)
+	MOVW	mair0(SB), R2
+	MCR	CpSC, 0, R2, C(CpTLD), C(CpTLDmair)
+	ISB
+	MCR	CpSC, 0, R0, C(CpTLB), C(CpTLBinvu), CpTLBinv
+	BARRIERS
+lpaex:
 
 	/*
 	 * invalidate my caches before enabling
@@ -274,6 +322,10 @@ TEXT farget(SB), 1, $-4				/* fault address */
 
 TEXT cpctget(SB), 1, $-4			/* cache type */
 	MRC	CpSC, 0, R0, C(CpID), C(CpIDidct), CpIDct
+	RET
+
+TEXT ttbrget(SB), 1, $-4
+	MRC	CpSC, 0, R0, C(CpTTB), C(0)
 	RET
 
 TEXT lcycles(SB), 1, $-4

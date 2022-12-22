@@ -10,6 +10,7 @@ dev
 	arch
 	ssl
 	tls
+	bridge	log
 	cap
 	fs
 	ip		arp chandial ip ipv6 ipaux iproute netlog nullmedium pktmedium ptclbsum inferno
@@ -33,6 +34,7 @@ link
 	archbcm2
 	loopbackmedium
 	ethermedium
+	netdevmedium
 	sdhost
 	usbdwc
 	etherusb
@@ -49,6 +51,7 @@ ip
 
 misc
 	armv7
+	mmu
 	trap
 	uartmini	gpio
 	sdmmc	emmc
