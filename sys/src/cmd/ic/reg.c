@@ -613,7 +613,7 @@ out:
 	if(n == D_PARAM)
 		for(z=0; z<BITS; z++)
 			params.b[z] |= bit.b[z];
-	if(v->etype != et || !typechlpfd[et])	/* funny punning */
+	if(v->etype != et || !(typechlpfd[et] || typev[et]))	/* funny punning */
 		for(z=0; z<BITS; z++)
 			addrs.b[z] |= bit.b[z];
 	if(t == D_CONST) {
@@ -875,6 +875,8 @@ allreg(ulong b, Rgn *r)
 	case TUINT:
 	case TLONG:
 	case TULONG:
+	case TVLONG:
+	case TUVLONG:
 	case TIND:
 	case TARRAY:
 		i = BtoR(~b);
@@ -1075,6 +1077,11 @@ paint3(Reg *r, int bn, long rb, int rn)
 			if(debug['R'])
 				print("%P", p);
 			addreg(&p->to, rn);
+			switch(p->as){
+			case AMOVW:
+			case AMOVWU:
+				p->as = AMOV;
+			}
 			if(debug['R'])
 				print("\t.c%P\n", p);
 		}

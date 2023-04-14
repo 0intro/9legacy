@@ -441,8 +441,14 @@ commonboot(Fhdr *fp)
 		break;
 	case FRISCV:
 		fp->type = FRISCVB;
-		fp->txtaddr = (u32int)fp->entry;
+		fp->txtaddr = mach->kbase;
 		fp->name = "riscv plan 9 boot image";
+		fp->dataddr = _round(fp->txtaddr+fp->txtsz, mach->pgsize);
+		break;
+	case FRISCV64:
+		fp->type = FRISCV64B;
+		fp->txtaddr = mach->kbase | (u32int)fp->entry;
+		fp->name = "riscv64 plan 9 boot image";
 		fp->dataddr = _round(fp->txtaddr+fp->txtsz, mach->pgsize);
 		break;
 	default:
