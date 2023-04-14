@@ -1209,8 +1209,10 @@ blockWrite(Block *b, int waitlock)
 			fprint(2, "%s: %d:%x:%d iostate is %d in blockWrite\n",
 				argv0, bb->part, bb->addr, bb->l.type, bb->iostate);
 			/* probably BioWriting if it happens? */
-			if(bb->iostate == BioClean)
+			if(bb->iostate == BioClean){
+				blockPut(bb);
 				goto ignblock;
+			}
 		}
 
 		blockPut(bb);
