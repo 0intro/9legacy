@@ -32,6 +32,7 @@ uintptr kseg0 = KZERO;
 Mach*	machaddr[MAXMACH];
 Conf	conf;
 uvlong	memsize = 128*1024*1024;
+void	(*pl011init)(void);
 
 /*
  * Option arguments from the command line.
@@ -310,8 +311,10 @@ main(void)
 	xinit();
 	/* set clock rate to arm_freq from config.txt (default pi1:700Mhz pi2:900MHz) */
 	setclkrate(ClkArm, 0);
-	uartconsinit();
 	screeninit();
+	uartconsinit();
+	if(pl011init != nil)
+		(*pl011init)();
 
 	print("\nPlan 9 from Bell Labs\n");
 	board = getboardrev();

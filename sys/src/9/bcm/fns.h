@@ -83,6 +83,7 @@ extern void mmuinit1(void);
 extern void mmuinvalidate(void);
 extern void mmuinvalidateaddr(u32int);
 extern void okay(int);
+extern void pl011consinit(void);
 extern void procrestore(Proc *);
 extern void procsave(Proc*);
 extern void procsetup(Proc*);
