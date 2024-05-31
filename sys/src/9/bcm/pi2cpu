@@ -54,6 +54,7 @@ misc
 	mmu
 	trap
 	uartmini	gpio
+	uartpl011	gpio
 	sdmmc	emmc
 	sdaoe	sdscsi
 	dma
