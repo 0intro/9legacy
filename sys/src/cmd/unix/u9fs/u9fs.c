@@ -1518,7 +1518,7 @@ userwalk(User *u, char **path, char *elem, Qid *qid, char **ep)
 	rpath = rootpath(npath);
 	if(stat(rpath, &st) < 0){
 		free(npath);
-		*ep = strerror(errno);
+		*ep = errno == ENOENT? "file does not exist" : strerror(errno);
 		return -1;
 	}
 	*qid = stat2qid(&st);
