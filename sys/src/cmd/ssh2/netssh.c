@@ -1364,6 +1364,15 @@ writereqremproc(void *a)
 		}
 		add_string(p, cmd);
 		free(cmd);
+	} else if (strcmp(toks[0], "exit-status") == 0) {
+		add_byte(p, SSH_MSG_CHANNEL_REQUEST);
+		add_uint32(p, ch->otherid);
+		add_string(p, toks[0]);
+		add_byte(p, 0);
+		if(ntok > 1)
+			add_uint32(p, strtol(toks[1], nil, 10));
+		else
+			add_uint32(p, 0);
 	} else
 		respexit(c, r, buf, "bad request command");
 	n = finish_packet(p);
