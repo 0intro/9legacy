@@ -1,6 +1,7 @@
 #include <plan9.h>
 #include <fcall.h>
 #include <u9fs.h>
+#include <netdb.h>
 
 /*
  * return whether the user is authenticated.
