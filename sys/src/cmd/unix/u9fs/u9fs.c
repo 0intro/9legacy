@@ -71,7 +71,6 @@ void*	emalloc(size_t);
 void*	erealloc(void*, size_t);
 char*	estrdup(char*);
 char*	estrpath(char*, char*, int);
-void	sysfatal(char*, ...);
 int	okuser(char*);
 
 void	rversion(Fcall*, Fcall*);

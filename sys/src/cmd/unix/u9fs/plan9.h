@@ -5,6 +5,8 @@
 /* magic to get 64-bit stat on Linux, maybe others */
 #define _FILE_OFFSET_BITS 64
 
+#define	_DEFAULT_SOURCE	1	/* also for ruserok */
+
 #ifdef sgi
 #define _BSD_TYPES	1	/* for struct timeval */
 #include <sys/select.h>
@@ -106,6 +108,7 @@ extern	int	runetochar(char*, Rune*);
 extern	int	chartorune(Rune*, char*);
 extern	int	runelen(long);
 extern	int	utflen(char*);
+extern	char*	utfrune(char*, long);
 extern	char*	strecpy(char*, char*, char*);
 extern	int	tokenize(char*, char**, int);
 extern	int	getfields(char*, char**, int, int, char*);
@@ -188,6 +191,7 @@ struct Dir {
 
 long readn(int, void*, long);
 void remotehost(char*, int);
+void sysfatal(char*, ...);
 
 enum {
 	NAMELEN = 28,
