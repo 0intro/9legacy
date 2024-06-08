@@ -511,12 +511,12 @@ runcmd(int reqfd, int datafd, char *svc, char *cmd, char *arg1, char *arg2)
 		else
 			p = cmd;
 
+		fprint(errfd, "starting %s\n", cmd);
 		dup(datafd, 0);
 		dup(datafd, 1);
 		dup(datafd, 2);
 		close(datafd);
 		putenv("service", svc);
-		fprint(errfd, "starting %s\n", cmd);
 		execl(cmd, p, arg1, arg2, nil);
 
 		syslog(0, "ssh", "cannot exec %s: %r", cmd);
