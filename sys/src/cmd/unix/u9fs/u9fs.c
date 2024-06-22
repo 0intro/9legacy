@@ -786,6 +786,8 @@ rread(Fcall *rx, Fcall *tx)
 				continue;
 			}
 			free(path);
+			if(S_ISDIR(st.st_mode))
+				st.st_size = 0;
 			stat2dir(fid->dirent->d_name, &st, &d);
 			if((n=(old9p ? convD2Mold : convD2M)(&d, p, ep-p)) <= BIT16SZ)
 				break;
