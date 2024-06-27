@@ -11,14 +11,15 @@ mprand(int bits, void (*gen)(uchar*, int), mpint *b)
 	uchar *p;
 
 	n = DIGITS(bits);
-	if(b == nil)
+	if(b == nil){
 		b = mpnew(bits);
-	else
+		setmalloctag(b, getcallerpc(&bits));
+	}else
 		mpbits(b, bits);
 
 	p = malloc(n*Dbytes);
 	if(p == nil)
-		return nil;
+		sysfatal("mprand: %r");
 	(*gen)(p, n*Dbytes);
 	betomp(p, n*Dbytes, b);
 	free(p);
