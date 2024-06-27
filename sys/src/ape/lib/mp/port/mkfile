@@ -40,6 +40,9 @@ FILES=\
 	mptoui\
 	mptov\
 	mptouv\
+	mpfield\
+	cnfield\
+	gmfield\
 
 ALLOFILES=${FILES:%=%.$O}
 
