@@ -160,8 +160,10 @@ strtomp(char *a, char **pp, int base, mpint *b)
 	int sign;
 	char *e;
 
-	if(b == nil)
+	if(b == nil){
 		b = mpnew(0);
+		setmalloctag(b, getcallerpc(&a));
+	}
 
 	if(tab.inited == 0)
 		init();

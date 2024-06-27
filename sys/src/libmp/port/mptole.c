@@ -16,11 +16,12 @@ mptole(mpint *b, uchar *p, uint n, uchar **pp)
 	if(p == nil){
 		n = (b->top+1)*Dbytes;
 		p = malloc(n);
+		if(p == nil)
+			sysfatal("mptole: %r");
+		setmalloctag(p, getcallerpc(&b));
 	}
 	if(pp != nil)
 		*pp = p;
-	if(p == nil)
-		return -1;
 	memset(p, 0, n);
 
 	// special case 0
