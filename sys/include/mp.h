@@ -81,6 +81,9 @@ void	mpdiv(mpint *dividend, mpint *divisor,  mpint *quotient, mpint *remainder);
 /* return neg, 0, pos as b1-b2 is neg, 0, pos */
 int	mpcmp(mpint *b1, mpint *b2);
 
+/* res = s != 0 ? b1 : b2 */
+void	mpsel(int s, mpint *b1, mpint *b2, mpint *res);
+
 /* extended gcd return d, x, and y, s.t. d = gcd(a,b) and ax+by = d */
 void	mpextendedgcd(mpint *a, mpint *b, mpint *d, mpint *x, mpint *y);
 
