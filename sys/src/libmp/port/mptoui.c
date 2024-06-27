@@ -14,11 +14,10 @@ uitomp(uint i, mpint *b)
 		b = mpnew(0);
 		setmalloctag(b, getcallerpc(&i));
 	}
-	mpassign(mpzero, b);
-	if(i != 0)
-		b->top = 1;
 	*b->p = i;
-	return b;
+	b->top = 1;
+	b->sign = 1;
+	return mpnorm(b);
 }
 
 uint

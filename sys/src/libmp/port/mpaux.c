@@ -9,7 +9,7 @@ static mpint _mptwo =
 	1,
 	1,
 	_mptwodata,
-	MPstatic
+	MPstatic|MPnorm
 };
 mpint *mptwo = &_mptwo;
 
@@ -20,7 +20,7 @@ static mpint _mpone =
 	1,
 	1,
 	_mponedata,
-	MPstatic
+	MPstatic|MPnorm
 };
 mpint *mpone = &_mpone;
 
@@ -31,7 +31,7 @@ static mpint _mpzero =
 	1,
 	0,
 	_mpzerodata,
-	MPstatic
+	MPstatic|MPnorm
 };
 mpint *mpzero = &_mpzero;
 
@@ -57,18 +57,17 @@ mpnew(int n)
 	if(n < 0)
 		sysfatal("mpsetminbits: n < 0");
 
-	b = mallocz(sizeof(mpint), 1);
-	if(b == nil)
-		sysfatal("mpnew: %r");
-	setmalloctag(b, getcallerpc(&n));
 	n = DIGITS(n);
 	if(n < mpmindigits)
 		n = mpmindigits;
-	b->p = (mpdigit*)mallocz(n*Dbytes, 1);
-	if(b->p == nil)
+	b = mallocz(sizeof(mpint) + n*Dbytes, 1);
+	if(b == nil)
 		sysfatal("mpnew: %r");
+	setmalloctag(b, getcallerpc(&n));
+	b->p = (mpdigit*)&b[1];
 	b->size = n;
 	b->sign = 1;
+	b->flags = MPnorm;
 
 	return b;
 }
@@ -83,16 +82,23 @@ mpbits(mpint *b, int m)
 	if(b->size >= n){
 		if(b->top >= n)
 			return;
-		memset(&b->p[b->top], 0, Dbytes*(n - b->top));
-		b->top = n;
-		return;
+	} else {
+		if(b->p == (mpdigit*)&b[1]){
+			b->p = (mpdigit*)mallocz(n*Dbytes, 0);
+			if(b->p == nil)
+				sysfatal("mpbits: %r");
+			memmove(b->p, &b[1], Dbytes*b->top);
+			memset(&b[1], 0, Dbytes*b->size);
+		} else {
+			b->p = (mpdigit*)realloc(b->p, n*Dbytes);
+			if(b->p == nil)
+				sysfatal("mpbits: %r");
+		}
+		b->size = n;
 	}
-	b->p = (mpdigit*)realloc(b->p, n*Dbytes);
-	if(b->p == nil)
-		sysfatal("mpbits: %r");
 	memset(&b->p[b->top], 0, Dbytes*(n - b->top));
-	b->size = n;
 	b->top = n;
+	b->flags &= ~MPnorm;
 }
 
 void
@@ -103,21 +109,29 @@ mpfree(mpint *b)
 	if(b->flags & MPstatic)
 		sysfatal("freeing mp constant");
 	memset(b->p, 0, b->size*Dbytes);	// information hiding
-	free(b->p);
+	if(b->p != (mpdigit*)&b[1])
+		free(b->p);
 	free(b);
 }
 
-void
+mpint*
 mpnorm(mpint *b)
 {
 	int i;
 
+	if(b->flags & MPtimesafe){
+		assert(b->sign == 1);
+		b->flags &= ~MPnorm;
+		return b;
+	}
 	for(i = b->top-1; i >= 0; i--)
 		if(b->p[i] != 0)
 			break;
 	b->top = i+1;
 	if(b->top == 0)
 		b->sign = 1;
+	b->flags |= MPnorm;
+	return b;
 }
 
 mpint*
@@ -129,6 +143,7 @@ mpcopy(mpint *old)
 	setmalloctag(new, getcallerpc(&old));
 	new->top = old->top;
 	new->sign = old->sign;
+	new->flags = old->flags & ~MPstatic;
 	memmove(new->p, old->p, Dbytes*old->top);
 	return new;
 }
@@ -136,9 +151,14 @@ mpcopy(mpint *old)
 void
 mpassign(mpint *old, mpint *new)
 {
+	if(new == nil || old == new)
+		return;
+	new->top = 0;
 	mpbits(new, Dbits*old->top);
 	new->sign = old->sign;
 	new->top = old->top;
+	new->flags &= ~MPnorm;
+	new->flags |= old->flags & ~MPstatic;
 	memmove(new->p, old->p, Dbytes*old->top);
 }
 
@@ -168,6 +188,7 @@ mplowbits0(mpint *n)
 	int k, bit, digit;
 	mpdigit d;
 
+	assert(n->flags & MPnorm);
 	if(n->top==0)
 		return 0;
 	k = 0;
@@ -188,4 +209,3 @@ mplowbits0(mpint *n)
 	}
 	return k;
 }
-
