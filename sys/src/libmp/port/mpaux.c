@@ -58,9 +58,9 @@ mpnew(int n)
 		sysfatal("mpsetminbits: n < 0");
 
 	b = mallocz(sizeof(mpint), 1);
-	setmalloctag(b, getcallerpc(&n));
 	if(b == nil)
 		sysfatal("mpnew: %r");
+	setmalloctag(b, getcallerpc(&n));
 	n = DIGITS(n);
 	if(n < mpmindigits)
 		n = mpmindigits;
@@ -126,6 +126,7 @@ mpcopy(mpint *old)
 	mpint *new;
 
 	new = mpnew(Dbits*old->size);
+	setmalloctag(new, getcallerpc(&old));
 	new->top = old->top;
 	new->sign = old->sign;
 	memmove(new->p, old->p, Dbytes*old->top);
