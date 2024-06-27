@@ -29,6 +29,7 @@ FILES=\
 	mpextendedgcd\
 	mpinvert\
 	mprand\
+	mpnrand\
 	crt\
 	mptoi\
 	mptoui\
