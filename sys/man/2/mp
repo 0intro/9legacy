@@ -22,7 +22,7 @@ void	mpsetminbits(int n)
 void	mpbits(mpint *b, int n)
 .PP
 .B
-void	mpnorm(mpint *b)
+mpint*	mpnorm(mpint *b)
 .PP
 .B
 mpint*	mpcopy(mpint *b)
@@ -588,8 +588,8 @@ We assume p has room for n+1 digits.  It returns +1 is the result is positive an
 -1 if negative.
 .TP
 .I mpvecmul
-.BR "p[0:alen*blen] = a[0:alen-1] * b[0:blen-1]" .
-We assume that p has room for alen*blen+1 digits.
+.BR "p[0:alen+blen] = a[0:alen-1] * b[0:blen-1]" .
+We assume that p has room for alen+blen+1 digits.
 .TP
 .I mpveccmp
 This returns -1, 0, or +1 as a - b is negative, 0, or positive.
@@ -600,6 +600,17 @@ This returns -1, 0, or +1 as a - b is negative, 0, or positive.
 and
 .I mpzero
 are the constants 2, 1 and 0.  These cannot be freed.
+.SS "Time invariant computation"
+.PP
+In the field of cryptography, it is sometimes necessary to implement
+algorithms such that the runtime of the algorithm is not dependent on
+the input data. This library provides partial support for time
+invariant computation with the
+.I MPtimesafe
+flag that can be set on input or destination operands to request timing
+safe operation. The result of a timing safe operation will also have the
+.I MPtimesafe
+flag set and is not normalized.
 .SS "Chinese remainder theorem
 .PP
 When computing in a non-prime modulus, 
