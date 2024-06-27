@@ -15,10 +15,10 @@ mptobe(mpint *b, uchar *p, uint n, uchar **pp)
 	if(p == nil){
 		n = (b->top+1)*Dbytes;
 		p = malloc(n);
+		if(p == nil)
+			sysfatal("mptobe: %r");
 		setmalloctag(p, getcallerpc(&b));
 	}
-	if(p == nil)
-		return -1;
 	if(pp != nil)
 		*pp = p;
 	memset(p, 0, n);
