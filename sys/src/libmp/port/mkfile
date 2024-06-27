@@ -6,7 +6,9 @@ FILES=\
 	mpfmt\
 	strtomp\
 	mptobe\
+	mptober\
 	mptole\
+	mptolel\
 	betomp\
 	letomp\
 	mpadd\
