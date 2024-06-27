@@ -16,6 +16,7 @@ FILES=\
 	mpadd\
 	mpsub\
 	mpcmp\
+	mpsel\
 	mpfactorial\
 	mpmul\
 	mpleft\
