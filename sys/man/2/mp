@@ -1,6 +1,6 @@
 .TH MP 2
 .SH NAME
-mpsetminbits, mpnew, mpfree, mpbits, mpnorm, mpcopy, mpassign, mprand, mpnrand, strtomp, mpfmt,mptoa, betomp, mptobe, mptober, letomp, mptole, mptolel, mptoui, uitomp, mptoi, itomp, uvtomp, mptouv, vtomp, mptov, mpdigdiv, mpadd, mpsub, mpleft, mpright, mpmul, mpexp, mpmod, mpdiv, mpcmp¸ mpsel, mpextendedgcd, mpinvert, mpsignif, mplowbits0, mpvecdigmuladd, mpvecdigmulsub, mpvecadd, mpvecsub, mpveccmp, mpvecmul, mpmagcmp, mpmagadd, mpmagsub, crtpre, crtin, crtout, crtprefree, crtresfree \- extended precision arithmetic
+mpsetminbits, mpnew, mpfree, mpbits, mpnorm, mpcopy, mpassign, mprand, mpnrand, strtomp, mpfmt,mptoa, betomp, mptobe, mptober, letomp, mptole, mptolel, mptoui, uitomp, mptoi, itomp, uvtomp, mptouv, vtomp, mptov, mpdigdiv, mpadd, mpsub, mpleft, mpright, mpmul, mpexp, mpmod, mpmodadd, mpmodsub, mpmodmul, mpdiv, mpcmp¸ mpsel, mpextendedgcd, mpinvert, mpsignif, mplowbits0, mpvecdigmuladd, mpvecdigmulsub, mpvecadd, mpvecsub, mpveccmp, mpvecmul, mpmagcmp, mpmagadd, mpmagsub, crtpre, crtin, crtout, crtprefree, crtresfree \- extended precision arithmetic
 .SH SYNOPSIS
 .B #include <u.h>
 .br
@@ -120,6 +120,15 @@ void	mpdiv(mpint *dividend, mpint *divisor,  mpint *quotient,
 .B
 	mpint *remainder)
 .PP
+void	mpmodadd(mpint *b1, mpint *b2, mpint *m, mpint *sum)
+.PP
+.B
+void	mpmodsub(mpint *b1, mpint *b2, mpint *m, mpint *diff)
+.PP
+.B
+void	mpmodmul(mpint *b1, mpint *b2, mpint *m, mpint *prod)
+.PP
+.B
 .B
 int	mpcmp(mpint *b1, mpint *b2)
 .PP
@@ -525,6 +534,19 @@ is not zero, otherwise
 .I b2
 is assigned to
 .IR res .
+.PD
+.PP
+Modular arithmetic:
+.TF mpmodmul_
+.TP
+.I mpmodadd
+.BR "sum = b1+b2 mod m" .
+.TP
+.I mpmodsub
+.BR "diff = b1-b2 mod m" .
+.TP
+.I mpmodmul
+.BR "prod = b1*b2 mod m" .
 .PD
 .PP
 .I Mpextendedgcd
