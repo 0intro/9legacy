@@ -15,6 +15,9 @@ mpextendedgcd(mpint *a, mpint *b, mpint *v, mpint *x, mpint *y)
 	mpint *u, *A, *B, *C, *D;
 	int g;
 
+	assert((a->flags&b->flags) & MPnorm);
+	assert(((a->flags|b->flags|v->flags|x->flags|y->flags) & MPtimesafe) == 0);
+
 	if(a->sign < 0 || b->sign < 0){
 		mpassign(mpzero, v);
 		mpassign(mpzero, y);
