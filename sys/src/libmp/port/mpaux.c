@@ -143,7 +143,7 @@ mpcopy(mpint *old)
 	setmalloctag(new, getcallerpc(&old));
 	new->top = old->top;
 	new->sign = old->sign;
-	new->flags = old->flags & ~MPstatic;
+	new->flags = old->flags & ~(MPstatic|MPfield);
 	memmove(new->p, old->p, Dbytes*old->top);
 	return new;
 }
@@ -158,7 +158,7 @@ mpassign(mpint *old, mpint *new)
 	new->sign = old->sign;
 	new->top = old->top;
 	new->flags &= ~MPnorm;
-	new->flags |= old->flags & ~MPstatic;
+	new->flags |= old->flags & ~(MPstatic|MPfield);
 	memmove(new->p, old->p, Dbytes*old->top);
 }
 
