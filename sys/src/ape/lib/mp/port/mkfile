@@ -30,6 +30,7 @@ FILES=\
 	mpdiv\
 	mpexp\
 	mpmod\
+	mpmodop\
 	mpextendedgcd\
 	mpinvert\
 	mprand\
