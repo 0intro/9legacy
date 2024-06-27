@@ -50,7 +50,6 @@ from16(char *a, mpint *b)
 	int i;
 	mpdigit x;
 
-	b->top = 0;
 	for(p = a; *p; p++)
 		if(tab.t16[*(uchar*)p] == INVAL)
 			break;
@@ -144,12 +143,9 @@ from32(char *a, mpint *b)
 	mpbits(b, n*5);
 	p = malloc(n);
 	if(p == nil)
-		return buf;
+		return a;
 	m = dec32(p, n, buf, n);
-	if(m == -1)
-		a = buf;
-	else
-		betomp(p, m, b);
+	betomp(p, m, b);
 	free(p);
 	return a;
 }
@@ -201,10 +197,9 @@ strtomp(char *a, char **pp, int base, mpint *b)
 	if(e == a)
 		return nil;
 
-	mpnorm(b);
-	b->sign = sign;
 	if(pp != nil)
 		*pp = e;
 
-	return b;
+	b->sign = sign;
+	return mpnorm(b);
 }

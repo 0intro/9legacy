@@ -4,6 +4,7 @@
 #include <string.h>
 #include <utf.h>
 #include <fmt.h>
+#include <assert.h>
 
 typedef unsigned int u32int;
 typedef unsigned long long u64int;
@@ -22,5 +23,7 @@ extern int  dec64(uchar *, int, char *, int);
 extern int  enc64(char *, int, uchar *, int);
 
 extern	vlong	nsec(void);
+
+extern int	_tas(int*);
 
 extern void sysfatal(char*, ...);

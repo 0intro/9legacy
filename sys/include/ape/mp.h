@@ -31,7 +31,9 @@ struct mpint
 
 enum
 {
-	MPstatic=	0x01,
+	MPstatic=	0x01,	/* static constant */
+	MPnorm=		0x02,	/* normalization status */
+	MPtimesafe=	0x04,	/* request time invariant computation */
 	Dbytes=		sizeof(mpdigit),	/* bytes per digit */
 	Dbits=		Dbytes*8		/* bits per digit */
 };
@@ -41,7 +43,7 @@ void	mpsetminbits(int n);	/* newly created mpint's get at least n bits */
 mpint*	mpnew(int n);		/* create a new mpint with at least n bits */
 void	mpfree(mpint *b);
 void	mpbits(mpint *b, int n);	/* ensure that b has at least n bits */
-void	mpnorm(mpint *b);		/* dump leading zeros */
+mpint*	mpnorm(mpint *b);		/* dump leading zeros */
 mpint*	mpcopy(mpint *b);
 void	mpassign(mpint *old, mpint *new);
 
@@ -117,12 +119,14 @@ void	mpvecdigmuladd(mpdigit *b, int n, mpdigit m, mpdigit *p);
 /* prereq: p has room for n+1 digits */
 int	mpvecdigmulsub(mpdigit *b, int n, mpdigit m, mpdigit *p);
 
-/* p[0:alen*blen-1] = a[0:alen-1] * b[0:blen-1] */
+/* p[0:alen+blen-1] = a[0:alen-1] * b[0:blen-1] */
 /* prereq: alen >= blen, p has room for m*n digits */
 void	mpvecmul(mpdigit *a, int alen, mpdigit *b, int blen, mpdigit *p);
+void	mpvectsmul(mpdigit *a, int alen, mpdigit *b, int blen, mpdigit *p);
 
 /* sign of a - b or zero if the same */
 int	mpveccmp(mpdigit *a, int alen, mpdigit *b, int blen);
+int	mpvectscmp(mpdigit *a, int alen, mpdigit *b, int blen);
 
 /* divide the 2 digit dividend by the one digit divisor and stick in quotient */
 /* we assume that the result is one digit - overflow is all 1's */
