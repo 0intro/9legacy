@@ -10,6 +10,7 @@ PROTO=\
 	p9any.$O\
 	p9cr.$O\
 	p9sk1.$O\
+	dp9ik.$O\
 	pass.$O\
 	rsa.$O\
 	wep.$O\
