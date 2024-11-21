@@ -10,7 +10,7 @@ enum {
 /* more fundamental types */
 typedef vlong Wideoff; /* type to widen Off to for printing; ≥ as wide as Off */
 typedef short	Userid;		/* signed internal representation of user-id */
-typedef long	Timet;		/* in seconds since epoch */
+typedef ulong	Timet;		/* in seconds since epoch */
 typedef vlong	Devsize;	/* in bytes */
 
 

@@ -489,7 +489,8 @@ void
 wormcopy(void *)
 {
 	int f, dorecalc = 1;
-	Timet dt, t = 0, nddate = 0, ntoytime = 0;
+	Timet t = 0, nddate = 0, ntoytime = 0;
+	vlong dt;
 	Filsys *fs;
 
 	for (;;) {
