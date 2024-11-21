@@ -1,7 +1,7 @@
 #include	<u.h>
 #include	<libc.h>
 
-#define	MINUTE(x)	((long)(x)*60L)
+#define	MINUTE(x)	((x)*60L)
 #define	HOUR(x)		(MINUTE(x)*60L)
 #define	YEAR(x)		(HOUR(x)*24L*360L)
 
@@ -17,7 +17,7 @@ int	ndargv = 1;
 
 void	usage(void);
 void	ysearch(char*, char*);
-long	starttime(char*);
+ulong	starttime(char*);
 void	lastbefore(ulong, char*, char*, char*);
 char*	prtime(ulong);
 void	darg(char*);
@@ -304,11 +304,11 @@ prtime(ulong t)
 	return buf;
 }
 
-long
+ulong
 starttime(char *s)
 {
 	Tm *tm;
-	long t, dt;
+	ulong t, dt;
 	int i, yr, mo, da;
 
 	t = time(0);
