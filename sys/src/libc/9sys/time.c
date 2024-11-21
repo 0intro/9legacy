@@ -1,7 +1,7 @@
 #include <u.h>
 #include <libc.h>
 
-long
+ulong
 time(long *tp)
 {
 	vlong t;
