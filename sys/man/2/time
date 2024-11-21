@@ -8,7 +8,7 @@ time, nsec \- time in seconds and nanoseconds since epoch
 .PP
 .nf
 .B
-long time(long *tp)
+ulong time(long *tp)
 .PP
 .B
 vlong nsec(void)
@@ -27,11 +27,16 @@ is not zero then
 .BI * tp
 is also set to the answer.
 .PP
-Times from
-.I time
-should be stored in and treated as
-.BR ulong s;
+Times should be stored in and treated as
+.BR ulong s,
+or cast to
+.B ulong
+then stored in
+.BR vlong s;
 this extends the range of valid times into the year 2106.
+Before subtraction,
+times should be cast to
+.BR vlong .
 .PP
 .I Time
 simply calls
@@ -53,7 +58,13 @@ of process forks is overly complex and prone to error.
 .B /sys/src/libc/9syscall
 .SH SEE ALSO
 .IR cputime (2),
+.IR ctime (2),
 .IR cons (3)
 .SH DIAGNOSTICS
 Sets
 .IR errstr .
+Programs should test for the exact
+.I time
+value
+.B (ulong)-1
+as a failure indication, not just for any negative value.
