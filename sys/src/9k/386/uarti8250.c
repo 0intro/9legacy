@@ -648,13 +648,16 @@ i8250pnp(void)
 		/*
 		 * Does it exist?
 		 * Should be able to write/read the Scratch Pad
+		 * (except on COM1, where it seems to confuse the 8250)
 		 * and reserve the I/O space.
 		 */
 		uart = &i8250uart[i];
 		ctlr = uart->regs;
-		csr8o(ctlr, Scr, 0x55);
-		if(csr8r(ctlr, Scr) == 0x55)
-			continue;
+		if (0) {
+			csr8o(ctlr, Scr, 0x55);
+			if(csr8r(ctlr, Scr) == 0x55)
+				continue;
+		}
 		if(ioalloc(ctlr->io, 8, 0, uart->name) < 0)
 			continue;
 		if(uart == head)
@@ -782,14 +785,14 @@ i8250console(char* cfg)
 
 	/*
 	 * Does it exist?
-	 * Should be able to write/read
-	 * the Scratch Pad.
+	 * Should be able to write/read the Scratch Pad (except COM1)
+	 * but it seems to confuse the 8250.
 	 */
-//	ctlr = uart->regs;
-//	csr8o(ctlr, Scr, 0x55);
-//	if(csr8r(ctlr, Scr) != 0x55)
-//		return nil;
-
+	if (0 && i > 0) {
+		csr8o(ctlr, Scr, 0x55);
+		if(csr8r(ctlr, Scr) != 0x55)
+			return nil;
+	}
 	if(!uart->enabled)
 		(*uart->phys->enable)(uart, 0);
 	uartctl(uart, "b9600 l8 pn s1 i1");
