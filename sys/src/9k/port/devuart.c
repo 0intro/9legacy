@@ -227,8 +227,10 @@ uartreset(void)
 		uartnuart++;
 	}
 
-//fix the case of uartnuart == 0, will panic below
-	if(uartnuart)
+	/* cope with uartnuart == 0, else will panic below */
+	if (uartnuart == 0)
+		uart = malloc(sizeof(Uart*));		/* dummy */
+	else
 		uart = malloc(uartnuart*sizeof(Uart*));
 
 	uartndir = 1 + 3*uartnuart;
