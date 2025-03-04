@@ -757,6 +757,7 @@ struct Proc
 	 *  machine specific fpu, mmu and notify
 	 */
 	PFPU;
+	PFPU notefpu;
 	PMMU;
 	PNOTIFY;
 };
