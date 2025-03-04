@@ -114,6 +114,7 @@ conf
 dbgflg
 	apic		'A'
 	devacpi		'C'
+	fpu		'F'
 	hpet		'H'
 	ht		'H'
 	ioapic		'I'
