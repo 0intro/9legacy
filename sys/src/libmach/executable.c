@@ -445,7 +445,7 @@ common(int fd, Fhdr *fp, ExecHdr *hp)
 static int
 commonllp64(int, Fhdr *fp, ExecHdr *hp)
 {
-	long pgsize;
+	long pgsize, start;
 	uvlong entry;
 
 	hswal(&hp->e, sizeof(Exec)/sizeof(long), beswal);
@@ -463,8 +463,11 @@ commonllp64(int, Fhdr *fp, ExecHdr *hp)
 	entry = beswav(hp->e.hdr[0]);
 
 	pgsize = mach->pgsize;
-	settext(fp, entry, pgsize+fp->hdrsz, hp->e.text, fp->hdrsz);
-	setdata(fp, _round(pgsize+fp->txtsz+fp->hdrsz, pgsize),
+	start = pgsize;
+	if(fp->type == FAMD64)
+		start = 0x200000;
+	settext(fp, entry, start+fp->hdrsz, hp->e.text, fp->hdrsz);
+	setdata(fp, _round(start+fp->txtsz+fp->hdrsz, pgsize),
 		hp->e.data, fp->txtsz+fp->hdrsz, hp->e.bss);
 	setsym(fp, hp->e.syms, hp->e.spsz, hp->e.pcsz, fp->datoff+fp->datsz);
 
