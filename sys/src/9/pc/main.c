@@ -277,7 +277,7 @@ userinit(void)
 	 * Kernel Stack
 	 *
 	 * N.B. make sure there's enough space for syscall to check
-	 *	for valid args and 
+	 *	for valid args and
 	 *	4 bytes for gotolabel's return PC
 	 */
 	p->sched.pc = (ulong)init0;
@@ -640,10 +640,34 @@ mathemu(Ureg *ureg, void*)
 {
 	ulong status, control;
 
-	if(up->fpstate & FPillegal){
-		/* someone did floating point in a note handler */
-		postnote(up, 1, "sys: floating point in note handler", NDebug);
-		return;
+ 	if(up->fpstate & FPnotemask){
+ 		/* in note handler */
+ 		switch(up->fpstate>>FPnoteshift){
+ 		case FPnotestart:
+ 			/* no FP used yet; copy state at time of note */
+ 			if((up->fpstate&~FPnotemask) == FPinit) {
+ 				/* no FP in the process yet */
+ 				up->fpstate = (up->fpstate&~FPnotemask) | (FPactive<<FPnoteshift);
+ 				fpinit();
+ 				return;
+ 			}
+ 			up->notefpsave = up->fpsave;
+ 			/* fall through */
+ 		case FPinactive:
+ 			/* restore state */
+ 			mathstate(&status, nil, &control);
+ 			if((status & ~control) & 0x07F)
+ 				break;
+ 			fprestore(&up->notefpsave);
+ 			up->fpstate = (up->fpstate&~FPnotemask) | (FPactive<<FPnoteshift);
+ 			return;
+
+ 		case FPactive:
+ 			panic("note math emu pid %ld %s pc %#lux",
+ 				up->pid, up->text, ureg->pc);
+ 		}
+ 		postnote(up, 1, "sys: floating point exception in note handler", NDebug);
+ 		return;
 	}
 	switch(up->fpstate){
 	case FPinit:
@@ -723,7 +747,15 @@ procsave(Proc *p)
 
 	cycles(&t);
 	p->pcycles += t;
-	if(p->fpstate == FPactive){
+ 	if(p->fpstate&FPnotemask){
+ 		if((p->fpstate>>FPnoteshift) == FPactive){
+ 			if(p->state == Moribund)
+ 				fpclear();
+ 			else
+ 				fpsave(&p->notefpsave);
+ 			p->fpstate = (p->fpstate&~FPnotemask) | (FPinactive<<FPnoteshift);
+ 		}
+ 	} else if(p->fpstate == FPactive){
 		if(p->state == Moribund)
 			fpclear();
 		else{
