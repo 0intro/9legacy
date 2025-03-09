@@ -753,6 +753,7 @@ struct Proc
 	short	notified;	/* sysnoted is due */
 	Note	lastnote;
 	int	(*notify)(void*, char*);
+	FPsave	notefpsave;
 
 	Lock	*lockwait;
 	Lock	*lastlock;	/* debugging */
