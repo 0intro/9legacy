@@ -1246,7 +1246,7 @@ sysnsec(uintptr *arg)
 	validaddr(arg[0], sizeof(vlong), 1);
 	validalign(arg[0], sizeof(vlong));
 
-	*(vlong*)arg[0] = todget(nil);
+	*(vlong*)arg[0] = todget(nil, nil);
 
 	return 0;
 }
