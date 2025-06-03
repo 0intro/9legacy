@@ -18,7 +18,7 @@ void	cut(Text *, Text *, int, int, Rune *, int);
 void	exit(Text *, Text *, int, int, Rune *, int);
 void	get(Text *, Text *, int, int, Rune *, int);
 void	go(Text *,Text *,  int, int, Rune *, int);
-void	google(Text *,Text *,  int, int, Rune *, int);
+void	duckduckgo(Text *,Text *,  int, int, Rune *, int);
 void	new(Text*, Text *, int, int, Rune *, int);
 void	newcol(Text*, Text *, int, int, Rune *, int);
 void	paste(Text *, Text *, int, int, Rune *, int);
@@ -43,7 +43,7 @@ Exectab exectab[] = {
 	{ L"Delcol",	delcol,	FALSE,	TRUE	},
 	{ L"Exit",		exit,		XXX,		XXX		},
 	{ L"Get",		get,		XXX,		XXX		},
-	{ L"Google",	google,	XXX,		XXX		},
+	{ L"DDGo",	duckduckgo,	XXX,		XXX		},
 	{ L"New",		new,		XXX,		XXX		},
 	{ L"Newcol",	newcol,	XXX,		XXX		},
 	{ L"Next",		go,		TRUE,	XXX		},
@@ -517,13 +517,13 @@ new(Text *et, Text *, int, int, Rune *, int)
 }
 
 void
-google(Text *, Text *, int, int, Rune *arg, int narg)
+duckduckgo(Text *, Text *, int, int, Rune *arg, int narg)
 {
 	Runestr rs;
 	Rune *s;
 
 	s = ucvt(arg);
-	rs.r = runesmprint("http://www.google.com/search?hl=en&ie=UTF-8&q=%.*S", narg, s);
+	rs.r = runesmprint("http://lite.duckduckgo.com/lite/?q=%.*S", narg, s);
 	rs.nr = runestrlen(rs.r);
 	openpage(nil, &rs);
 	free(s);
