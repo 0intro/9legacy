@@ -33,7 +33,7 @@ rowinit(Row *row, Rectangle r)
 	r1.min.y = r1.max.y;
 	r1.max.y += Border;
 	draw(screen, r1, display->black, nil, ZP);
-	textinsert(t, 0, L"Newcol Google Exit ", 19);
+	textinsert(t, 0, L"Newcol DDGo Exit ", 19);
 	textsetselect(t, t->rs.nr, t->rs.nr);
 }
 
