@@ -738,3 +738,5 @@ is the reason for the error.
 .RE
 .SH SOURCE
 .B /sys/src/cmd/auth/factotum
+.SH "SEE ALSO"
+.IR delkey (1)
