@@ -1,0 +1,40 @@
+#!/bin/bash
+
+set -e
+cd $(dirname $0)/..
+
+if ! command -v 9660srv >/dev/null 2>&1; then
+	echo "9660srv: command not found" 1>&2
+	echo "please install plan9port (https://github.com/9fans/plan9port)" 1>&2
+	exit 1
+fi
+
+TMP=$(mktemp -d /tmp/9legacy.XXXX)
+export NAMESPACE="$TMP"
+ISO="$TMP/9legacy.iso"
+MNT="$TMP/mnt"
+SRVNAME=9660
+
+trap 'sudo umount $TMP/mnt 2>/dev/null; killall 9660srv 2>/dev/null; rm -rf -- "$TMP"' EXIT
+
+echo "downloading 9legacy CD image to $ISO"
+
+curl -s -o - http://9legacy.org/download/9legacy.iso.bz2 | bunzip2 -c >"$ISO"
+
+echo "mounting $ISO to $MNT"
+echo 'user root is required to run the mount command'
+
+mkdir "$MNT"
+9660srv -f "$ISO" "$SRVNAME"
+sudo mount -t 9p -o unix,trans=unix,name="$USER",uname="$USER",noextend,nodev,nosuid "$NAMESPACE/$SRVNAME" "$MNT"
+
+echo "copying 386 and amd64 binaries from $MNT to $PWD"
+
+cp -a $TMP/mnt/386/bin/* 386/bin
+cp -a $TMP/mnt/386/9* $TMP/mnt/386/init $TMP/mnt/386/mbr $TMP/mnt/386/pbs* 386
+cp -a $TMP/mnt/amd64/bin/* amd64/bin
+cp -a $TMP/mnt/amd64/9* $TMP/mnt/amd64/init amd64
+cp -a $TMP/mnt/acme/bin/386/* acme/bin/386
+cp -a $TMP/mnt/acme/bin/amd64/* acme/bin/amd64
+
+echo '386 and amd64 binaries installed successfully'

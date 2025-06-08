@@ -1,0 +1,4 @@
+#!/bin/rc
+
+rfork en
+cd /sys/src/9/pcboot && mk clean && mk CONF'='bootpbs install && mk clean
