@@ -1,0 +1,35 @@
+[menu]
+menuitem=1920x1080, Plan 9 1920x1080
+menuitem=1440x900, Plan 9 1440x900
+menuitem=1280x768, Plan 9 1280x768
+menuitem=text, Plan 9 Text Mode
+
+[1920x1080]
+vgasize=1920x1080x32
+
+[1440x900]
+vgasize=1440x900x32
+
+[1280x768]
+vgasize=1280x768x32
+
+[text]
+bootfile=ether0!/sys/src/9k/k10/9k10f
+vgasize=none
+debugboot=1
+
+[common]
+bootfile=ether0!/386/9pc
+bootfile=ether0!/amd64/9k10f
+fs=10.0.2.1
+auth=10.0.2.1
+sysname=gnot
+*nobiosload=1
+partition=new
+factotumopts=-n
+user=glenda
+console=0
+mouseport=ps2intellimouse
+monitor=vesa
+*nomp=1
+nobootprompt=tcp
