@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+
+set -e
+cd $(dirname $0)/..
+
+mem=4G
+smp=4
+mac=mac=52:54:00:12:34:56
+pxe=boot/pxeboot.raw
+vgasize=1920x1080x32
+
+u9fs=false
+arch=386
+kind=term
+boot=multiboot
+vga=false
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-u9fs)		u9fs=true ;;
+	-386)		arch=386 ;;
+	-amd64)		arch=amd64 ;;
+	-cpu)		kind=cpu ;;
+	-smp)		smp=$2; shift; case $smp in ''|*[!0-9]*) echo 'boot/qemu: -smp needs a number' >&2; exit 1 ;; esac ;;
+	-9fat)		boot=9fat ;;
+	-vga)		vga=true ;;
+	*)
+		echo 'usage: boot/qemu [-386 | -amd64] [-cpu | -vga] [-smp n] [-9fat] [-u9fs]' >&2
+		exit 1
+	esac
+	shift
+done
+
+if [ $vga = true ] && { [ $kind = cpu ] || [ $boot = 9fat ] || [ $u9fs = true ]; }; then
+	echo 'boot/qemu: -vga is for the default terminal kernel (no -cpu/-9fat/-u9fs)' >&2
+	exit 1
+fi
+
+kvm=
+if [ -w /dev/kvm ]; then
+	kvm='-enable-kvm -cpu host'
+fi
+
+if [ $u9fs = true ]; then
+	echo '# building u9fs' >&2
+	make -C sys/src/cmd/unix/u9fs
+	fwd="guestfwd=tcp:10.0.2.1:564-cmd:sys/src/cmd/unix/u9fs/u9fs -a none -u $USER ."
+	tftp='tftp=.'
+	exec qemu-system-x86_64 -m $mem -smp $smp -serial stdio $kvm \
+		-drive file=$pxe,format=raw -snapshot \
+		-device virtio-net-pci,netdev=net0,$mac \
+		-netdev "user,id=net0,$fwd,$tftp"
+fi
+
+gfx='-display none'
+[ $vga = true ] && gfx='-vga std'
+
+net9p="-fsdev local,id=root9p,path=$PWD,security_model=none \
+	-device virtio-9p-pci,fsdev=root9p,mount_tag=root,disable-legacy=on"
+slirp="-device virtio-net-pci,netdev=net0,$mac -netdev user,id=net0"
+
+if [ $boot = 9fat ]; then
+	fat=boot/9fat.raw
+	if [ ! -f $fat ]; then
+		echo "boot/qemu: $fat missing" >&2
+		echo '# build it in a running guest: mk9fat' >&2
+		exit 1
+	fi
+	exec qemu-system-x86_64 -m $mem -smp $smp $gfx -serial stdio $kvm \
+		$net9p $slirp -drive file=$fat,format=raw -snapshot
+fi
+
+case $arch in
+386)	base=9pc ;;
+amd64)	base=9k10 ;;
+esac
+if [ $kind = cpu ]; then base=${base}cpuf; else base=${base}f; fi
+elf=$arch/$base.elf
+if [ ! -f $elf ]; then
+	echo "boot/qemu: $elf missing" >&2
+	echo '# run boot/getbin to install the kernels' >&2
+	[ $arch = 386 ] && echo "# or build it in a guest: cd /sys/src/9/pc && mk CONF=${base#9} $base.elf" >&2
+	echo '# or boot the menu disk instead: boot/qemu -9fat' >&2
+	exit 1
+fi
+append="nobootprompt=virtio9p sysname=9legacy-$arch user=glenda factotumopts=-n"
+if [ $vga = true ]; then
+	append="$append monitor=vesa vgasize=$vgasize mouseport=ps2intellimouse"
+else
+	append="$append console=0 b115200"
+fi
+exec qemu-system-x86_64 -m $mem -smp $smp $gfx -serial stdio $kvm \
+	$net9p $slirp -kernel $elf -append "$append"
