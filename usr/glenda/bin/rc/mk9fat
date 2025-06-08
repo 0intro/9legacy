@@ -1,0 +1,51 @@
+#!/bin/rc
+
+rfork en
+
+out=/root/boot/9fat.raw
+items=()
+sects=()
+files=()
+
+fn add {
+	if(test -f /$2/$3){
+		items=($items 'menuitem='^$1^', '^$4)
+		sects=($sects '['^$1^']' 'bootfile=sdC0!9fat!'^$3)
+		files=($files /$2/$3)
+	}
+}
+add 386term 386 9pcf 'Plan 9 386 terminal'
+add 386cpu 386 9pccpuf 'Plan 9 386 cpu server'
+add amd64term amd64 9k10f 'Plan 9 amd64 terminal'
+add amd64cpu amd64 9k10cpuf 'Plan 9 amd64 cpu server'
+if(~ $#files 0){
+	echo mk9fat: no kernels found, run boot/getbin on the host >[1=2]
+	exit nokern
+}
+
+ramfs
+img=/tmp/9fat.raw
+dd -bs 1048576 -if /dev/zero -of $img -count 16
+disk/partfs $img
+cd /dev/sdXX
+disk/mbr -m /386/mbr data
+disk/fdisk -baw data
+disk/prep -bw -a 9fat plan9
+
+cp /386/9load /tmp/9load
+{
+	echo '[menu]'
+	for(i in $items)
+		echo $i
+	for(s in $sects)
+		echo $s
+	echo nobootprompt'='virtio9p
+	echo '*'nobiosload'='1
+	echo factotumopts'='-n
+	echo user'='glenda
+	echo console'='0 b115200
+} >/tmp/plan9.ini
+disk/format -b /386/pbslba -d -r 2 9fat /tmp/9load $files /tmp/plan9.ini
+
+cp $img $out
+echo mk9fat: wrote $out >[1=2]

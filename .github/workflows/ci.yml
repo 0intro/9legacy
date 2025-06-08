@@ -1,0 +1,59 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-system-x86 expect curl bzip2 \
+            build-essential libx11-dev libxext-dev libxt-dev libfontconfig1-dev
+
+      - name: Check out plan9port
+        uses: actions/checkout@v7
+        with:
+          repository: 9fans/plan9port
+          path: plan9port
+
+      - name: Build plan9port
+        run: |
+          cd plan9port
+          ./INSTALL
+          test -x bin/9660srv && test -x bin/9p || { echo 'plan9port build incomplete: 9660srv/9p missing' >&2; exit 1; }
+          echo "PLAN9=$PWD" >>$GITHUB_ENV
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666"' \
+            | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Populate the checkout
+        run: |
+          export PATH="$PATH:$PLAN9/bin"
+          ./boot/mkdirs
+          ./boot/getbin
+
+      - name: Build every architecture
+        run: ./boot/test build
+
+      - name: Smoke 386
+        run: ./boot/test smoke -386
+
+      - name: Smoke amd64
+        run: ./boot/test smoke -amd64
