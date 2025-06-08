@@ -1,0 +1,39 @@
+#!/bin/rc
+
+rfork e
+
+fn fatal {
+	echo buildall: $* failed >[1=2]
+	exit 1
+}
+
+fn world {
+	echo '# world' $1
+	@{ objtype=$1; cd /sys/src && mk install } || fatal world $1
+}
+
+fn clean {
+	echo '# clean' $1
+	@{ objtype=$1; cd /sys/src && mk clean } || fatal clean $1
+}
+
+for(o in 386 amd64 arm arm64)
+	world $o
+
+echo '# kernel 386'
+@{ objtype=386; cd /sys/src/9/pc && mk 'CONF=pcf' 9pcf.elf && cp 9pcf 9pcf.elf /386/ } || fatal kernel 386
+echo '# kernel amd64'
+@{ objtype=amd64; cd /sys/src/9k/k10 && mk 'CONF=k10f' && cp 9k10f 9k10f.elf /amd64/ } || fatal kernel amd64
+echo '# kernel arm'
+@{ objtype=arm; cd /sys/src/9/bcm && mk 'CONF=pi' } || fatal kernel arm
+echo '# kernel arm64'
+@{ objtype=arm64; cd /sys/src/9/bcm64 && mk 'CONF=pi5' } || fatal kernel arm64
+
+for(o in 386 amd64 arm arm64)
+	clean $o
+
+echo '# clean kernels'
+@{ objtype=386; cd /sys/src/9/pc && mk clean } || fatal clean kernel 386
+@{ objtype=amd64; cd /sys/src/9k/k10 && mk clean } || fatal clean kernel amd64
+@{ objtype=arm; cd /sys/src/9/bcm && mk clean } || fatal clean kernel arm
+@{ objtype=arm64; cd /sys/src/9/bcm64 && mk clean } || fatal clean kernel arm64

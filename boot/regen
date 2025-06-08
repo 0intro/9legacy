@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+
+set -e
+cd $(dirname $0)/..
+
+serial=/tmp/9legacy-regen-$$.log
+pcboot=sys/src/9/pcboot/boot
+bak=$pcboot.regenbak
+mac=52:54:00:12:34:56
+
+fatal() { echo "boot/regen: $*" >&2; exit 1; }
+
+for f in 386/9pcf 386/9load 386/mbr 386/pbslba; do
+	[ -f $f ] || fatal "$f missing, run ./boot/mkdirs and ./boot/getbin first"
+done
+
+if [ -f 386/9pcf.elf ]; then
+	mode=()
+else
+	echo 'boot/regen: 386/9pcf.elf not installed, booting -u9fs' >&2
+	mode=(-u9fs)
+fi
+
+cleanup() {
+	rc=$?
+	[ -f $bak ] && mv -f $bak $pcboot
+	pkill -f "qemu-system-x86_64.*mac=$mac" 2>/dev/null || true
+	if [ $rc -ne 0 ]; then echo "boot/regen: failed, serial log at $serial" >&2
+	else rm -f $serial
+	fi
+}
+trap cleanup EXIT INT TERM
+
+cp $pcboot $bak
+patch -p1 < boot/9-pcboot-boot.diff
+
+SERIAL=$serial expect -f - ./boot/qemu "${mode[@]}" <<'EXPECT'
+set timeout 900
+log_file -a $env(SERIAL)
+spawn -noecho {*}$argv
+set send_slow {1 0.02}
+proc bail {code} { catch {exec kill [exp_pid]}; exit $code }
+proc die {msg} { puts stderr "\nboot/regen: $msg (see $env(SERIAL))"; bail 1 }
+proc atprompt {} {
+	expect {
+		-re {% $} {}
+		timeout {die "no shell prompt"}
+		eof {die "qemu exited"}
+	}
+}
+proc waitready {} {
+	global timeout
+	set save $timeout
+	set timeout 2
+	for {set i 0} {$i < 60} {incr i} {
+		send "\r"
+		expect {
+			-re {% $} {set timeout $save; return}
+			timeout {}
+			eof {die "qemu exited"}
+		}
+	}
+	set timeout $save
+	die "console rc never became ready"
+}
+proc step {cmd mark} {
+	global send_slow
+	send -s -- "$cmd && echo $mark^-OK || echo $mark^-FAIL"; send "\r"
+	expect {
+		"$mark-OK" {}
+		"$mark-FAIL" {die "$cmd failed"}
+		timeout {die "$cmd timed out"}
+	}
+	atprompt
+}
+atprompt
+waitready
+step {rc /usr/glenda/bin/rc/mkbootpbs} PBS
+step {rc /usr/glenda/bin/rc/mkpxeboot} PXE
+step {rc /usr/glenda/bin/rc/mk9fat} FAT
+bail 0
+EXPECT
+
+echo 'boot/regen: rebuilt boot/pxeboot.raw and boot/9fat.raw'

@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+
+set -e
+cd $(dirname $0)/..
+
+prog=$(basename $0)
+task=${1:-}
+shift || true
+
+case $task in
+build)
+	qemu=(-386)
+	guest='rc /usr/glenda/bin/rc/buildall'
+	mark=BUILD
+	timeout=5400
+	;;
+smoke)
+	case ${1:-} in
+	-386|-amd64)	qemu=($1) ;;
+	*)		echo "usage: $prog smoke [-386 | -amd64]" >&2; exit 1 ;;
+	esac
+	guest='rc /usr/glenda/bin/rc/smoke'
+	mark=SMOKE
+	timeout=600
+	;;
+*)
+	echo "usage: $prog build | smoke [-386 | -amd64]" >&2
+	exit 1
+	;;
+esac
+
+mac=52:54:00:12:34:56
+serial=${SERIAL:-/tmp/9legacy-$task-$$.log}
+: >$serial
+
+cleanup() {
+	rc=$?
+	pkill -f "qemu-system-x86_64.*mac=$mac" 2>/dev/null || true
+	if [ $rc -ne 0 ]; then
+		echo "$prog: $task failed, serial log $serial" >&2
+		tail -40 $serial >&2
+	fi
+}
+trap cleanup EXIT INT TERM
+
+SERIAL=$serial MARK=$mark GUEST=$guest TIMEOUT=$timeout \
+expect -f - ./boot/qemu "${qemu[@]}" <<'EXPECT'
+log_file -a $env(SERIAL)
+set mark $env(MARK)
+set guest $env(GUEST)
+set timeout $env(TIMEOUT)
+spawn -noecho {*}$argv
+set send_slow {1 0.02}
+proc bail {code} { catch {exec kill [exp_pid]}; exit $code }
+proc die {msg} { puts stderr "\nboot/test: $msg"; bail 1 }
+proc atprompt {} {
+	expect {
+		-re {% $} {}
+		timeout { die "no shell prompt" }
+		eof { die "qemu exited" }
+	}
+}
+proc waitready {} {
+	global timeout
+	set save $timeout
+	set timeout 2
+	for {set i 0} {$i < 60} {incr i} {
+		send "\r"
+		expect {
+			-re {% $} { set timeout $save; return }
+			timeout {}
+			eof { die "qemu exited" }
+		}
+	}
+	die "console rc never became ready"
+}
+atprompt
+waitready
+send -s -- "$guest && echo $mark^-OK || echo $mark^-FAIL"
+send "\r"
+expect {
+	"$mark-OK" {}
+	"$mark-FAIL" { die "$guest failed" }
+	timeout { die "$guest timed out" }
+	eof { die "qemu exited" }
+}
+atprompt
+bail 0
+EXPECT

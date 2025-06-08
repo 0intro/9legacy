@@ -1,0 +1,76 @@
+commit 4e1bb6a27300d93ec86a53bbcc774efbb0a60778
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 1 12:27:49 2025 -0500
+
+    9bootpbs: rebuild, smaller
+    
+    It needs to be smaller to actually fit in memory.
+
+diff --git a/sys/src/9/pcboot/boot b/sys/src/9/pcboot/boot
+index 473f91c0..7521dbc2 100755
+--- a/sys/src/9/pcboot/boot
++++ b/sys/src/9/pcboot/boot
+@@ -15,33 +15,10 @@ link
+ # order of ethernet drivers should match that in ../pc/pc so that
+ # devices are detected in the same order by bootstraps and kernels
+ # and thus given the same controller numbers.
+-	ether2000	ether8390
+-	ether2114x	pci
+-	ether589	etherelnk3
+-	ether79c970	pci
+-	ether8003	ether8390
+-	ether8139	pci
+-	ether8169	pci ethermii
+-	ether82543gc	pci
+-	ether82557	pci
+-	ether82563	pci
+-	ether83815	pci
+-	etherdp83820	pci
+-	etherec2t	ether8390
+-	etherelnk3	pci
+-	etherga620	pci
+ 	etherigbe	pci ethermii
+ 	ethervgbe	pci ethermii
+-	ethervt6102	pci ethermii
+-	ethervt6105m	pci ethermii
+-#	ethersink
+-	ethersmc	devi82365 cis
+-	etherwavelan	wavelan devi82365 cis pci
+-	etherm10g
+-	ether82598	pci
+ 	ethervirtio	pci
+ 	ethervirtio10	pci
+-
+ 	ethermedium
+ 
+ misc
+commit 32a1bdfb506bba33a7f08937518fbc6487d1453b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 1 16:16:08 2025 -0500
+
+    9bootpbs: make even smaller
+    
+    9bootpbs is loaded at 0x10000 and then uses a little extra memory
+    and needs to end before 512k so that the memory tables can be
+    copied there. It was too large, producing a "weird low-memory map"
+    error message and then amd64 kernels that panicked at startup
+    because they had no memory.
+    
+    I already deleted most of 9bootpbs earlier to make it fit in 640k.
+    
+    The old size plus 64k was under 512k, but empirically was still too big.
+    This one works.
+
+diff --git a/sys/src/9/pcboot/boot b/sys/src/9/pcboot/boot
+index 7521dbc2..0e156b24 100755
+--- a/sys/src/9/pcboot/boot
++++ b/sys/src/9/pcboot/boot
+@@ -15,8 +15,6 @@ link
+ # order of ethernet drivers should match that in ../pc/pc so that
+ # devices are detected in the same order by bootstraps and kernels
+ # and thus given the same controller numbers.
+-	etherigbe	pci ethermii
+-	ethervgbe	pci ethermii
+ 	ethervirtio	pci
+ 	ethervirtio10	pci
+ 	ethermedium

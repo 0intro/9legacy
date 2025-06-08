@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+
+set -e
+
+if ! command -v 9660srv >/dev/null 2>&1; then
+	echo "9660srv: command not found" 1>&2
+	echo "please install plan9port (https://github.com/9fans/plan9port)" 1>&2
+	exit 1
+fi
+
+uselinux=false
+case "$1" in
+-linux)
+	uselinux=true
+	shift
+	;;
+esac
+
+if [ "$uselinux" = false ] && ! command -v 9p >/dev/null 2>&1; then
+	echo "9p: command not found" 1>&2
+	echo "please install plan9port (https://github.com/9fans/plan9port)" 1>&2
+	exit 1
+fi
+
+ISO=
+case "$#" in
+0)	;;
+1)	ISO="$1"
+	[ -f "$ISO" ] || { echo "boot/getbin: $ISO: no such file" >&2; exit 1; }
+	ISO=$(cd "$(dirname "$ISO")" && pwd)/$(basename "$ISO")
+	;;
+*)
+	echo 'usage: boot/getbin [-linux] [9legacy.iso]' >&2
+	exit 1
+esac
+
+cd $(dirname $0)/..
+
+TMP=$(mktemp -d /tmp/9legacy.XXXX)
+export NAMESPACE="$TMP"
+MNT="$TMP/mnt"
+SRVNAME=9660
+
+cleanup() {
+	if [ "$uselinux" = true ]; then
+		sudo umount "$MNT" 2>/dev/null || true
+	fi
+	killall 9660srv 2>/dev/null || true
+	rm -rf -- "$TMP"
+}
+trap cleanup EXIT
+
+if [ -z "$ISO" ]; then
+	ISO="$TMP/9legacy.iso"
+	echo "downloading 9legacy CD image to $ISO"
+	curl -s -o - http://9legacy.org/download/9legacy.iso.bz2 | bunzip2 -c >"$ISO"
+else
+	echo "using 9legacy CD image $ISO"
+fi
+
+9660srv -f "$ISO" "$SRVNAME"
+
+# Convert a Plan 9 permission string (e.g. --rwxrwxr-x) to octal.
+# Plan 9 has two type prefix characters, so rwx bits start at column 3.
+p9mode() {
+	local p="$1" m=0
+	[ "$(echo "$p" | cut -c3)" = r ] && m=$((m + 0400))
+	[ "$(echo "$p" | cut -c4)" = w ] && m=$((m + 0200))
+	[ "$(echo "$p" | cut -c5)" = x ] && m=$((m + 0100))
+	[ "$(echo "$p" | cut -c6)" = r ] && m=$((m + 040))
+	[ "$(echo "$p" | cut -c7)" = w ] && m=$((m + 020))
+	[ "$(echo "$p" | cut -c8)" = x ] && m=$((m + 010))
+	[ "$(echo "$p" | cut -c9)" = r ] && m=$((m + 04))
+	[ "$(echo "$p" | cut -c10)" = w ] && m=$((m + 02))
+	[ "$(echo "$p" | cut -c11)" = x ] && m=$((m + 01))
+	printf '%o' "$m"
+}
+
+# Copy a single entry (file or directory) from the 9p service.
+p9cpone() {
+	local perms="$1" src="$2" dst="$3"
+	if [ "$(echo "$perms" | cut -c1)" = d ]; then
+		mkdir -p "$dst"
+		chmod u+w "$dst"
+		p9cp "$src" "$dst"
+	else
+		9p read "$SRVNAME/$src" >"$dst"
+	fi
+	chmod "$(p9mode "$perms")" "$dst"
+}
+
+# Recursively copy the contents of a directory from the 9p service,
+# preserving permissions.
+p9cp() {
+	local src="$1" dst="$2"
+	mkdir -p "$dst"
+	9p ls -l "$SRVNAME/$src" | while IFS= read -r line; do
+		[ -z "$line" ] && continue
+		local perms="${line%% *}"
+		local name="${line##* }"
+		p9cpone "$perms" "$src/$name" "$dst/$name"
+	done
+}
+
+# Copy files matching glob patterns from a directory on the 9p service.
+p9cpglob() {
+	local srcdir="$1" dst="$2"
+	shift 2
+	9p ls -l "$SRVNAME/$srcdir" | while IFS= read -r line; do
+		[ -z "$line" ] && continue
+		local perms="${line%% *}"
+		local name="${line##* }"
+		for pat in "$@"; do
+			# shellcheck disable=SC2254
+			case "$name" in
+			$pat)
+				p9cpone "$perms" "$srcdir/$name" "$dst/$name"
+				break
+				;;
+			esac
+		done
+	done
+}
+
+echo "copying 386 and amd64 binaries and libraries to $PWD"
+
+if [ "$uselinux" = true ]; then
+	echo "mounting $ISO to $MNT"
+	echo 'user root is required to run the mount command'
+
+	mkdir "$MNT"
+	sudo mount -t 9p -o unix,trans=unix,name="$USER",uname="$USER",noextend,nodev,nosuid "$NAMESPACE/$SRVNAME" "$MNT"
+
+	cp -Rp $MNT/386/bin/* 386/bin
+	cp -Rp $MNT/386/lib/* 386/lib
+	cp -Rp $MNT/386/9* $MNT/386/init $MNT/386/mbr $MNT/386/pbs* 386
+	cp -Rp $MNT/amd64/bin/* amd64/bin
+	cp -Rp $MNT/amd64/lib/* amd64/lib
+	cp -Rp $MNT/amd64/9* $MNT/amd64/init amd64
+	cp -Rp $MNT/acme/bin/386/* acme/bin/386
+	cp -Rp $MNT/acme/bin/amd64/* acme/bin/amd64
+else
+	p9cp 386/bin 386/bin
+	p9cp 386/lib 386/lib
+	p9cpglob 386 386 '9*' init mbr 'pbs*'
+	p9cp amd64/bin amd64/bin
+	p9cp amd64/lib amd64/lib
+	p9cpglob amd64 amd64 '9*' init
+	p9cp acme/bin/386 acme/bin/386
+	p9cp acme/bin/amd64 acme/bin/amd64
+fi
+
+echo '386 and amd64 binaries and libraries installed successfully'
