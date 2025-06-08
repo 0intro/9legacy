@@ -228,7 +228,7 @@ void		writehostowner(char*);
 
 /* protocols */
 extern Proto apop, cram;		/* apop.c */
-extern Proto p9any, p9sk1, p9sk2;	/* p9sk.c */
+extern Proto p9any, p9sk1, p9sk2, dp9ik;	/* p9sk.c */
 extern Proto chap, mschap;		/* chap.c */
 extern Proto p9cr, vnc;			/* p9cr.c */
 extern Proto pass;			/* pass.c */
