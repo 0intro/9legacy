@@ -10,7 +10,14 @@ case go
 	echo
 	
 	fat=(/dev/sd*/9fat)
-	fat=$fat(1)
+	echo 'The following partitions named 9fat* were found.'
+	echo
+	echo 'Please choose your 9fat partition.'
+	echo
+	ls $fat
+	echo
+	prompt '9fat partition' $fat
+	fat=$rd
 	disk=`{echo $fat | sed 's:/dev/::;s:/9fat::'}
 	bootfs=`{echo $fs | sed 's:/dev/(sd..)/(.*):\1!\2:'}
 	bootfat=`{echo $fs | sed 's:/dev/(sd..)/(.*):\1!9fat:'}
