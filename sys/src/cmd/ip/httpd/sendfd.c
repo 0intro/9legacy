@@ -240,10 +240,8 @@ static void
 printtype(Hio *hout, HContent *type, HContent *enc)
 {
 	hprint(hout, "Content-Type: %s/%s", type->generic, type->specific);
-/*
 	if(cistrcmp(type->generic, "text") == 0)
 		hprint(hout, ";charset=utf-8");
-*/
 	hprint(hout, "\r\n");
 	if(enc != nil)
 		hprint(hout, "Content-Encoding: %s\r\n", enc->generic);
