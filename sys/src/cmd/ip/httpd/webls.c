@@ -213,12 +213,14 @@ dols(char *dir)
 	}
 	if (vermaj) {
 		hokheaders(connect);
-		hprint(hout, "Content-type: text/html\r\n");
+		hprint(hout, "Content-type: text/html; charset=utf-8\r\n");
 		hprint(hout, "\r\n");
 	}
 	doctype();
 	hprint(hout, "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n");
-	hprint(hout, "<head><title>Index of %s</title></head>\n", dir);
+	hprint(hout, "<head><title>Index of %s</title>\n", dir);
+	hprint(hout, "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n");
+	hprint(hout, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head>\n");
 	hprint(hout, "<body>\n");
 	hprint(hout, "<h1>Index of ");
 	nm = dir;
