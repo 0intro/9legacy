@@ -173,7 +173,7 @@ option of
 .I ipso
 invokes
 .IR sam (1)
-as the editor insted of
+as the editor instead of
 .BR acme ;
 the
 .B -a
