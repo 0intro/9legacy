@@ -6,13 +6,17 @@
 #include <thread.h>
 #include <auth.h>
 
+enum {
+	Stacksize = 8*1024,
+};
+
 char pic[] = "/lib/bunny.bit";
 
 int vgactl;
 int debug;
 int doblank;
-int chatty = 0;
-
+int chatty = 1;
+int mainstacksize = 16*1024;
 char user[256];
 
 void
@@ -77,7 +81,7 @@ readline(char *buf, int nbuf)
 		if(read(0, &c, 1) != 1 || c == '\04' || c == '\177'){
 			i = 0;
 			break;
-		} else if(c == '\n')
+		} else if(c == '\n' || c == '\r')
 			break;
 		else if(c == '\b' && i > 0)
 			--i;
@@ -119,7 +123,7 @@ checkpassword(void)
 
 	for(;;){
 		if(chatty || !must)
-			fprint(2, "%s's screenlock password: ", user);
+			fprint(2, "%s's password: ", user);
 		memset(buf, 0, sizeof buf);
 		readline(buf, sizeof buf);
 		blankscreen(0);
@@ -138,11 +142,31 @@ checkpassword(void)
 		auth_freeAI(ai);
 
 		if(chatty || !must)
-			fprint(2, "password mismatch\n");
+			fprint(2, "password mismatch (or factotum "
+				"role=server attribute missing)\n");
 		doblank = 1;
 	}
 	memset(buf, 0, sizeof buf);
 	blankscreen(0);
+}
+
+void
+ensurefactotumentry(char *user)
+{
+	char *fmt;
+	Chalstate *ch;
+	static char tuplefmt[] = "user=%q proto=p9cr role=server";
+
+	/*
+	 * borrowed from auth_userpasswd.
+	 */
+	ch = auth_challenge(tuplefmt, user);
+	if(ch == nil) {
+		fmt = smprint("factotum tuple not found: %s\n", tuplefmt);
+		fprint(2, fmt, user);
+		exits("no factotum tuple");
+	}
+	auth_freechal(ch);
 }
 
 void
@@ -228,8 +252,8 @@ lockscreen(void)
 		error("no display");
 
 	/* screen is now open and covered.  grab mouse and hold on tight */
-	procrfork(grabmouse, nil, 4096, RFFDG);
-	procrfork(blanker, nil, 4096, RFFDG);
+	procrfork(grabmouse, nil, Stacksize, RFFDG);
+	procrfork(blanker, nil, Stacksize, RFFDG);
 	fd = open(pic, OREAD);
 	if(fd > 0){
 		i = readimage(display, fd, 0);
@@ -283,6 +307,7 @@ threadmain(int argc, char *argv[])
 	if(argc != 0)
 		usage();
 
+	ensurefactotumentry(user);
 	doblank = 1;
 	lockscreen();
 	checkpassword();
