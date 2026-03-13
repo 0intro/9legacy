@@ -32,6 +32,7 @@ typedef unsigned long long int  uint64_t;
 #endif
 
 #include <inttypes.h>		/* for int64_t et al. */
+#include <limits.h>
 #include <stdlib.h>
 #include <stdarg.h>		/* for va_list, vararg macros */
 #ifndef va_copy
