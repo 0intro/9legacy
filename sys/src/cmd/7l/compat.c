@@ -1,0 +1,192 @@
+#include	"l.h"
+
+/* 9front: #include	"../cc/compat" */
+
+int
+myaccess(char *f)
+{
+	return access(f, AEXIST);
+}
+
+int
+mycreat(char *n, int p)
+{
+
+	return create(n, 1, p);
+}
+
+int
+mywait(int *s)
+{
+	int p;
+	Waitmsg *w;
+
+	if((w = wait()) == nil)
+		return -1;
+	else{
+		p = w->pid;
+		*s = 0;
+		if(w->msg[0])
+			*s = 1;
+		free(w);
+		return p;
+	}
+}
+
+int
+mydup(int f1, int f2)
+{
+	return dup(f1,f2);
+}
+
+int
+mypipe(int *fd)
+{
+	return pipe(fd);
+}
+
+int
+pathchar(void)
+{
+	return '/';
+}
+
+char*
+mygetwd(char *path, int len)
+{
+	return getwd(path, len);
+}
+
+int
+myexec(char *path, char *argv[])
+{
+	return exec(path, argv);
+}
+
+int
+myfork(void)
+{
+	return fork();
+}
+
+
+/*
+ * real allocs
+ */
+
+extern char end[];
+
+static char*	hunk = end;
+static long	nhunk;
+static uintptr	thunk;
+
+static void
+gethunk(void)
+{
+	long nh;
+
+	if(thunk < NHUNK)
+		nh = NHUNK;
+	else if(thunk < 1000*NHUNK)
+		nh = thunk;
+	else
+		nh = 1000*NHUNK;
+
+	if(nhunk < 0)
+		nhunk = 0;
+	nhunk += nh;
+	thunk += nh;
+	if(brk(hunk+nhunk) < 0)
+		sysfatal("out of memory");
+}
+
+void*
+alloc(long n)
+{
+	void *p;
+
+	while((uintptr)hunk & 7) {
+		hunk++;
+		nhunk--;
+	}
+	while(nhunk < n)
+		gethunk();
+	p = hunk;
+	nhunk -= n;
+	hunk += n;
+	return p;
+}
+
+void*
+allocn(void *p, long on, long n)
+{
+	void *q;
+
+	q = (uchar*)p + on;
+	if(q != hunk || nhunk < n) {
+		while(nhunk < on+n)
+			gethunk();
+		memmove(hunk, p, on);
+		p = hunk;
+		hunk += on;
+		nhunk -= on;
+	}
+	hunk += n;
+	nhunk -= n;
+	return p;
+}
+
+/*
+ * fake mallocs
+ */
+void*
+malloc(ulong n)
+{
+	return alloc(n);
+}
+
+void*
+calloc(ulong m, ulong n)
+{
+	return alloc(m*n);
+}
+
+void*
+realloc(void *o, ulong n)
+{
+	ulong m;
+	void *a;
+
+	if(n == 0)
+		return nil;
+	if(o == nil)
+		return alloc(n);
+	a = alloc(n);
+	m = (char*)a - (char*)o;
+	if(m < n)
+		n = m;
+	memmove(a, o, n);
+	return a;
+}
+
+void
+free(void*)
+{
+}
+
+/* needed when profiling */
+void*
+mallocz(ulong size, int)
+{
+	return alloc(size);
+}
+
+void
+setmalloctag(void*, ulong)
+{
+}
+
+void
+setrealloctag(void*, ulong)
+{
+}
