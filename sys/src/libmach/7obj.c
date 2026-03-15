@@ -1,11 +1,11 @@
 /*
- * 7obj.c - identify and parse an alpha object file
+ * 7obj.c - identify and parse an arm64 object file
  */
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
 #include <mach.h>
-#include "alpha/7.out.h"
+#include "7c/7.out.h"
 #include "obj.h"
 
 typedef struct Addr	Addr;
@@ -20,22 +20,24 @@ static char type2char(int);
 static void skip(Biobuf*, int);
 
 int
-_is7a(char *s)
+_is7(char *s)
 {
-	return  s[0] == ANAME				/* ANAME */
-		&& s[1] == D_FILE			/* type */
-		&& s[2] == 1				/* sym */
-		&& s[3] == '<';				/* name of file */
+	return  s[0] == (ANAME&0xff)			/* aslo = ANAME */
+		&& s[1] == ((ANAME>>8)&0xff)
+		&& s[2] == D_FILE			/* type */
+		&& s[3] == 1				/* sym */
+		&& s[4] == '<';				/* name of file */
 }
 
 int
-_read7a(Biobuf *bp, Prog *p)
+_read7(Biobuf *bp, Prog *p)
 {
 	int as, n;
 	Addr a;
 
-	as = Bgetc(bp);			/* as */
-	if(as < 0)
+	as = (uchar)Bgetc(bp);				/* as */
+	as |= (uchar)Bgetc(bp)<<8;
+	if(as <= AXXX || as >= ALAST)
 		return 0;
 	p->kind = aNone;
 	p->sig = 0;
@@ -68,8 +70,11 @@ _read7a(Biobuf *bp, Prog *p)
 		p->kind = aText;
 	else if(as == AGLOBL)
 		p->kind = aData;
-	skip(bp, 5);		/* reg(1), lineno(4) */
+	n = (uchar)Bgetc(bp);	/* reg and flag (1) */
+	skip(bp, 4);		/* lineno(4) */
 	a = addr(bp);
+	if(n & 0x40)
+		addr(bp);	/* from3 */
 	addr(bp);
 	if(a.type != D_OREG || a.name != D_STATIC && a.name != D_EXTERN)
 		p->kind = aNone;
@@ -81,7 +86,7 @@ static Addr
 addr(Biobuf *bp)
 {
 	Addr a;
-	vlong off;
+	long off;
 
 	a.type = Bgetc(bp);	/* a.type */
 	skip(bp,1);		/* reg */
@@ -89,24 +94,34 @@ addr(Biobuf *bp)
 	a.name = Bgetc(bp);	/* sym type */
 	switch(a.type){
 	default:
-	case D_NONE: case D_REG: case D_FREG: case D_PREG:
-	case D_FCREG: case D_PCC:
+	case D_NONE:
+	case D_REG:
+	case D_SP:
+	case D_FREG:
+	case D_VREG:
+	case D_COND:
 		break;
+
 	case D_OREG:
+	case D_XPRE:
+	case D_XPOST:
 	case D_CONST:
 	case D_BRANCH:
-		off = (uvlong)Bgetc(bp);
-		off |= (uvlong)Bgetc(bp) << 8;
-		off |= (uvlong)Bgetc(bp) << 16;
-		off |= (uvlong)Bgetc(bp) << 24;
-		off |= (uvlong)Bgetc(bp) << 32;
-		off |= (uvlong)Bgetc(bp) << 40;
-		off |= (uvlong)Bgetc(bp) << 48;
-		off |= (uvlong)Bgetc(bp) << 56;
+	case D_SHIFT:
+	case D_EXTREG:
+	case D_ROFF:
+	case D_SPR:
+		off = Bgetc(bp);
+		off |= Bgetc(bp) << 8;
+		off |= Bgetc(bp) << 16;
+		off |= Bgetc(bp) << 24;
 		if(off < 0)
 			off = -off;
 		if(a.sym && (a.name==D_PARAM || a.name==D_AUTO))
 			_offset(a.sym, off);
+		break;
+	case D_DCONST:
+		skip(bp, 8);
 		break;
 	case D_SCONST:
 		skip(bp, NSNAME);
