@@ -33,6 +33,7 @@ CFILES=\
 	386.c\
 	amd64.c\
 	arm.c\
+	arm64.c\
 	channel.c\
 	chanprint.c\
 	create.c\
