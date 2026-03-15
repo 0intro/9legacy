@@ -17,9 +17,9 @@ struct machtab
 };
 
 extern	Mach		mmips, mmips64, msparc, m68020, mi386, mamd64, mriscv, mriscv64,
-			marm, /* mmips2be, mmips2le, */ mpower, mpower64, malpha, msparc64;
+			marm, marm64, /* mmips2be, mmips2le, */ mpower, mpower64, malpha, msparc64;
 extern	Machdata	mipsmach, mipsmachle, sparcmach, m68020mach, i386mach, riscvmach, riscv64mach,
-			armmach, mipsmach2le, powermach, alphamach, sparc64mach;
+			armmach, arm64mach, mipsmach2le, powermach, alphamach, sparc64mach;
 
 /*
  *	machine selection table.  machines with native disassemblers should
@@ -142,6 +142,12 @@ Machtab	machines[] =
 		ARISCV64,
 		&mriscv64,
 		&riscv64mach,	},
+	{	"arm64",
+		FARM64,
+		FARM64B,
+		AARM64,
+		&marm64,
+		&arm64mach,	},
 	{	0		},		/*the terminator*/
 };
 
