@@ -1,0 +1,11 @@
+#define ISH	(2<<2 | 3)
+
+TEXT	tas(SB), 1, $-4
+	MOVW	$1, R2
+_tas1:
+	LDXRW	(R0), R1
+	STXRW	R2, (R0), R3
+	CBNZ	R3, _tas1
+	MOVW	R1, R0
+	DMB	$ISH
+	RETURN
