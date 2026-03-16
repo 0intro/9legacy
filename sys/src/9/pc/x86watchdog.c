@@ -133,8 +133,10 @@ x86wdenable(void)
 		break;
 	case P4:
 		rdmsr(0x1A0, &r);
-		if(!(r & 0x0000000000000080LL))
-			return;
+		if(!(r & 0x0000000000000080LL)){
+			iunlock(wd);
+			error(Enodev);
+		}
 	
 		for(i = 0; i < 18; i++)
 			wrmsr(0x300+i, 0);		/* perfctr */
