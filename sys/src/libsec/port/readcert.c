@@ -64,3 +64,15 @@ readcertchain(char *filename)
 	return decodepemchain(chfile, "CERTIFICATE");
 }
 
+void
+freecertchain(PEMChain *chain)
+{
+	PEMChain *curr;
+
+	while(chain){
+		curr = chain;
+		chain = chain->next;
+		free(curr->pem);
+		free(curr);
+	}
+}
