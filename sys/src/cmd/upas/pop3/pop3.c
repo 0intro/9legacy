@@ -77,7 +77,7 @@ static Msg *msg;
 static int nmsg;
 static int loggedin;
 static int debug;
-static uchar *tlscert;
+static PEMChain *tlscert;
 static int ntlscert;
 static char *peeraddr;
 static char tmpaddr[64];
@@ -124,7 +124,7 @@ main(int argc, char **argv)
 		peeraddr = tmpaddr;
 		break;
 	case 't':
-		tlscert = readcert(EARGF(usage()), &ntlscert);
+		tlscert = readcertchain(EARGF(usage()));
 		if(tlscert == nil){
 			senderr("cannot read TLS certificate: %r");
 			exits(nil);
@@ -562,13 +562,15 @@ stlscmd(char*)
 	Bflush(&out);
 
 	memset(&conn, 0, sizeof conn);
-	conn.cert = tlscert;
-	conn.certlen = ntlscert;
+	conn.cert = tlscert->pem;
+	conn.certlen = tlscert->pemlen;
+	conn.chain = tlscert->next;
 	if(debug)
 		conn.trace = trace;
 	fd = tlsServer(0, &conn);
 	if(fd < 0)
 		sysfatal("tlsServer: %r");
+	freecertchain(tlscert);
 	dup(fd, 0);
 	dup(fd, 1);
 	close(fd);

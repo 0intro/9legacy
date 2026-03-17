@@ -1563,8 +1563,7 @@ s_dec64(String *sin)
 void
 starttls(void)
 {
-	int certlen, fd;
-	uchar *cert;
+	int fd;
 	TLSconn *conn;
 
 	if (tlscert == nil) {
@@ -1572,27 +1571,28 @@ starttls(void)
 		return;
 	}
 	conn = mallocz(sizeof *conn, 1);
-	cert = readcert(tlscert, &certlen);
-	if (conn == nil || cert == nil) {
-		if (conn != nil)
-			free(conn);
+	if(conn)
+		conn->chain = readcertchain(tlscert);
+	if (conn == nil || conn->chain == nil) {
+		free(conn);
 		reply("454 4.7.5 TLS not available\r\n");
 		return;
 	}
 	reply("220 2.0.0 Go ahead make my day\r\n");
-	conn->cert = cert;
-	conn->certlen = certlen;
+	conn->cert = conn->chain->pem;
+	conn->certlen = conn->chain->pemlen;
+	conn->chain = conn->chain->next;
 	fd = tlsServer(Bfildes(&bin), conn);
 	if (fd < 0) {
-		free(cert);
-		free(conn);
 		syslog(0, "smtpd", "TLS start-up failed with %s", him);
-
 		/* force the client to hang up */
 		close(Bfildes(&bin));		/* probably fd 0 */
 		close(1);
 		exits("tls failed");
 	}
+	freecertchain(conn->chain);
+	free(conn->cert);
+	free(conn);
 	Bterm(&bin);
 	Binit(&bin, fd, OREAD);
 	if (dup(fd, 1) < 0)
