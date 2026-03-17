@@ -511,13 +511,6 @@ sysexec(Ar0* ar0, va_list list)
 	poperror();				/* args */
 
 	/*
-	 * Close on exec
-	 */
-	f = up->fgrp;
-	for(i=0; i<=f->maxfd; i++)
-		fdclose(i, CCEXEC);
-
-	/*
 	 * Free old memory.
 	 * Special segments maintained across exec.
 	 */
@@ -593,6 +586,7 @@ sysexec(Ar0* ar0, va_list list)
 	mmuflush();
 	qlock(&up->debug);
 	up->nnote = 0;
+	up->notepending = 0;
 	up->notify = 0;
 	up->notified = 0;
 	up->privatemem = 0;
@@ -600,6 +594,13 @@ sysexec(Ar0* ar0, va_list list)
 	qunlock(&up->debug);
 	if(up->hang)
 		up->procctl = Proc_stopme;
+
+	/*
+	 * Close on exec
+	 */
+	f = up->fgrp;
+	for(i=0; i<=f->maxfd; i++)
+		fdclose(i, CCEXEC);
 
 	ar0->v = sysexecregs(entry, TSTKTOP - PTR2UINT(argv), argc);
 }
