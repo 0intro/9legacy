@@ -1,6 +1,6 @@
 .TH PUSHTLS 2
 .SH NAME
-pushtls, tlsClient, tlsServer, initThumbprints, freeThumbprints, okThumbprint, readcert, readcertchain \- attach TLS1 or SSL3 encryption to a communication channel
+pushtls, tlsClient, tlsServer, initThumbprints, freeThumbprints, freecertchain, okThumbprint, readcert, readcertchain \- attach TLS1 or SSL3 encryption to a communication channel
 .SH SYNOPSIS
 .B #include <u.h>
 .br
@@ -26,7 +26,10 @@ int	tlsServer(int fd, TLSconn *conn)
 uchar *readcert(char *filename, int *pcertlen)
 .PP
 .B
-PEMchain *readcertchain(char *filename)
+PEMChain *readcertchain(char *filename)
+.PP
+.B
+void	freecertchain(PEMChain *);
 .PP
 .B
 Thumbprint *initThumbprints(char *ok, char *crl)
@@ -197,6 +200,10 @@ conn->chain = readcertchain("intermediate-certs.pem");
 the server can present extra certificate evidence
 to establish the chain of trust to a root authority
 known to the client.
+.PP
+.I Freecertchain
+frees the certificate chain previously allocated by
+.IR readcertchain .
 .PP
 .I Conn
 is not required for the ongoing conversation and may
