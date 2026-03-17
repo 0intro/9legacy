@@ -469,8 +469,6 @@ another:
 		p = rq->head;
 		if(p == nil)
 			continue;
-		if(p->mp != m)
-			continue;
 		if(pri == p->basepri)
 			continue;
 		updatecpu(p);
