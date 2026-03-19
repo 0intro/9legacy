@@ -8,7 +8,7 @@ if(test -f $home/lib/profile){
 }
 cd $home
 x='$'
-mkdir bin bin/rc bin/mips bin/386 bin/power bin/arm bin/amd64
+mkdir bin bin/rc bin/mips bin/386 bin/power bin/arm bin/amd64 bin/riscv64
 mkdir lib tmp
 chmod +t tmp
 bind -c $home/tmp /tmp
@@ -46,7 +46,6 @@ case cpu
 	news
 	if (! test -e /mnt/term/mnt/wsys) {
 		# cpu call from drawterm
-		font=/lib/font/bit/pelm/latin1.8.font
 		plumber
 		auth/factotum
 		exec rio
