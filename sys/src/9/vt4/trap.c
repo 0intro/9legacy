@@ -292,7 +292,7 @@ trap(Ureg *ur)
 	setlights(user);
 
 	/* delaysched set because we held a lock or because our quantum ended */
-	if(up && up->delaysched && ecode == INT_PIT){
+	if(up && up->delaysched && ecode == INT_PIT && m->ilockdepth == 0){
 		sched();
 		splhi();
 		setlights(user);

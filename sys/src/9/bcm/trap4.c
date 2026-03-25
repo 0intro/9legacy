@@ -860,7 +860,7 @@ trap(Ureg *ureg)
 	splhi();
 
 	/* delaysched set because we held a lock or because our quantum ended */
-	if(up && up->delaysched && clockintr){
+	if(up && up->delaysched && clockintr && m->ilockdepth == 0){
 		sched();		/* can cause more traps */
 		splhi();
 	}
