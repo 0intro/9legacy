@@ -228,7 +228,7 @@ fpunotify(Ureg*)
 		fpsave(&up->fpsave);
 		up->fpstate = FPinactive;
 	}
-	up->fpstate |= FPillegal;
+ 	up->fpstate |= FPnotestart<<FPnoteshift;
 }
 
 /*
@@ -239,7 +239,9 @@ fpunotify(Ureg*)
 void
 fpunoted(void)
 {
-	up->fpstate &= ~FPillegal;
+	if((up->fpstate>>FPnoteshift) == FPactive)
+		fpoff();
+	up->fpstate &= ~FPnotemask;
 }
 
 /*
@@ -254,7 +256,10 @@ fpusysrfork(Ureg*)
 	if(up->fpstate == FPactive){
 		fpsave(&up->fpsave);
 		up->fpstate = FPinactive;
-	}
+ 	}else if((up->fpstate>>FPnoteshift) == FPactive){
+ 		fpsave(&up->notefpsave);
+ 		up->fpstate = (up->fpstate&~FPnotemask) | (FPinactive<<FPnoteshift);
+ 	}
 }
 
 /*
@@ -265,8 +270,10 @@ fpusysrfork(Ureg*)
 void
 fpusysrforkchild(Proc *p, Ureg *, Proc *up)
 {
-	/* don't penalize the child, it hasn't done FP in a note handler. */
-	p->fpstate = up->fpstate & ~FPillegal;
+	p->fpstate = up->fpstate;
+	/* no need to prevent child from using FP in note handler */
+	if((p->fpstate>>FPnoteshift) != 0)
+		p->notefpsave = up->notefpsave;
 }
 
 /* should only be called if p->fpstate == FPactive */
@@ -281,13 +288,13 @@ fpsave(FPsave *fps)
 }
 
 static void
-fprestore(Proc *p)
+fprestore(FPsave *fps)
 {
 	fpon();
-	fpwrscr(p->fpsave.control);
+	fpwrscr(fps->control);
 	m->fpscr = fprdscr() & ~Allcc;
 	assert(m->fpnregs);
-	fprestregs((uvlong*)p->fpsave.regs, m->fpnregs);
+	fprestregs((uvlong*)fps->regs, m->fpnregs);
 }
 
 /*
@@ -300,7 +307,15 @@ fprestore(Proc *p)
 void
 fpuprocsave(Proc *p)
 {
-	if(p->fpstate == FPactive){
+ 	if(p->fpstate&FPnotemask){
+ 		if((p->fpstate>>FPnoteshift) == FPactive){
+ 			if(p->state == Moribund)
+ 				fpoff();
+ 			else
+ 				fpsave(&p->notefpsave);
+ 			p->fpstate = (p->fpstate&~FPnotemask) | (FPinactive<<FPnoteshift);
+ 		}
+ 	} else if(p->fpstate == FPactive){
 		if(p->state == Moribund)
 			fpoff();
 		else{
@@ -371,8 +386,36 @@ mathnote(void)
 }
 
 static void
-mathemu(Ureg *)
+mathemu(Ureg*)
 {
+ 	if(up->fpstate & FPnotemask){
+ 		/* in note handler */
+ 		switch(up->fpstate>>FPnoteshift){
+ 		case FPnotestart:
+ 			/* no FP used yet; copy state at time of note */
+ 			if((up->fpstate&~FPnotemask) == FPinit) {
+ 				/* no FP in the process yet */
+ 				up->fpstate = (up->fpstate&~FPnotemask) | (FPactive<<FPnoteshift);
+ 				fpinit();
+ 				return;
+ 			}
+ 			up->notefpsave = up->fpsave;
+ 			/* fall through */
+ 		case FPinactive:
+ 			/* restore state */
+			if(up->fpsave.status & (FPAINEX|FPAUNFL|FPAOVFL|FPAZDIV|FPAINVAL)){
+				postnote(up, 1, "sys: floating point exception in note handler", NDebug);
+				break;
+			}
+ 			fprestore(&up->notefpsave);
+ 			up->fpstate = (up->fpstate&~FPnotemask) | (FPactive<<FPnoteshift);
+ 			break;
+ 		case FPactive:
+			error("sys: illegal instruction: bad vfp fpu opcode");
+ 		}
+ 		fpclear();
+ 		return;
+	}
 	switch(up->fpstate){
 	case FPemu:
 		error("illegal instruction: VFP opcode in emulated mode");
@@ -392,7 +435,7 @@ mathemu(Ureg *)
 			mathnote();
 			break;
 		}
-		fprestore(up);
+		fprestore(&up->fpsave);
 		up->fpstate = FPactive;
 		break;
 	case FPactive:
@@ -478,9 +521,6 @@ fpuemu(Ureg* ureg)
 		postnote(up, 1, up->errstr, NDebug);
 		return 1;
 	}
-
-	if(up->fpstate & FPillegal)
-		error("floating point in note handler");
 
 	nfp = 0;
 	pc = ureg->pc;
