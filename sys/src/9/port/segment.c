@@ -648,7 +648,7 @@ segattach(Proc *p, ulong attr, char *name, ulong va, ulong len)
 	if(va != 0 && va >= USTKTOP)
 		error(Ebadarg);
 
-	validaddr((ulong)name, 1, 0);
+	validaddr((uintptr)name, 1, 0);
 	vmemchr(name, 0, ~0);
 
 	for(sno = 0; sno < NSEG; sno++)
@@ -731,8 +731,8 @@ pteflush(Pte *pte, int s, int e)
 	}
 }
 
-long
-syssegflush(ulong *arg)
+uintptr
+syssegflush(uintptr *arg)
 {
 	Segment *s;
 	ulong addr, l;

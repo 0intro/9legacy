@@ -55,11 +55,11 @@ mem2block(void *buf, ulong usable, int malloced)
 	ainc(&b->ref);
 
 	/* align start of data portion by rounding up */
-	b->base = (uchar*)ALIGNUP((ulong)b + sizeof(Block));
+	b->base = (uchar*)ALIGNUP((uintptr)b + sizeof(Block));
 
 	/* align end of data portion by rounding down */
 	b->lim = (uchar*)b + (malloced? msize(b): blocksize(usable));
-	b->lim = (uchar*)((ulong)b->lim & ~(BLOCKALIGN-1));
+	b->lim = (uchar*)((uintptr)b->lim & ~(BLOCKALIGN-1));
 
 	/* leave sluff at beginning for added headers */
 	b->wp = b->rp = b->lim - ALIGNUP(usable);

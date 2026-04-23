@@ -14,7 +14,7 @@ fault(ulong addr, int read)
 	if(up == nil)
 		panic("fault: nil up");
 	if(up->nlocks.ref)
-		print("fault: addr %#p: nlocks %ld\n", addr, up->nlocks.ref);
+		print("fault: addr %#p: nlocks %ld\n", (uintptr)addr, up->nlocks.ref);
 
 	sps = up->psstate;
 	up->psstate = "Fault";
@@ -322,10 +322,10 @@ void*
 vmemchr(void *s, int c, int n)
 {
 	int m;
-	ulong a;
+	uintptr a;
 	void *t;
 
-	a = (ulong)s;
+	a = (uintptr)s;
 	while(PGROUND(a) != PGROUND(a+n-1)){
 		/* spans pages; handle this page */
 		m = BY2PG - (a & (BY2PG-1));

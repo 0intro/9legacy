@@ -1,6 +1,7 @@
 #include	"u.h"
 #include	<trace.h>
 #include	"tos.h"
+#include	"../port/tos32.h"
 #include	"../port/lib.h"
 #include	"mem.h"
 #include	"dat.h"
@@ -158,20 +159,31 @@ static int topens;
 static int tproduced, tconsumed;
 void (*proctrace)(Proc*, int, vlong);
 
+void (*ureg64to32)(void*, Ureg*);
+void (*ureg32to64)(Ureg*, void*);
+uint ureg32size;
+
 extern int unfair;
 
 static void
 profclock(Ureg *ur, Timer *)
 {
-	Tos *tos;
-
 	if(up == 0 || up->state != Running)
 		return;
 
 	/* user profiling clock */
 	if(userureg(ur)){
-		tos = (Tos*)(USTKTOP-sizeof(Tos));
-		tos->clock += TK2MS(1);
+		if(!up->compat32){
+			Tos *tos;
+
+			tos = (Tos*)(USTKTOP-sizeof(Tos));
+			tos->clock += TK2MS(1);
+		}else{
+			Tos32 *tos;
+
+			tos = (Tos32*)(USTKTOP-sizeof(Tos32));
+			tos->clock += TK2MS(1);
+		}
 		segclock(ur->pc);
 	}
 }
@@ -258,6 +270,10 @@ procgen(Chan *c, char *name, Dirtab *tab, int, int s, Dir *dp)
 			len = (q->top-q->base)>>LRESPROF;
 			len *= sizeof(*q->profile);
 		}
+		break;
+	case Qregs:
+		if(p->compat32)
+			len = ureg32size;
 		break;
 	}
 
@@ -678,7 +694,7 @@ procread(Chan *c, void *va, long n, vlong off)
 	int i, j, m, navail, ne, pid, rsize;
 	long l;
 	uchar *rptr;
-	ulong offset;
+	uintptr offset;
 	Confmem *cm;
 	Mntwalk *mw;
 	Proc *p;
@@ -742,9 +758,9 @@ procread(Chan *c, void *va, long n, vlong off)
 			error(Eperm);
 
 		/* validate kernel addresses */
-		if(offset < (ulong)end) {
-			if(offset+n > (ulong)end)
-				n = (ulong)end - offset;
+		if(offset < (uintptr)end) {
+			if(offset+n > (uintptr)end)
+				n = (uintptr)end - offset;
 			memmove(a, (char*)offset, n);
 			return n;
 		}
@@ -810,8 +826,14 @@ procread(Chan *c, void *va, long n, vlong off)
 		return n;
 
 	case Qregs:
-		rptr = (uchar*)p->dbgreg;
-		rsize = sizeof(Ureg);
+		if(p->compat32){
+			ureg64to32(up->genbuf, p->dbgreg);
+			rptr = (uchar*)up->genbuf;
+			rsize = ureg32size;
+		}else{
+			rptr = (uchar*)p->dbgreg;
+			rsize = sizeof(Ureg);
+		}
 		goto regread;
 
 	case Qkregs:

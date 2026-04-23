@@ -1,5 +1,6 @@
 #include	"u.h"
 #include	"tos.h"
+#include	"../port/tos32.h"
 #include	"../port/lib.h"
 #include	"mem.h"
 #include	"dat.h"
@@ -9,20 +10,26 @@
 
 #include	<a.out.h>
 
+#ifndef AOUT_MAGIC_COMPAT32
+#define AOUT_MAGIC_COMPAT32	AOUT_MAGIC
+#define UTZERO_COMPAT32		UTZERO
+#define UTROUND_COMPAT32(n)	UTROUND(n)
+#endif
+
 int	shargs(char*, int, char**);
 
 extern void checkpages(void);
 extern void checkpagerefs(void);
 
-long
-sysr1(ulong*)
+uintptr
+sysr1(uintptr*)
 {
 	checkpagerefs();
 	return 0;
 }
 
-long
-sysrfork(ulong *arg)
+uintptr
+sysrfork(uintptr *arg)
 {
 	Proc *p;
 	int n, i;
@@ -84,6 +91,7 @@ sysrfork(ulong *arg)
 
 	p = newproc();
 
+	p->compat32 = up->compat32;
 	p->fpsave = up->fpsave;
 	p->scallnr = up->scallnr;
 	p->s = up->s;
@@ -213,24 +221,65 @@ l2be(long l)
 	return (cp[0]<<24) | (cp[1]<<16) | (cp[2]<<8) | cp[3];
 }
 
-long
-sysexec(ulong *arg)
+ulong
+ll2be(uvlong l)
+{
+	uchar *cp;
+
+	cp = (uchar*)&l;
+	return ((uvlong)cp[0]<<56) | ((uvlong)cp[1]<<48) | ((uvlong)cp[2]<<40) | ((uvlong)cp[3]<<32) |
+			(cp[4]<<24) | (cp[5]<<16) | (cp[6]<<8) | cp[7];
+}
+
+static char*
+getptr_compat32(void **argp)
+{
+	return (char*)*(ulong*)(uintptr)argp;
+}
+
+static char*
+getptr_native(void **argp)
+{
+	return (char*)*argp;
+}
+
+static void
+putptr_compat32(void **argp, uintptr v)
+{
+	*(ulong*)argp = v;
+}
+
+static void
+putptr_native(void **argp, uintptr v)
+{
+	*argp = (void*)v;
+}
+
+uintptr
+sysexec(uintptr *arg)
 {
 	Segment *s, *ts;
 	ulong t, d, b;
-	int i;
+	int i, compat32;
 	Chan *tc;
 	char **argv, **argp;
+	int oBY2WD, nBY2WD;
+	char* (*getptr)(void**);
+	void (*putptr)(void**, uintptr);
+
 	char *a, *charp, *args, *file, *file0;
 	char *progarg[sizeof(Exec)/2+1], *elem, progelem[64];
 	ulong ssize, spage, nargs, nbytes, n, bssend;
 	int indir;
-	Exec exec;
+	struct {
+		Exec;
+		uvlong llentry;
+	} exec;
 	char line[sizeof(Exec)];
 	Fgrp *f;
 	Image *img;
-	ulong magic, text, entry, data, bss;
-	Tos *tos;
+	ulong execsize, magic, text, data, bss;
+	uvlong entry;
 
 	indir = 0;
 	elem = nil;
@@ -242,6 +291,13 @@ sysexec(ulong *arg)
 		nexterror();
 	}
 	file = file0;
+	if(up->compat32){
+		oBY2WD = 4;
+		getptr = getptr_compat32;
+	}else{
+		oBY2WD = sizeof(uintptr);
+		getptr = getptr_native;
+	}
 	for(;;){
 		tc = namec(file, Aopen, OEXEC, 0);
 		if(waserror()){
@@ -251,17 +307,32 @@ sysexec(ulong *arg)
 		if(!indir)
 			kstrdup(&elem, up->genbuf);
 
-		n = devtab[tc->type]->read(tc, &exec, sizeof(Exec), 0);
+		n = devtab[tc->type]->read(tc, &exec, sizeof(exec), 0);
 		if(n < 2)
 			error(Ebadexec);
 		magic = l2be(exec.magic);
 		text = l2be(exec.text);
 		entry = l2be(exec.entry);
-		if(n==sizeof(Exec) && (magic == AOUT_MAGIC)){
-			if(text >= USTKTOP-UTZERO
-			|| entry < UTZERO+sizeof(Exec)
-			|| entry >= UTZERO+sizeof(Exec)+text)
-				error(Ebadexec);
+		if(n>=sizeof(Exec) && (magic == AOUT_MAGIC || magic == AOUT_MAGIC_COMPAT32)){
+			compat32 = (magic != AOUT_MAGIC);
+			execsize = sizeof(Exec);
+			if(magic&HDR_MAGIC){
+				if(n!=sizeof(exec))
+					error(Ebadexec);
+				execsize = n;
+				entry = ll2be(exec.llentry);
+			}
+			if(!compat32){
+				if(text >= USTKTOP-UTZERO
+				|| entry < UTZERO+execsize
+				|| entry >= UTZERO+execsize+text)
+					error(Ebadexec);
+			}else{
+				if(text >= USTKTOP-UTZERO_COMPAT32
+				|| entry < UTZERO_COMPAT32+execsize
+				|| entry >= UTZERO_COMPAT32+execsize+text)
+					error(Ebadexec);
+			}
 			break; /* for binary */
 		}
 
@@ -280,8 +351,8 @@ sysexec(ulong *arg)
 		 */
 		progarg[n++] = file;
 		progarg[n] = 0;
-		validaddr(arg[1], BY2WD, 1);
-		arg[1] += BY2WD;
+		validaddr(arg[1], oBY2WD, 1);
+		arg[1] += oBY2WD;
 		file = progarg[0];
 		if(strlen(elem) >= sizeof progelem)
 			error(Ebadexec);
@@ -291,19 +362,33 @@ sysexec(ulong *arg)
 		cclose(tc);
 	}
 
+	if(compat32){
+		nBY2WD = 4;
+		putptr = putptr_compat32;
+	}else{
+		nBY2WD = sizeof(uintptr);
+		putptr = putptr_native;
+	}
+
 	data = l2be(exec.data);
 	bss = l2be(exec.bss);
-	t = UTROUND(UTZERO+sizeof(Exec)+text);
+	if(compat32)
+		t = UTROUND_COMPAT32(UTZERO_COMPAT32+execsize+text);
+	else
+		t = UTROUND(UTZERO+execsize+text);
 	d = (t + data + (BY2PG-1)) & ~(BY2PG-1);
 	bssend = t + data + bss;
 	b = (bssend + (BY2PG-1)) & ~(BY2PG-1);
-	if(t >= KZERO || d >= KZERO || b >= KZERO)
+	if(t >= USTKTOP || d >= USTKTOP || b >= USTKTOP)
 		error(Ebadexec);
 
 	/*
 	 * Args: pass 1: count
 	 */
-	nbytes = sizeof(Tos);		/* hole for profiling clock at top of stack (and more) */
+	if(!compat32)
+		nbytes = sizeof(Tos);		/* hole for profiling clock at top of stack (and more) */
+	else
+		nbytes = sizeof(Tos32);
 	nargs = 0;
 	if(indir){
 		argp = progarg;
@@ -313,25 +398,25 @@ sysexec(ulong *arg)
 			nargs++;
 		}
 	}
-	validalign(arg[1], sizeof(char**));
+	validalign(arg[1], oBY2WD);
 	argp = (char**)arg[1];
-	validaddr((ulong)argp, BY2WD, 0);
-	while(*argp){
-		a = *argp++;
-		if(((ulong)argp&(BY2PG-1)) < BY2WD)
-			validaddr((ulong)argp, BY2WD, 0);
-		validaddr((ulong)a, 1, 0);
+	validaddr((uintptr)argp, oBY2WD, 0);
+	while((a = getptr(argp)) != nil){
+		argp = (char**)((uintptr)argp + oBY2WD);
+		if(((uintptr)argp&(BY2PG-1)) < oBY2WD)
+			validaddr((uintptr)argp, oBY2WD, 0);
+		validaddr((uintptr)a, 1, 0);
 		nbytes += ((char*)vmemchr(a, 0, 0x7FFFFFFF) - a) + 1;
 		nargs++;
 	}
-	ssize = BY2WD*(nargs+1) + ((nbytes+(BY2WD-1)) & ~(BY2WD-1));
+	ssize = nBY2WD*(nargs+1) + ((nbytes+(nBY2WD-1)) & ~(nBY2WD-1));
 
 	/*
-	 * 8-byte align SP for those (e.g. sparc) that need it.
-	 * execregs() will subtract another 4 bytes for argc.
+	 * 16-byte align SP for the strictest requirement (arm64)
+	 * execregs() will subtract another 4 or 8 bytes for argc.
 	 */
-	if((ssize+4) & 7)
-		ssize += 4;
+	if(((ssize+nBY2WD) & 15) != 0)
+		ssize += 16 - nBY2WD;
 	spage = (ssize+(BY2PG-1)) >> PGSHIFT;
 
 	/*
@@ -350,12 +435,23 @@ sysexec(ulong *arg)
 	/*
 	 * Args: pass 2: assemble; the pages will be faulted in
 	 */
-	tos = (Tos*)(TSTKTOP - sizeof(Tos));
-	tos->cyclefreq = m->cyclefreq;
-	cycles((uvlong*)&tos->pcycles);
-	tos->pcycles = -tos->pcycles;
-	tos->kcycles = tos->pcycles;
-	tos->clock = 0;
+	if(!compat32){
+		Tos *tos;
+		tos = (Tos*)(TSTKTOP - sizeof(Tos));
+		tos->cyclefreq = m->cyclefreq;
+		cycles((uvlong*)&tos->pcycles);
+		tos->pcycles = -tos->pcycles;
+		tos->kcycles = tos->pcycles;
+		tos->clock = 0;
+	}else{
+		Tos32 *tos;
+		tos = (Tos32*)(TSTKTOP - sizeof(Tos32));
+		tos->cyclefreq = m->cyclefreq;
+		cycles((uvlong*)&tos->pcycles);
+		tos->pcycles = -tos->pcycles;
+		tos->kcycles = tos->pcycles;
+		tos->clock = 0;
+	}
 	argv = (char**)(TSTKTOP - ssize);
 	charp = (char*)(TSTKTOP - nbytes);
 	args = charp;
@@ -369,9 +465,16 @@ sysexec(ulong *arg)
 			indir = 0;
 			argp = (char**)arg[1];
 		}
-		*argv++ = charp + (USTKTOP-TSTKTOP);
-		n = strlen(*argp) + 1;
-		memmove(charp, *argp++, n);
+		putptr(argv, (uintptr)(charp + (USTKTOP-TSTKTOP)));
+		argv = (char**)((uintptr)argv + nBY2WD);
+		if(indir){
+			n = strlen(*argp) + 1;
+			memmove(charp, *argp++, n);
+		}else{
+			n = strlen(getptr(argp)) + 1;
+			memmove(charp, getptr(argp), n);
+			argp = (char**)((uintptr)argp + oBY2WD);
+		}
 		charp += n;
 	}
 	free(file0);
@@ -421,12 +524,15 @@ sysexec(ulong *arg)
 
 	/* Text.  Shared. Attaches to cache image if possible */
 	/* attachimage returns a locked cache image */
-	img = attachimage(SG_TEXT|SG_RONLY, tc, UTZERO, (t-UTZERO)>>PGSHIFT);
+	if(compat32)
+		img = attachimage(SG_TEXT|SG_RONLY, tc, UTZERO_COMPAT32, (t-UTZERO_COMPAT32)>>PGSHIFT);
+	else
+		img = attachimage(SG_TEXT|SG_RONLY, tc, UTZERO, (t-UTZERO)>>PGSHIFT);
 	ts = img->s;
 	up->seg[TSEG] = ts;
 	ts->flushme = 1;
 	ts->fstart = 0;
-	ts->flen = sizeof(Exec)+text;
+	ts->flen = execsize+text;
 	unlock(img);
 
 	/* Data. Shared. */
@@ -475,6 +581,7 @@ sysexec(ulong *arg)
 	up->notify = 0;
 	up->notified = 0;
 	up->privatemem = 0;
+	up->compat32 = compat32;
 	procsetup(up);
 	qunlock(&up->debug);
 	if(up->hang)
@@ -487,7 +594,7 @@ sysexec(ulong *arg)
 	for(i=0; i<=f->maxfd; i++)
 		fdclose(i, CCEXEC);
 
-	return execregs(entry, ssize, nargs);
+	return (ulong)execregs(entry, ssize, nargs);
 }
 
 int
@@ -527,8 +634,8 @@ return0(void*)
 	return 0;
 }
 
-long
-syssleep(ulong *arg)
+uintptr
+syssleep(uintptr *arg)
 {
 
 	int n;
@@ -547,14 +654,14 @@ syssleep(ulong *arg)
 	return 0;
 }
 
-long
-sysalarm(ulong *arg)
+uintptr
+sysalarm(uintptr *arg)
 {
 	return procalarm(arg[0]);
 }
 
-long
-sysexits(ulong *arg)
+uintptr
+sysexits(uintptr *arg)
 {
 	char *status;
 	char *inval = "invalid exit string";
@@ -565,7 +672,7 @@ sysexits(ulong *arg)
 		if(waserror())
 			status = inval;
 		else{
-			validaddr((ulong)status, 1, 0);
+			validaddr((uintptr)status, 1, 0);
 			if(vmemchr(status, 0, ERRMAX) == 0){
 				memmove(buf, status, ERRMAX);
 				buf[ERRMAX-1] = 0;
@@ -579,8 +686,8 @@ sysexits(ulong *arg)
 	return 0;		/* not reached */
 }
 
-long
-sys_wait(ulong *arg)
+uintptr
+sys_wait(uintptr *arg)
 {
 	int pid;
 	Waitmsg w;
@@ -604,8 +711,8 @@ sys_wait(ulong *arg)
 	return pid;
 }
 
-long
-sysawait(ulong *arg)
+uintptr
+sysawait(uintptr *arg)
 {
 	int i;
 	int pid;
@@ -645,7 +752,7 @@ generrstr(char *buf, uint nbuf)
 
 	if(nbuf == 0)
 		error(Ebadarg);
-	validaddr((ulong)buf, nbuf, 1);
+	validaddr((uintptr)buf, nbuf, 1);
 	if(nbuf > sizeof tmp)
 		nbuf = sizeof tmp;
 	memmove(tmp, buf, nbuf);
@@ -658,21 +765,21 @@ generrstr(char *buf, uint nbuf)
 	return 0;
 }
 
-long
-syserrstr(ulong *arg)
+uintptr
+syserrstr(uintptr *arg)
 {
 	return generrstr((char*)arg[0], arg[1]);
 }
 
 /* compatibility for old binaries */
-long
-sys_errstr(ulong *arg)
+uintptr
+sys_errstr(uintptr *arg)
 {
 	return generrstr((char*)arg[0], 64);
 }
 
-long
-sysnotify(ulong *arg)
+uintptr
+sysnotify(uintptr *arg)
 {
 	if(arg[0] != 0)
 		validaddr(arg[0], sizeof(ulong), 0);
@@ -680,16 +787,16 @@ sysnotify(ulong *arg)
 	return 0;
 }
 
-long
-sysnoted(ulong *arg)
+uintptr
+sysnoted(uintptr *arg)
 {
 	if(arg[0]!=NRSTR && !up->notified)
 		error(Egreg);
 	return 0;
 }
 
-long
-syssegbrk(ulong *arg)
+uintptr
+syssegbrk(uintptr *arg)
 {
 	int i;
 	ulong addr;
@@ -714,14 +821,14 @@ syssegbrk(ulong *arg)
 	return 0;		/* not reached */
 }
 
-long
-syssegattach(ulong *arg)
+uintptr
+syssegattach(uintptr *arg)
 {
 	return segattach(up, arg[0], (char*)arg[1], arg[2], arg[3]);
 }
 
-long
-syssegdetach(ulong *arg)
+uintptr
+syssegdetach(uintptr *arg)
 {
 	int i;
 	ulong addr;
@@ -765,8 +872,8 @@ found:
 	return 0;
 }
 
-long
-syssegfree(ulong *arg)
+uintptr
+syssegfree(uintptr *arg)
 {
 	Segment *s;
 	ulong from, to;
@@ -791,14 +898,16 @@ syssegfree(ulong *arg)
 }
 
 /* For binary compatibility */
-long
-sysbrk_(ulong *arg)
+uintptr
+sysbrk_(uintptr *arg)
 {
+	if(arg[0] != (ulong)arg[0])
+		error(Enovmem);
 	return ibrk(arg[0], BSEG);
 }
 
-long
-sysrendezvous(ulong *arg)
+uintptr
+sysrendezvous(uintptr *arg)
 {
 	uintptr tag, val;
 	Proc *p, **l;
@@ -1074,8 +1183,8 @@ tsemacquire(Segment *s, long *addr, ulong ms)
 	return 1;
 }
 
-long
-syssemacquire(ulong *arg)
+uintptr
+syssemacquire(uintptr *arg)
 {
 	int block;
 	long *addr;
@@ -1086,15 +1195,15 @@ syssemacquire(ulong *arg)
 	addr = (long*)arg[0];
 	block = arg[1];
 	
-	if((s = seg(up, (ulong)addr, 0)) == nil)
+	if((s = seg(up, (uintptr)addr, 0)) == nil)
 		error(Ebadarg);
 	if(*addr < 0)
 		error(Ebadarg);
 	return semacquire(s, addr, block);
 }
 
-long
-systsemacquire(ulong *arg)
+uintptr
+systsemacquire(uintptr *arg)
 {
 	long *addr;
 	ulong ms;
@@ -1105,15 +1214,15 @@ systsemacquire(ulong *arg)
 	addr = (long*)arg[0];
 	ms = arg[1];
 
-	if((s = seg(up, (ulong)addr, 0)) == nil)
+	if((s = seg(up, (uintptr)addr, 0)) == nil)
 		error(Ebadarg);
 	if(*addr < 0)
 		error(Ebadarg);
 	return tsemacquire(s, addr, ms);
 }
 
-long
-syssemrelease(ulong *arg)
+uintptr
+syssemrelease(uintptr *arg)
 {
 	long *addr, delta;
 	Segment *s;
@@ -1123,7 +1232,7 @@ syssemrelease(ulong *arg)
 	addr = (long*)arg[0];
 	delta = arg[1];
 
-	if((s = seg(up, (ulong)addr, 0)) == nil)
+	if((s = seg(up, (uintptr)addr, 0)) == nil)
 		error(Ebadarg);
 	/* delta == 0 is a no-op, not a release */
 	if(delta < 0 || *addr < 0)
@@ -1131,8 +1240,8 @@ syssemrelease(ulong *arg)
 	return semrelease(s, addr, delta);
 }
 
-long
-sysnsec(ulong *arg)
+uintptr
+sysnsec(uintptr *arg)
 {
 	validaddr(arg[0], sizeof(vlong), 1);
 	validalign(arg[0], sizeof(vlong));

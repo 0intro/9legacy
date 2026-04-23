@@ -20,10 +20,10 @@ fmtrwdata(Fmt* f, char* a, int n, char* suffix)
 		fmtprint(f, "0x0%s", suffix);
 		return;
 	}
-	validaddr((ulong)a, n, 0);
+	validaddr((uintptr)a, n, 0);
 	t = smalloc(n+1);
 	for(i = 0; i < n; i++)
-		if(a[i] > 0x20 && a[i] < 0x7f)	/* printable ascii? */
+		if(a[i] >= 0x20 && a[i] < 0x7f)	/* printable ascii? */
 			t[i] = a[i];
 		else
 			t[i] = '.';
@@ -42,7 +42,7 @@ fmtuserstring(Fmt* f, char* a, char* suffix)
 		fmtprint(f, "0/\"\"%s", suffix);
 		return;
 	}
-	validaddr((ulong)a, 1, 0);
+	validaddr((uintptr)a, 1, 0);
 	n = ((char*)vmemchr(a, 0, 0x7fffffff) - a) + 1;
 	t = smalloc(n+1);
 	memmove(t, a, n);
@@ -113,9 +113,22 @@ syscallfmt(int syscallno, ulong pc, va_list list)
 		a = va_arg(list, char*);
 		fmtuserstring(&fmt, a, "");
 		argv = va_arg(list, char**);
+		if(up->compat32){
+			validalign(PTR2UINT(argv), sizeof(ulong));
+			for(;;){
+				validaddr((uintptr)argv, sizeof(ulong), 0);
+				a = (char*)*(ulong*)argv;
+				if(a == nil)
+					break;
+				fmtprint(&fmt, " ");
+				fmtuserstring(&fmt, a, "");
+				argv = (char**)((uintptr)argv + sizeof(ulong));
+			}
+			break;
+		}
 		validalign(PTR2UINT(argv), sizeof(char*));
 		for(;;){
-			validaddr((ulong)argv, sizeof(char**), 0);
+			validaddr((uintptr)argv, sizeof(char**), 0);
 			a = *(char **)argv;
 			if(a == nil)
 				break;
