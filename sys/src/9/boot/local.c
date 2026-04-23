@@ -277,10 +277,10 @@ connectlocal(void)
 	if(bind("#p", "/proc", MREPL) < 0)
 		fatal("bind #p");
 	bind("#S", "/dev", MAFTER);
-	bind("#k", "/dev", MAFTER);
 	bind("#u", "/dev", MAFTER);
 	bind("#æ", "/dev", MAFTER);
 	mountusbparts();	/* make partfs partitions visible again */
+	bind("#k", "/dev", MAFTER);	/* /dev/fs config might refer to usb disks */
 
 	if((fd = connectlocalfossil()) < 0)
 		fd = connectlocalkfs();
