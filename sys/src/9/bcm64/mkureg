@@ -1,0 +1,15 @@
+#!/bin/rc
+
+{ echo '#include <u.h>'; echo '#include <ureg.h>' } | 7c -a /fd/0 | sed 's/;$//g' | awk '
+/sizeofUreg/ {
+	active = 1
+	print "Ureg_size = " $3
+	next
+}
+active && NF == 3 {
+	print "Ureg_" $3 " = " $2
+}
+/^}/ {
+	active = 0
+}
+'

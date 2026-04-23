@@ -1,0 +1,35 @@
+enum {
+	IRQtimer0	= 0,
+	IRQtimer1	= 1,
+	IRQtimer2	= 2,
+	IRQtimer3	= 3,
+	IRQclock	= IRQtimer3,
+
+	IRQpl011	= 57,
+	IRQpciehost	= 165,
+	IRQmmc		= 209,
+	IRQsdhci	= 210,
+
+	IRQlocal	= 256,
+	IRQcntpns	= IRQlocal + 11,
+
+	IRQRP1		= 512,
+	IRQgem		= IRQRP1 + 6,
+	IRQuart1	= IRQRP1 + 25,
+	IRQusbhxci1	= IRQRP1 + 31,
+	IRQusbxhci2	= IRQRP1 + 36,
+	IRQuart2	= IRQRP1 + 42,
+	IRQuart3	= IRQRP1 + 43,
+	IRQuart4	= IRQRP1 + 44,
+	IRQuart5	= IRQRP1 + 45,
+
+	ClkEmmc		= 1,
+	ClkUart,
+	ClkArm,
+	ClkCore,
+	ClkV3d,
+	ClkH264,
+	ClkIsp,
+	ClkSdram,
+	ClkPixel,
+};
