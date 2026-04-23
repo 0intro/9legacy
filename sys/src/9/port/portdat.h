@@ -135,7 +135,7 @@ struct Alarms
 
 struct Sargs
 {
-	ulong	args[MAXSYSARG];
+	uintptr	args[MAXSYSARG];
 };
 
 /*
@@ -419,9 +419,9 @@ enum
 };
 
 #define PG_ONSWAP	1
-#define onswap(s)	(((ulong)s)&PG_ONSWAP)
-#define pagedout(s)	(((ulong)s)==0 || onswap(s))
-#define swapaddr(s)	(((ulong)s)&~PG_ONSWAP)
+#define onswap(s)	(((uintptr)s)&PG_ONSWAP)
+#define pagedout(s)	(((uintptr)s)==0 || onswap(s))
+#define swapaddr(s)	(((uintptr)s)&~PG_ONSWAP)
 
 #define SEGMAXSIZE	(SEGMAPSIZE*PTEMAPMEM)
 
@@ -776,6 +776,7 @@ struct Proc
 				 */
 	Edf	*edf;		/* if non-null, real-time proc, edf contains scheduling params */
 	int	trace;		/* process being traced? */
+	int	compat32;	/* 32-bit process running on a 64-bit kernel */
 
 	ulong	qpc;		/* pc calling last blocking qlock */
 
@@ -839,6 +840,7 @@ extern	Image	swapimage;
 extern	char*	sysname;
 extern	uint	qiomaxatomic;
 extern	char*	sysctab[];
+extern	uint	ureg32size;
 
 	Watchdog*watchdog;
 	int	watchdogon;

@@ -76,7 +76,7 @@ putswap(Page *p)
 	uchar *idx;
 
 	lock(&swapalloc);
-	idx = &swapalloc.swmap[((ulong)p)/BY2PG];
+	idx = &swapalloc.swmap[((uintptr)p)/BY2PG];
 	if(--(*idx) == 0) {
 		swapalloc.free++;
 		if(idx < swapalloc.last)
@@ -91,7 +91,7 @@ void
 dupswap(Page *p)
 {
 	lock(&swapalloc);
-	if(++swapalloc.swmap[((ulong)p)/BY2PG] == 0)
+	if(++swapalloc.swmap[((uintptr)p)/BY2PG] == 0)
 		panic("dupswap");
 	unlock(&swapalloc);
 }

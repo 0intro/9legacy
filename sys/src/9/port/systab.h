@@ -1,6 +1,6 @@
 #include "/sys/src/libc/9syscall/sys.h"
 
-typedef long Syscall(ulong*);
+typedef uintptr Syscall(uintptr*);
 
 Syscall sysr1;
 Syscall sys_errstr;
