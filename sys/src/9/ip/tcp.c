@@ -1907,13 +1907,13 @@ update(Conv *s, Tcp *seg)
 		netlog(s->p->f, Logtcp, "tcp: zwu ack %lud una %lud ptr %lud win %lud\n",
 			seg->ack,  tcb->snd.una, tcb->snd.ptr, seg->wnd);
 		tcb->snd.wnd = seg->wnd;
-		goto recovery;
+		tcprxmit(s);
+		return;
 	}
 
 	/* newreno fast retransmit */
 	if(seg->ack == tcb->snd.una && tcb->snd.una != tcb->snd.nxt &&
 	    ++tcb->snd.dupacks == 3){		/* was TCPREXMTTHRESH */
-recovery:
 		if(tcb->snd.recovery){
 			tpriv->stats[RecoveryCwind]++;
 			tcb->cwind += tcb->mss;
