@@ -68,8 +68,8 @@ xinit(void)
 			n = maxpages;
 		/* first give to kernel */
 		if(n > 0){
-			m->kbase = (ulong)KADDR(m->base);
-			m->klimit = (ulong)KADDR(m->base+n*BY2PG);
+			m->kbase = (ulong)(uintptr)KADDR(m->base);
+			m->klimit = (ulong)(uintptr)KADDR(m->base+n*BY2PG);
 			xhole(m->base, n*BY2PG);
 			kpages -= n;
 		}
@@ -90,8 +90,8 @@ xinit(void)
 void*
 xspanalloc(ulong size, int align, ulong span)
 {
-	ulong a, v, t;
-	a = (ulong)xalloc(size+align+span);
+	uintptr a, v, t;
+	a = (uintptr)xalloc(size+align+span);
 	if(a == 0)
 		panic("xspanalloc: %lud %d %lux", size, align, span);
 
@@ -159,7 +159,7 @@ xfree(void *p)
 {
 	Xhdr *x;
 
-	x = (Xhdr*)((ulong)p - offsetof(Xhdr, data[0]));
+	x = (Xhdr*)((uintptr)p - offsetof(Xhdr, data[0]));
 	if(x->magix != Magichole) {
 		xsummary();
 		panic("xfree(%#p) %#ux != %#lux", p, Magichole, x->magix);
@@ -172,8 +172,8 @@ xmerge(void *vp, void *vq)
 {
 	Xhdr *p, *q;
 
-	p = (Xhdr*)(((ulong)vp - offsetof(Xhdr, data[0])));
-	q = (Xhdr*)(((ulong)vq - offsetof(Xhdr, data[0])));
+	p = (Xhdr*)(((uintptr)vp - offsetof(Xhdr, data[0])));
+	q = (Xhdr*)(((uintptr)vq - offsetof(Xhdr, data[0])));
 	if(p->magix != Magichole || q->magix != Magichole) {
 		int i;
 		ulong *wd;

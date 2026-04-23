@@ -19,8 +19,8 @@ iseve(void)
 	return strcmp(eve, up->user) == 0;
 }
 
-long
-sysfversion(ulong *arg)
+uintptr
+sysfversion(uintptr *arg)
 {
 	char *vers;
 	uint arglen, m, msize;
@@ -46,8 +46,8 @@ sysfversion(ulong *arg)
 	return m;
 }
 
-long
-sys_fsession(ulong *arg)
+uintptr
+sys_fsession(uintptr *arg)
 {
 	/* deprecated; backwards compatibility only */
 
@@ -58,8 +58,8 @@ sys_fsession(ulong *arg)
 	return 0;
 }
 
-long
-sysfauth(ulong *arg)
+uintptr
+sysfauth(uintptr *arg)
 {
 	Chan *c, *ac;
 	char *aname;

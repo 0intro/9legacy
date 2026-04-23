@@ -368,6 +368,8 @@ void		unbreak(Proc*);
 void		uncachepage(Page*);
 long		unionread(Chan*, void*, long);
 void		unlock(Lock*);
+void		(*ureg32to64)(Ureg*, void*);
+void		(*ureg64to32)(void*, Ureg*);
 uvlong		us2fastticks(uvlong);
 void		userinit(void);
 ulong		userpc(void);
