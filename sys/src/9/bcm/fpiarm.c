@@ -475,8 +475,12 @@ fpiarm(Ureg *ur)
 	ufp = &up->fpsave;
 	/*
 	 * because all the emulated fp state is in the proc structure,
-	 * it need not be saved/restored
+	 * it need not be saved/restored except if fp is used in a note handler
 	 */
+ 	if(up->fpstate & FPnotemask){
+ 		/* in note handler */
+ 		error("floating point in note handler");
+	}
 	switch(up->fpstate){
 	case FPactive:
 	case FPinactive:
