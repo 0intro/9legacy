@@ -233,6 +233,7 @@ boot(int argc, char *argv[])
 	int fd, afd, islocal, ishybrid;
 	char *rsp;
 	Method *mp;
+	char buf[32];
 
 	fmtinstall('r', errfmt);
 	opencons();
@@ -252,6 +253,11 @@ boot(int argc, char *argv[])
 	}ARGEND
 
 	readfile("#e/cputype", cputype, sizeof(cputype));
+	readfile("#e/service", buf, sizeof(buf));
+	if(strcmp(buf, "cpu") == 0)
+		cpuflag = 1;
+	else if(strcmp(buf, "terminal") == 0)
+		cpuflag = 0;
 
 	/*
 	 *  set up usb keyboard & mouse, if any.
