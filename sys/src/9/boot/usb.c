@@ -144,4 +144,7 @@ usbinit(int post)
 		startpartfs(post);
 	else
 		dprint("no usb disk...");
+	if(getenv("usbether") != nil)
+		while(access("/dev/etherU0", AEXIST) < 0)
+			sleep(100);
 }
