@@ -1,0 +1,16 @@
+VA				PA				usage
+
+00 0000 0000	(u pages)		user address space
+01 0000 0000	(l2 tables)		direct mapping for l2 ptes
+01 4000 0000	00 0000 0000	uncached mapping for low 1GB
+01 8000 0000					unused
+02 0000 0000	00 0000 0000	physical ram 0G-4G KZERO
+03 0000 0000	01 0000 0000	physical ram 4G-8G
+04 0000 0000	02 0000 0000	physical ram 8G-12G
+05 0000 0000	03 0000 0000	physical ram 12G-16G
+06 0000 0000	10 0000 0000	VIRTIO first half - local bus
+06 8000 0000	1C 0000 0000	VIRTIO second half - RP1 pci window
+07 0000 0000					framebuffer
+
+10 0000 0000	10 0000 0000	identity mapping for local bus
+10 8000 0000					top of virtual space
