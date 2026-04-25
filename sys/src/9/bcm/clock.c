@@ -32,7 +32,7 @@ enum {
 
 	SystimerFreq	= 1*Mhz,
 	MaxPeriod	= SystimerFreq / HZ,
-	MinPeriod	= 10,
+	MinPeriod	= 100,
 
 };
 
@@ -121,7 +121,7 @@ clockinit(void)
 {
 	Systimers *tn;
 	Armtimer *tm;
-	u32int t0, t1, tstart, tend;
+	u32int t0, t1, tstart;
 
 	if(((cprdfeat1() >> 16) & 0xF) != 0) {
 		/* generic timer supported */
@@ -139,10 +139,9 @@ clockinit(void)
 	do{
 		t0 = lcycles();
 	}while(tn->clo == tstart);
-	tend = tstart + 10000;
 	do{
 		t1 = lcycles();
-	}while(tn->clo != tend);
+	}while(tn->clo - tstart < 10000);
 	t1 -= t0;
 	m->cpuhz = 100 * t1;
 	m->cpumhz = (m->cpuhz + Mhz/2 - 1) / Mhz;

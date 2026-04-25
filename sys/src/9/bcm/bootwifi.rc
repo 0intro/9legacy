@@ -46,7 +46,12 @@ usbd
 need fs
 need auth
 
-factotum -u -s factotum -a $auth
+switch ($service) {
+	case cpu
+		factotum -S -s factotum -a $auth
+	case terminal
+		factotum -u -s factotum -a $auth
+}
 joinwifi
 ipconfig ether $wifi
 srv tcp!$fs!564 boot
