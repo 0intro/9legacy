@@ -373,6 +373,8 @@ flushmemscreen(Rectangle)
 uchar*
 attachscreen(Rectangle *r, ulong *chan, int* d, int *width, int *softscreen)
 {
+	if(gscreen == nil)
+		return nil;
 	*r = gscreen->r;
 	*d = gscreen->depth;
 	*chan = gscreen->chan;
