@@ -514,7 +514,7 @@ confinit(void)
 	uintptr pa;
 	char *p;
 
-	if(0 && (p = getconf("service")) != nil){
+	if((p = getconf("service")) != nil){
 		if(strcmp(p, "cpu") == 0)
 			cpuserver = 1;
 		else if(strcmp(p,"terminal") == 0)

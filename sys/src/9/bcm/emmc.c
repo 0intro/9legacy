@@ -294,14 +294,14 @@ sdiocardintr(int wait)
 	int i;
 
 	r = (u32int*)EMMCREGS;
-	WR(Interrupt, Cardintr);
 	while(((i = r[Interrupt]) & Cardintr) == 0){
 		if(!wait)
 			return 0;
 		WR(Irpten, r[Irpten] | Cardintr);
+		WR(Irptmask, r[Irptmask] | Cardintr);
 		sleep(&emmc.cardr, cardintready, 0);
 	}
-	WR(Interrupt, Cardintr);
+	WR(Irptmask, r[Irptmask] & ~Cardintr);
 	return i;
 }
 

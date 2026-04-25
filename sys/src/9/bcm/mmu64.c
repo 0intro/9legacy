@@ -390,7 +390,7 @@ putmmu(uintptr va, uintptr pa, Page* page)
 
 	if(page->cachectl[m->machno] == PG_TXTFLUSH){
 		/* pio() sets PG_TXTFLUSH whenever a text pg has been written */
-		if(cankaddr(page->pa))
+		if((page->pa & PTEHIMEM) == 0 && cankaddr(page->pa))
 			cachedwbse((void*)(page->pa|KZERO), BY2PG);
 		cacheiinvse((void*)page->va, BY2PG);
 		page->cachectl[m->machno] = PG_NOFLUSH;
