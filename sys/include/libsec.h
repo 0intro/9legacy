@@ -446,6 +446,7 @@ int	okThumbprint(uchar *sha1, Thumbprint *ok);
 /* readcert.c */
 uchar	*readcert(char *filename, int *pcertlen);
 PEMChain*readcertchain(char *filename);
+void	freecertchain(PEMChain *chain);
 
 /* password-based key derivation function 2 (rfc2898) */
 void pbkdf2_x(uchar *p, ulong plen, uchar *s, ulong slen, ulong rounds, uchar *d, ulong dlen,

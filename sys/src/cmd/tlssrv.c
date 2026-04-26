@@ -161,7 +161,8 @@ main(int argc, char *argv[])
 		fd = dumper(fd);
 	fd = tlsServer(fd, conn);
 	if(fd < 0){
-		reporter("failed: %r");
+		if(debug)
+			reporter("failed: %r");
 		exits(0);
 	}
 	reporter("open");

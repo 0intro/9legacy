@@ -5,6 +5,9 @@ NDBFILE=/lib/ndb/local
 
 mntgen -s slashn && chmod 666 /srv/slashn
 
+# parallelism for mk
+NPROC = `{wc -l /dev/sysstat}
+
 # bind all likely devices (#S was bound in boot)
 for(i in f t m v L P u U '$' Σ κ)
 	/bin/bind -a '#'^$i /dev >/dev/null >[2=1]

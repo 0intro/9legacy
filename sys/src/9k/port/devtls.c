@@ -180,7 +180,7 @@ static TlsErrs tlserrs[] = {
 enum
 {
 	/* max. open tls connections */
-	MaxTlsDevs	= 1024
+	MaxTlsDevs	= 16*1024
 };
 
 static	Lock	tdlock;
@@ -769,8 +769,8 @@ if(tr->debug)pprint("consumed %d header\n", RecHdrLen);
 	if(ver != tr->version && (tr->verset || ver < MinProtoVersion || ver > MaxProtoVersion))
 		rcvError(tr, EProtocolVersion, "devtls expected ver=%x%s, saw (len=%d) type=%x ver=%x '%.12s'",
 			tr->version, tr->verset?"/set":"", len, type, ver, (char*)header);
-	if(len > MaxCipherRecLen || len < 0)
-		rcvError(tr, ERecordOverflow, "record message too long %d", len);
+	if(len > MaxCipherRecLen || len <= 0)
+		rcvError(tr, ERecordOverflow, "bad record message length %d", len);
 	ensure(tr, &tr->unprocessed, len);
 	nconsumed = 0;
 	poperror();
@@ -1255,7 +1255,8 @@ tlsrecwrite(TlsRec *tr, int type, Block *b)
 if(tr->debug)pprint("send %ld\n", BLEN(b));
 if(tr->debug)pdump(BLEN(b), b->rp, "sent:");
 
-
+	if(type == RApplication)
+		checkstate(tr, 0, SOpen);
 	ok = SHandshake|SOpen|SRClose;
 	if(type == RAlert)
 		ok |= SAlert;
@@ -1372,7 +1373,6 @@ tlsbwrite(Chan *c, Block *b, vlong offset)
 		tr->handout += n;
 		break;
 	case Qdata:
-		checkstate(tr, 0, SOpen);
 		tlsrecwrite(tr, RApplication, b);
 		tr->dataout += n;
 		break;

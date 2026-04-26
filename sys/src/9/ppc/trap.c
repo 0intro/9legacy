@@ -311,7 +311,7 @@ trap(Ureg *ureg)
 	splhi();
 
 	/* delaysched set because we held a lock or because our quantum ended */
-	if(up && up->delaysched && ecode == CDEC){
+	if(up && up->delaysched && ecode == CDEC && m->ilockdepth == 0){
 		sched();
 		splhi();
 	}
@@ -454,7 +454,7 @@ intr(Ureg *ureg)
 	else
 		thistoo++;
 
-	if(up)
+	if(up && m->ilockdepth == 0)
 		preempted();
 }
 

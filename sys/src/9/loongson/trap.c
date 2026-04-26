@@ -387,7 +387,7 @@ trap(Ureg *ur)
 	splhi();
 
 	/* delaysched set because we held a lock or because our quantum ended */
-	if(up && up->delaysched && clockintr){
+	if(up && up->delaysched && clockintr && m->ilockdepth == 0){
 		sched();
 		splhi();
 	}
@@ -564,7 +564,7 @@ intr(Ureg *ur)
 	}
 
 	/* preemptive scheduling */
-	if(up && !clockintr)
+	if(up && !clockintr && m->ilockdepth == 0)
 		preempted();
 	/* if it was a clockintr, sched will be called at end of trap() */
 	return clockintr;
