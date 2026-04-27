@@ -35,6 +35,8 @@ amd64	- sys sys
 	+	- sys sys
 arm	- sys sys
 	+	- sys sys
+arm64	- sys sys
+	+	- sys sys
 mips	- sys sys
 	+	- sys sys
 mips64	- sys sys
