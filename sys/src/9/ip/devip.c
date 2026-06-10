@@ -351,7 +351,8 @@ incoming(void* arg)
 static int m2p[] = {
 	[OREAD]		4,
 	[OWRITE]	2,
-	[ORDWR]		6
+	[ORDWR]		6,
+	[OEXEC]		1
 };
 
 static Chan*
@@ -432,10 +433,10 @@ ipopen(Chan* c, int omode)
 			qunlock(p);
 			nexterror();
 		}
-		if((perm & (cv->perm>>6)) != perm) {
+		if((perm & cv->perm) != perm) {
 			if(strcmp(ATTACHER(c), cv->owner) != 0)
 				error(Eperm);
-			if((perm & cv->perm) != perm)
+			if((perm & (cv->perm>>6)) != perm)
 				error(Eperm);
 
 		}
@@ -450,10 +451,10 @@ ipopen(Chan* c, int omode)
 		break;
 	case Qlisten:
 		cv = f->p[PROTO(c->qid)]->conv[CONV(c->qid)];
-		if((perm & (cv->perm>>6)) != perm) {
+		if((perm & cv->perm) != perm) {
 			if(strcmp(ATTACHER(c), cv->owner) != 0)
 				error(Eperm);
-			if((perm & cv->perm) != perm)
+			if((perm & (cv->perm>>6)) != perm)
 				error(Eperm);
 
 		}
@@ -489,7 +490,7 @@ ipopen(Chan* c, int omode)
 			if(nc != nil){
 				cv->incall = nc->next;
 				mkqid(&c->qid, QID(PROTO(c->qid), nc->x, Qctl), 0, QTFILE);
-				kstrdup(&cv->owner, ATTACHER(c));
+				kstrdup(&nc->owner, ATTACHER(c));
 			}
 			qunlock(cv);
 
@@ -521,7 +522,7 @@ ipremove(Chan*)
 static int
 ipwstat(Chan *c, uchar *dp, int n)
 {
-	Dir d;
+	Dir *d;
 	Conv *cv;
 	Fs *f;
 	Proto *p;
@@ -536,16 +537,25 @@ ipwstat(Chan *c, uchar *dp, int n)
 		break;
 	}
 
-	n = convM2D(dp, n, &d, nil);
+	d = smalloc(sizeof(Dir)+n);
+	if(waserror()){
+		free(d);
+		nexterror();
+	}
+	n = convM2D(dp, n, &d[0], (char*)&d[1]);
 	if(n > 0){
 		p = f->p[PROTO(c->qid)];
 		cv = p->conv[CONV(c->qid)];
 		if(!iseve() && strcmp(ATTACHER(c), cv->owner) != 0)
 			error(Eperm);
-		if(d.uid[0])
-			kstrdup(&cv->owner, d.uid);
-		cv->perm = d.mode & 0777;
-	}
+		if(!emptystr(d->uid))
+			kstrdup(&cv->owner, d->uid);
+		if(d->mode != ~0UL)
+			cv->perm = d->mode & 0777;
+	} else
+		error(Eshortstat);
+	poperror();
+	free(d);
 	return n;
 }
 
