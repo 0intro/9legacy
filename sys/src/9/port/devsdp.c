@@ -252,7 +252,8 @@ static Dirtab convdirtab[]={
 static int m2p[] = {
 	[OREAD]		4,
 	[OWRITE]	2,
-	[ORDWR]		6
+	[ORDWR]		6,
+	[OEXEC]		1
 };
 
 enum {
@@ -446,8 +447,8 @@ sdpopen(Chan* ch, int omode)
 			qunlock(c);
 			nexterror();
 		}
-		if((perm & (c->perm>>6)) != perm)
-		if(strcmp(up->user, c->owner) != 0 || (perm & c->perm) != perm)
+		if((perm & c->perm) != perm)
+		if(strcmp(up->user, c->owner) != 0 || (perm & (c->perm>>6)) != perm)
 				error(Eperm);
 
 		c->ref++;

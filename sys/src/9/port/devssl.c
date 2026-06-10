@@ -278,6 +278,9 @@ sslopen(Chan *c, int omode)
 	case ORDWR:
 		perm = 6;
 		break;
+	case OEXEC:
+		perm = 1;
+		break;
 	}
 
 	ft = TYPE(c->qid);
@@ -309,9 +312,9 @@ sslopen(Chan *c, int omode)
 		if(s == 0)
 			dsnew(c, pp);
 		else {
-			if((perm & (s->perm>>6)) != perm
+			if((perm & s->perm) != perm
 			   && (strcmp(up->user, s->user) != 0
-			     || (perm & s->perm) != perm))
+			     || (perm & (s->perm>>6)) != perm))
 				error(Eperm);
 
 			s->ref++;
