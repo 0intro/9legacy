@@ -432,6 +432,9 @@ tlsopen(Chan *c, int omode)
 	case ORDWR:
 		perm = 6;
 		break;
+	case OEXEC:
+		perm = 1;
+		break;
 	}
 
 	t = TYPE(c->qid);
@@ -465,9 +468,9 @@ tlsopen(Chan *c, int omode)
 		tr = *pp;
 		if(tr == nil)
 			error("must open connection using clone");
-		if((perm & (tr->perm>>6)) != perm
+		if((perm & tr->perm) != perm
 		&& (strcmp(up->user, tr->user) != 0
-		    || (perm & tr->perm) != perm))
+		    || (perm & (tr->perm>>6)) != perm))
 			error(Eperm);
 		if(t == Qhand){
 			if(waserror()){
