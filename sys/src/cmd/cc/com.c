@@ -1029,6 +1029,23 @@ loop:
 	case OASADD:
 		ccom(l);
 		ccom(r);
+		if(n->op == OASMOD || n->op == OASLMOD || n->op == OASDIV || n->op == OASLDIV)
+		if(r->op == OCONST){
+			if(!typefd[r->type->etype] && r->vconst == 0) {
+				if(n->op == OASMOD || n->op == OASLMOD)
+					diag(n, "modulo by zero");
+				else
+					diag(n, "divide by zero");
+				r->vconst = ~0;
+			}
+			if(typefd[r->type->etype] && r->fconst == 0.) {
+				if(n->op == OASMOD || n->op == OASLMOD)
+					diag(n, "modulo by zero");
+				else
+					diag(n, "divide by zero");
+				r->fconst = 1e10;
+			}
+		}
 		if(n->op == OASLSHR || n->op == OASASHR || n->op == OASASHL)
 		if(r->op == OCONST) {
 			t = n->type->width * 8;	/* bits per byte */
