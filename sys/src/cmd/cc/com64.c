@@ -228,6 +228,19 @@ com64(Node *n)
 			a = nodlsv;
 			goto setbool;
 
+		case OASADD:
+			if(typefd[n->type->etype]) { a = nodaddd; goto setasop; }
+			break;
+		case OASSUB:
+			if(typefd[n->type->etype]) { a = nodsubd; goto setasop; }
+			break;
+		case OASMUL:
+			if(typefd[n->type->etype]) { a = nodmuld; goto setasop; }
+			break;
+		case OASDIV:
+			if(typefd[n->type->etype]) { a = noddivd; goto setasop; }
+			break;
+
 		case OANDAND:
 		case OOROR:
 			if(machcap(n))
@@ -548,16 +561,9 @@ setasop:
 		t->complex = l->complex;
 		r = new(OLIST, t, r);
 
-		switch(n->op) {
-		case OASADD:	a = nodaddd; break;
-		case OASSUB:	a = nodsubd; break;
-		case OASMUL:	a = nodmuld; break;
-		case OASDIV:	a = noddivd; break;
-		default:	diag(n, "bad vasop %O", n->op); a = nodaddd; break;
-		}
-
 		n->left = a;
 		n->right = r;
+		n->type = l->type;
 		n->complex = FNX;
 		n->op = OFUNC;
 
