@@ -4,12 +4,10 @@
 
 #include "boot.h"
 
-static	uchar	fsip[IPaddrlen];
-static	uchar	auip[IPaddrlen];
+static	char	fsaddr[128];
 static	char	mpoint[32];
 
-static int isvalidip(uchar*);
-static void getndbvar(char *name, uchar *var, char *prompt);
+static void getndbvar(char *name, char *dflt, char *prompt, char *addr, int n);
 
 void
 configip(int bargc, char **bargv, int needfs)
@@ -92,18 +90,12 @@ configip(int bargc, char **bargv, int needfs)
 	dprint("\n");
 
 	if(needfs) {  /* if we didn't get a file and auth server, query user */
-		getndbvar("fs", fsip, "filesystem IP address");
-		getndbvar("auth", auip, "authentication server IP address");
+		char buf[128];
+
+		getndbvar("fs", "564", "filesystem address", fsaddr, sizeof fsaddr);
+		getndbvar("auth", "567", "authentication server address", buf, sizeof buf);
+		authaddr = strdup(buf);
 	}
-}
-
-static void
-setauthaddr(char *proto, int port)
-{
-	char buf[128];
-
-	snprint(buf, sizeof buf, "%s!%I!%d", proto, auip, port);
-	authaddr = strdup(buf);
 }
 
 void
@@ -111,71 +103,78 @@ configtcp(Method*)
 {
 	dprint("configip...");
 	configip(bargc, bargv, 1);
-	dprint("setauthaddr...");
-	setauthaddr("tcp", 567);
 }
 
 int
 connecttcp(void)
 {
 	int fd;
-	char buf[64];
 
-	snprint(buf, sizeof buf, "tcp!%I!564", fsip);
-	dprint("dial %s...", buf);
-	fd = dial(buf, 0, 0, 0);
+	dprint("dial %s...", fsaddr);
+	fd = dial(fsaddr, 0, 0, 0);
 	if (fd < 0)
-		werrstr("dial %s: %r", buf);
+		werrstr("dial %s: %r", fsaddr);
 	return fd;
 }
 
-static int
-isvalidip(uchar *ip)
+static char*
+dialstring(char *s, char *dflt)
 {
-	if(ipcmp(ip, IPnoaddr) == 0)
+	static char addr[128];
+	uchar ip[IPaddrlen];
+	char *p;
+
+	p = strchr(s, '!');
+	if(p == nil){
+		if(parseip(ip, s) == -1)
+			return nil;
+		snprint(addr, sizeof addr, "tcp!%s!%s", s, dflt);
+	}else if(parseip(ip, s) != -1)
+		snprint(addr, sizeof addr, "tcp!%s", s);
+	else{
+		if(parseip(ip, p+1) == -1)
+			return nil;
+		if(strchr(p+1, '!') == nil)
+			snprint(addr, sizeof addr, "%s!%s", s, dflt);
+		else
+			snprint(addr, sizeof addr, "%s", s);
+	}
+	return addr;
+}
+
+static int
+netenv(char *attr, char *buf, int n)
+{
+	int fd;
+	char path[40];
+
+	snprint(path, sizeof path, "#e/%s", attr);
+	fd = open(path, OREAD);
+	if(fd < 0)
 		return 0;
-	if(ipcmp(ip, v4prefix) == 0)
+	n = read(fd, buf, n-1);
+	close(fd);
+	if(n <= 0)
 		return 0;
+	buf[n] = 0;
 	return 1;
 }
 
-static void
-netenv(char *attr, uchar *ip)
-{
-	int fd, n;
-	char buf[128];
-
-	ipmove(ip, IPnoaddr);
-	snprint(buf, sizeof(buf), "#e/%s", attr);
-	fd = open(buf, OREAD);
-	if(fd < 0)
-		return;
-
-	n = read(fd, buf, sizeof(buf)-1);
-	close(fd);
-	if(n <= 0)
-		return;
-	buf[n] = 0;
-	if (parseip(ip, buf) == -1)
-		fprint(2, "netenv: can't parse ip %s\n", buf);
-}
-
-static void
-netndb(char *attr, uchar *ip)
+static int
+netndb(char *attr, char *val, int len)
 {
 	int fd, n, c;
 	char buf[1024];
-	char *p;
+	char *p, *e;
 
-	ipmove(ip, IPnoaddr);
 	snprint(buf, sizeof(buf), "%s/ndb", mpoint);
 	fd = open(buf, OREAD);
 	if(fd < 0)
-		return;
+		return 0;
 	n = read(fd, buf, sizeof(buf)-1);
 	close(fd);
 	if(n <= 0)
-		return;
+		return 0;
 	buf[n] = 0;
 	n = strlen(attr);
 	for(p = buf; ; p++){
@@ -185,25 +184,33 @@ netndb(char *attr, uchar *ip)
 		c = *(p-1);
 		if(*(p + n) == '=' && (p == buf || c == '\n' || c == ' ' || c == '\t')){
 			p += n+1;
-			if (parseip(ip, p) == -1)
-				fprint(2, "netndb: can't parse ip %s\n", p);
-			return;
+			for(e = p; *e != 0 && *e != '\n' && *e != ' ' && *e != '\t'; e++)
+				;
+			*e = 0;
+			strecpy(val, val+len, p);
+			return 1;
 		}
 	}
+	return 0;
 }
 
 static void
-getndbvar(char *name, uchar *var, char *prompt)
+getndbvar(char *name, char *dflt, char *prompt, char *addr, int n)
 {
-	char buf[64];
+	char buf[128], *a;
 
-	netndb(name, var);
-	if(!isvalidip(var))
-		netenv(name, var);
-	while(!isvalidip(var)){
+	if(!netndb(name, buf, sizeof buf) && !netenv(name, buf, sizeof buf))
+		buf[0] = 0;
+	for(;;){
+		if(buf[0] != 0){
+			a = dialstring(buf, dflt);
+			if(a != nil){
+				strecpy(addr, addr+n, a);
+				return;
+			}
+			fprint(2, "configip: can't parse %s address %s\n", name, buf);
+		}
 		buf[0] = 0;
 		outin(prompt, buf, sizeof buf);
-		if (parseip(var, buf) == -1)
-			fprint(2, "configip: can't parse %s ip %s\n", name, buf);
 	}
 }
