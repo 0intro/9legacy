@@ -251,6 +251,8 @@ simplet(long b)
 	case BVLONG|BLONG|BINT|BSIGNED:
 		return types[TVLONG];
 
+	case BVLONG|BUNSIGNED:
+	case BVLONG|BINT|BUNSIGNED:
 	case BVLONG|BLONG|BUNSIGNED:
 	case BVLONG|BLONG|BINT|BUNSIGNED:
 		return types[TUVLONG];
@@ -689,8 +691,13 @@ arith(Node *n, int f)
 			k += 2;
 		n->type = types[k];
 	}
+	if (typefd[n->type->etype]) {
+		fpused = 1;
+		// warn(n, "fp used");
+	}
 	if(n->op == OSUB)
 	if(i == TIND && j == TIND) {
+		/* pointer subtraction */
 		w = n->right->type->link->width;
 		if(w < 1) {
 			snap(n->right->type->link);
