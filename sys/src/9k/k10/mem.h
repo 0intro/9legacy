@@ -8,6 +8,14 @@
 #define PiB		1125899906842624ll	/* Pebi 0x0004000000000000 */
 #define EiB		1152921504606846976ll	/* Exbi 0x1000000000000000 */
 
+/* aliases for the imported (Geoff) page allocator, which uses KB/MB/... */
+#define KB		KiB
+#define MB		MiB
+#define GB		GiB
+#define TB		TiB
+#define PB		PiB
+#define EB		EiB
+
 #define HOWMANY(x, y)	(((x)+((y)-1))/(y))
 #define ROUNDUP(x, y)	(HOWMANY((x), (y))*(y))
 #define ROUNDDN(x, y)	(((x)/(y))*(y))
@@ -24,6 +32,7 @@
 
 #define PGSZ		(4*KiB)			/* page size */
 #define PGSHFT		12			/* log(PGSZ) */
+#define PGROUND(s)	ROUNDUP((s), PGSZ)	/* for the imported page allocator */
 #define PTSZ		(4*KiB)			/* page table page size */
 #define PTSHFT		9			/*  */
 
