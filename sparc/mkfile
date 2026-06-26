@@ -1,5 +1,8 @@
 </sys/src/mkfile.proto
 
+OS=k$OS
+CPUS=$CPUS sparc
+
 CC=kc
 LD=kl
 O=k
