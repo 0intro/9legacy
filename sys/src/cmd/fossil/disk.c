@@ -12,6 +12,7 @@ enum {
 	 */
 	Timing	= 0,			/* flag */
 	QueueSize = 100,		/* maximum block to queue */
+	MaxRun = 16,
 };
 
 struct Disk {
@@ -115,6 +116,40 @@ partEnd(Disk *disk, int part)
 	case PartData:
 		return disk->h.end;
 	}
+}
+
+static int
+diskReadRawN(Disk *disk, int part, u32int addr, uchar *buf, int nblock)
+{
+	ulong start, end;
+	u64int offset;
+	int n, nn;
+
+	start = partStart(disk, part);
+	end = partEnd(disk, part);
+
+	if(addr + nblock > end - start){
+		werrstr(EBadAddr);
+		return 0;
+	}
+
+	offset = ((u64int)(addr + start))*disk->h.blockSize;
+	n = nblock*disk->h.blockSize;
+	while(n > 0){
+		nn = pread(disk->fd, buf, n, offset);
+		if(nn < 0){
+			werrstr("%r");
+			return 0;
+		}
+		if(nn == 0){
+			werrstr("eof reading disk");
+			return 0;
+		}
+		n -= nn;
+		offset += nn;
+		buf += nn;
+	}
+	return 1;
 }
 
 int
@@ -308,16 +343,17 @@ static void
 diskThread(void *a)
 {
 	Disk *disk = a;
-	Block *b;
-	uchar *buf, *p;
+	Block *b, *run[MaxRun];
+	uchar *buf, *p, *rbuf;
 	double t;
-	int nio;
+	int nio, nrun, i, ok;
 
 	threadsetname("disk");
 
 //fprint(2, "diskThread %d\n", getpid());
 
 	buf = vtmalloc(disk->h.blockSize);
+	rbuf = vtmalloc(MaxRun * disk->h.blockSize);
 
 	qlock(&disk->lk);
 	if (Timing) {
@@ -349,7 +385,54 @@ diskThread(void *a)
 		}
 		b = disk->cur;
 		disk->cur = b->ionext;
+		nrun = 0;
+		run[nrun++] = b;
+		if(b->iostate == BioReading)
+			while(disk->cur != nil
+			   && nrun < MaxRun
+			   && disk->cur->iostate == BioReading
+			   && disk->cur->part == b->part
+			   && disk->cur->addr == run[nrun-1]->addr + 1){
+				run[nrun++] = disk->cur;
+				disk->cur = disk->cur->ionext;
+			}
 		qunlock(&disk->lk);
+
+		if(nrun > 1){
+			ok = diskReadRawN(disk, b->part, b->addr, rbuf, nrun);
+			for(i = 0; i < nrun; i++){
+				b = run[i];
+				bwatchLock(b);
+				qlock(&b->lk);
+				b->pc = mypc(0);
+				assert(b->nlock == 1);
+				if(ok){
+					memmove(b->data, rbuf + i*disk->h.blockSize,
+						disk->h.blockSize);
+					blockSetIOState(b, BioClean);
+				}else if(diskReadRaw(disk, b->part, b->addr, b->data))
+					blockSetIOState(b, BioClean);
+				else{
+					fprint(2, "fossil: diskReadRaw failed: %s: "
+						"score %V: part=%s block %ud: %r\n",
+						disk2file(disk), b->score,
+						partname[b->part], b->addr);
+					blockSetIOState(b, BioReadError);
+				}
+				blockPut(b);
+				qlock(&disk->lk);
+				disk->nqueue--;
+				if(disk->nqueue == QueueSize-1)
+					rwakeup(&disk->flow);
+				if(disk->nqueue == 0)
+					rwakeup(&disk->flush);
+				qunlock(&disk->lk);
+			}
+			if(Timing)
+				nio += nrun;
+			qlock(&disk->lk);
+			continue;
+		}
 
 		/*
 		 * no one should hold onto blocking in the
@@ -408,4 +491,5 @@ Done:
 	rwakeup(&disk->die);
 	qunlock(&disk->lk);
 	vtfree(buf);
+	vtfree(rbuf);
 }
