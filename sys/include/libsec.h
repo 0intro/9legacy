@@ -102,12 +102,17 @@ struct Chachastate
 		};
 	};
 	int	rounds;
+	int	ivwords;
 };
 
-void	setupChachastate(Chachastate*, uchar*, usize, uchar*, int);
-void	chacha_setblock(Chachastate*, u32int);
+void	setupChachastate(Chachastate*, uchar*, usize, uchar*, ulong, int);
+void	chacha_setiv(Chachastate *, uchar*);
+void	chacha_setblock(Chachastate*, u64int);
 void	chacha_encrypt(uchar*, usize, Chachastate*);
 void	chacha_encrypt2(uchar*, uchar*, usize, Chachastate*);
+
+void	ccpoly_encrypt(uchar *dat, ulong ndat, uchar *aad, ulong naad, uchar tag[16], Chachastate *cs);
+int	ccpoly_decrypt(uchar *dat, ulong ndat, uchar *aad, ulong naad, uchar tag[16], Chachastate *cs);
 
 /*
  * DES definitions
