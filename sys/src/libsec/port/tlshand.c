@@ -2143,18 +2143,13 @@ serverMasterSecret(TlsSec *sec, uchar *epm, int nepm)
 
 	// if the client messed up, just continue as if everything is ok,
 	// to prevent attacks to check for correctly formatted messages.
-	// Hence the fprint(2,) can't be replaced by tlsError(), which sends an Alert msg to the client.
-	if(sec->ok < 0 || pm == nil || get16(pm->data) != sec->clientVers){
-		fprint(2, "serverMasterSecret failed ok=%d pm=%p pmvers=%x cvers=%x nepm=%d\n",
-			sec->ok, pm, pm ? get16(pm->data) : -1, sec->clientVers, nepm);
-		sec->ok = -1;
-		if(pm != nil)
-			freebytes(pm);
+	if(pm == nil || pm->len != MasterSecretSize || get16(pm->data) != sec->clientVers){
+		freebytes(pm);
 		pm = newbytes(MasterSecretSize);
 		genrandom(pm->data, MasterSecretSize);
 	}
 	setMasterSecret(sec, pm);
-	memset(pm->data, 0, pm->len);	
+	memset(pm->data, 0, pm->len);
 	freebytes(pm);
 }
 
