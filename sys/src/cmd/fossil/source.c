@@ -822,6 +822,32 @@ sourceBlock(Source *r, ulong bn, int mode)
 }
 
 void
+sourceReadAhead(Source *r, ulong bn, int n)
+{
+	Entry e;
+	Block *pb;
+	u32int addr;
+	int np, i0, k;
+
+	assert(sourceIsLocked(r));
+	if(!sourceGetEntry(r, &e))
+		return;
+	if(e.depth == 0)
+		return;
+	np = e.psize/VtScoreSize;
+	i0 = bn % np;
+	pb = _sourceBlock(r, bn, OReadOnly, 1, 0);
+	if(pb == nil)
+		return;
+	for(k = 0; k < n && i0+k < np; k++){
+		addr = globalToLocal(pb->data + (i0+k)*VtScoreSize);
+		if(addr != NilBlock)
+			cachePrefetch(r->fs->cache, addr);
+	}
+	blockPut(pb);
+}
+
+void
 sourceClose(Source *r)
 {
 	if(r == nil)

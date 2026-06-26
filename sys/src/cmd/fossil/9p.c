@@ -556,8 +556,12 @@ rTread(Msg* m)
 		n = dirRead(fid, data, count, m->t.offset);
 	else if(fid->qid.type & QTAUTH)
 		n = authRead(fid, data, count);
-	else
+	else{
 		n = fileRead(fid->file, data, count, m->t.offset);
+		if(n > 0)
+			fileReadAhead(fid->file, m->t.offset, n,
+				&fid->raexpect, &fid->ramax);
+	}
 	if(n < 0)
 		goto error;
 

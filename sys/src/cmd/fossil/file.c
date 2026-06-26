@@ -46,6 +46,10 @@ static void fileMetaUnlock(File*);
 static void fileRAccess(File*);
 static void fileWAccess(File*, char*);
 
+enum {
+	RAWINDOW = 16,
+};
+
 static File *
 fileAlloc(Fs *fs)
 {
@@ -587,6 +591,40 @@ Err:
 Err1:
 	fileRUnlock(f);
 	return -1;
+}
+
+void
+fileReadAhead(File *f, vlong offset, int n, u32int *raexpect, u32int *ramax)
+{
+	Source *s;
+	int dsize;
+	u32int bn0, last, start, frontier;
+
+	if(fileIsDir(f))
+		return;
+	if(!fileRLock(f))
+		return;
+	if(!sourceLock(f->source, OReadOnly)){
+		fileRUnlock(f);
+		return;
+	}
+	s = f->source;
+	dsize = s->dsize;
+	bn0 = offset/dsize;
+	last = (offset+n-1)/dsize;
+	if(offset == 0 || bn0 == *raexpect){
+		frontier = last+RAWINDOW;
+		start = *ramax;
+		if(start < last+1)
+			start = last+1;
+		if(start <= frontier)
+			sourceReadAhead(s, start, frontier-start+1);
+		*ramax = frontier+1;
+	}else
+		*ramax = last+1;
+	*raexpect = last+1;
+	sourceUnlock(s);
+	fileRUnlock(f);
 }
 
 /*

@@ -75,6 +75,8 @@ fidAlloc(void)
 	fid->ref = 0;
 	fid->flags = 0;
 	fid->open = FidOCreate;
+	fid->raexpect = 0;
+	fid->ramax = 0;
 	assert(fid->fsys == nil);
 	assert(fid->file == nil);
 	fid->qid = (Qid){0, 0, 0};
