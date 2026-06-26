@@ -601,10 +601,8 @@ tcomo(Node *n, int f)
 			goto bad;
 		n->type = l->type->link;
 		if(!debug['B'])
-			if(l->type->down == T || l->type->down->etype == TOLD) {
-				nerrors--;
+			if(l->type->down == T || l->type->down->etype == TOLD)
 				diag(n, "function args not checked: %F", l);
-			}
 		dpcheck(n);
 		break;
 
