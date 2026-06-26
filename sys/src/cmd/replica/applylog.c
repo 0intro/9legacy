@@ -33,12 +33,13 @@ int douid;
 char *mkname(char*, int, char*, char*);
 char localbuf[10240];
 char remotebuf[10240];
-int copyfile(char*, char*, char*, Dir*, int, int*);
+int copyfile(char*, char*, char*, Dir*, int, int*, char*);
 ulong maxnow;
 int maxn;
 char *timefile;
 int timefd;
 int samecontents(char*, char*);
+int samematches(char*, char*, char*);
 
 Db *copyerr;
 
@@ -181,7 +182,7 @@ prstopped(int skip, char *name)
 void
 main(int argc, char **argv)
 { 
-	char *f[10], *local, *name, *remote, *s, *t, verb;
+	char *f[11], *local, *name, *remote, *rhash, *s, *t, verb;
 	int fd, havedb, havelocal, i, k, n, nf, resolve1, skip;
 	int checkedmatch1, checkedmatch2, 
 		checkedmatch3, checkedmatch4;
@@ -190,6 +191,7 @@ main(int argc, char **argv)
 	Dir dbd, ld, nd, rd;
 	Avlwalk *w;
 	Entry *e;
+	Db *hashdb;
 
 	membogus(argv);
 	quotefmtinstall();
@@ -254,12 +256,35 @@ main(int argc, char **argv)
 	
 	copyerr = opendb(nil);
 
-	skip = 0;
 	Binit(&bin, 0, OREAD);
+
+	/*
+	 * Record each file's current content hash, the one in its last add
+	 * or change entry, so a copy is checked against the file's current
+	 * state, not a superseded entry whose bytes the server no longer
+	 * serves. Stdin is the client log, a file, so rewind after the scan.
+	 */
+	hashdb = opendb(nil);
+	for(; s=Brdstr(&bin, '\n', 1); free(s)){
+		nf = tokenize(s, f, nelem(f));
+		if(nf != 11 || strlen(f[2]) != 1)
+			continue;
+		verb = f[2][0];
+		if(verb != 'a' && verb != 'c')
+			continue;
+		memset(&nd, 0, sizeof nd);
+		nd.name = f[3];
+		nd.uid = nd.gid = "";
+		insertdbh(hashdb, f[3], &nd, f[10]);
+	}
+	if(Bseek(&bin, 0, 0) < 0)
+		sysfatal("rewind log: %r");
+
+	skip = 0;
 	for(; s=Brdstr(&bin, '\n', 1); free(s)){
 		t = estrdup(s);
 		nf = tokenize(s, f, nelem(f));
-		if(nf != 10 || strlen(f[2]) != 1){
+		if((nf != 10 && nf != 11) || strlen(f[2]) != 1){
 			skip = 1;
 			fprint(2, "warning: skipping bad log entry <%s>\n", t);
 			free(t);
@@ -282,6 +307,7 @@ main(int argc, char **argv)
 		rd.gid = f[7];
 		rd.mtime = strtoul(f[8], 0, 10);
 		rd.length = strtoll(f[9], 0, 10);
+		rhash = dbhash(hashdb, name);
 		havedb = finddb(clientdb, name, &dbd)>=0;
 		havelocal = localdirstat(local, &ld)>=0;
 
@@ -328,7 +354,7 @@ main(int argc, char **argv)
 			assert(havelocal && havedb);
 			if(dbd.mtime > rd.mtime)		/* we have a newer file than what was deleted */
 				break;
-			if(samecontents(local, remote) > 0){	/* going to get recreated */
+			if(samematches(local, remote, rhash) > 0){	/* going to get recreated */
 				chat("= %q %luo %q %q %lud\n", name, rd.mode, rd.uid, rd.gid, rd.mtime);
 				break;
 			}
@@ -369,7 +395,7 @@ main(int argc, char **argv)
 					goto DoCreate;
 				if((ld.mode&DMDIR) && (rd.mode&DMDIR))
 					break;
-				if(samecontents(local, remote) > 0){
+				if(samematches(local, remote, rhash) > 0){
 					chat("= %q %luo %q %q %lud\n", name, rd.mode, rd.uid, rd.gid, rd.mtime);
 					goto DoCreateDb;
 				}
@@ -392,7 +418,7 @@ main(int argc, char **argv)
 					continue;
 				}
 				SET(checkedmatch2);
-				if(samecontents(local, remote) > 0){
+				if(samematches(local, remote, rhash) > 0){
 					chat("= %q %luo %q %q %lud\n", name, rd.mode, rd.uid, rd.gid, rd.mtime);
 					goto DoCreateDb;
 				}
@@ -448,7 +474,7 @@ main(int argc, char **argv)
 				close(fd);
 				rd.mtime = now;
 			}else{
-				if(copyfile(local, remote, name, &rd, 1, &k) < 0){
+				if(copyfile(local, remote, name, &rd, 1, &k, rhash) < 0){
 					if(k)
 						addce(local);
 					skip = 1;
@@ -477,7 +503,7 @@ main(int argc, char **argv)
 					goto DoCopy;
 				else if(resolve1=='c')
 					goto DoCopyDb;
-				if(samecontents(local, remote) > 0){
+				if(samematches(local, remote, rhash) > 0){
 					chat("= %q %luo %q %q %lud\n", name, rd.mode, rd.uid, rd.gid, rd.mtime);
 					goto DoCopyDb;
 				}
@@ -516,7 +542,7 @@ main(int argc, char **argv)
 					/* no skip=1 */
 					break;
 				}
-				if(samecontents(local, remote) > 0){
+				if(samematches(local, remote, rhash) > 0){
 					chat("= %q %luo %q %q %lud\n", name, rd.mode, rd.uid, rd.gid, rd.mtime);
 					goto DoCopyDb;
 				}
@@ -539,7 +565,7 @@ main(int argc, char **argv)
 			chat("c %q\n", name);
 			if(donothing)
 				break;
-			if(copyfile(local, remote, name, &rd, 0, &k) < 0){
+			if(copyfile(local, remote, name, &rd, 0, &k, rhash) < 0){
 				if(k)
 					addce(local);
 				skip = 1;
@@ -624,7 +650,7 @@ main(int argc, char **argv)
 					continue;
 				}
 				SET(checkedmatch4);
-				if(resolve1 == 's' || samecontents(local, remote) > 0)
+				if(resolve1 == 's' || samematches(local, remote, rhash) > 0)
 					goto DoMeta;
 				else if(resolve1 == 'c')
 					break;
@@ -977,13 +1003,13 @@ copytotemp(char *remote, int rfd, Dir *d0)
 
 int
 copyfile(char *local, char *remote, char *name, Dir *d, int dowstat,
-	int *printerror)
+	int *printerror, char *hash)
 {
 	Dir *d0, *dl;
 	Dir nd;
 	int rfd, tfd, wfd, didcreate;
 	char *p, *safe;
-	char err[ERRMAX];
+	char err[ERRMAX], hbuf[2*SHA1dlen+1];
 
 	do {
 		*printerror = 0;
@@ -1016,6 +1042,27 @@ copyfile(char *local, char *remote, char *name, Dir *d, int dowstat,
 	}
 
 DoCopy:
+	/*
+	 * verify the source bytes against the log hash before touching
+	 * the local file, so a corrupt copy is never installed. tfd is
+	 * the spooled temp (tempspool) or the remote (-t) and is read by
+	 * offset, so the seek position for the copy below is undisturbed.
+	 */
+	if(strcmp(hash, "-") != 0){
+		if(hashfd(tfd, hbuf) == nil){
+			werrstr("cannot hash source: %r");
+			close(tfd);
+			free(d0);
+			return -1;
+		}
+		if(strcmp(hbuf, hash) != 0){
+			werrstr("hash mismatch");
+			close(tfd);
+			free(d0);
+			return -1;
+		}
+	}
+
 	/*
 	 * clumsy but important hack to do safeinstall-like installs.
 	 */
@@ -1174,6 +1221,25 @@ samecontents(char *local, char *remote)
 	close(lfd);
 	close(tfd);
 	return ret;
+}
+
+/*
+ * Like samecontents, but when the log carries a content hash we can
+ * decide from the local file alone (the log hash is the server's hash
+ * of the same bytes), so we never download the remote just to compare.
+ * Falls back to samecontents when there is no hash.
+ */
+int
+samematches(char *local, char *remote, char *hash)
+{
+	char buf[2*SHA1dlen+1];
+
+	if(strcmp(hash, "-") != 0){
+		if(hashfile(local, buf) == nil)
+			return -1;
+		return strcmp(buf, hash) == 0;
+	}
+	return samecontents(local, remote);
 }
 
 /*
