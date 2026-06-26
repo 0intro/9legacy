@@ -67,6 +67,11 @@ threadmain(int argc, char* argv[])
 	char **cmd, *p;
 	int i, ncmd, tflag;
 
+	/*
+	 * not sure why this helps, but it prevents malloc from dying later
+	 * after large allocations.
+	 */
+	malloc(8);
 	fmtinstall('D', dirfmt);
 	fmtinstall('F', fcallfmt);
 	fmtinstall('M', dirmodefmt);
