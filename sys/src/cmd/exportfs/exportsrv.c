@@ -5,6 +5,14 @@
 #define Extern	extern
 #include "exportfs.h"
 
+enum {
+	/*
+	 * reduce output messages this much to leave room for encapsulations
+	 * (e.g., 9P in TLS in 9P)
+	 */
+	Encaproom = 0,
+};
+
 extern char *netdir, *local, *remote;
 
 char Ebadfid[] = "Bad fid";
@@ -596,7 +604,7 @@ openmount(int sfd)
 	arg[0] = "exportfs";
 	snprint(fdbuf, sizeof fdbuf, "-S/fd/%d", sfd);
 	arg[1] = fdbuf;
-	snprint(mbuf, sizeof mbuf, "-m%lud", messagesize-IOHDRSZ);
+	snprint(mbuf, sizeof mbuf, "-m%lud", messagesize-IOHDRSZ-Encaproom);
 	arg[2] = mbuf;
 	arg[3] = nil;
 
@@ -715,6 +723,7 @@ slavewrite(Fsrpc *p)
 	Fcall *work, rhdr;
 	Fid *f;
 	int n;
+	long mszlim;
 
 	work = &p->work;
 
@@ -724,7 +733,11 @@ slavewrite(Fsrpc *p)
 		return;
 	}
 
-	n = (work->count > messagesize-IOHDRSZ) ? messagesize-IOHDRSZ : work->count;
+	mszlim = messagesize-IOHDRSZ;
+	mszlim -= Encaproom;
+	if (mszlim < 256)
+		mszlim = messagesize-IOHDRSZ;
+	n = (work->count > mszlim)? mszlim: work->count;
 	p->canint = 1;
 	if(p->flushtag != NOTAG)
 		return;

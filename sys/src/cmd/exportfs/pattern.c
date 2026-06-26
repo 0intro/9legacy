@@ -21,7 +21,7 @@ exclusions(void)
 
 	f = Bopen(patternfile, OREAD);
 	if(f == nil)
-		fatal("cannot open patternfile");
+		fatal("cannot open patternfile %s: %r", patternfile);
 	ni = 0;
 	nmaxi = 100;
 	include = malloc(nmaxi*sizeof(*include));

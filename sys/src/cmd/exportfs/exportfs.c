@@ -1,5 +1,9 @@
 /*
  * exportfs - Export a plan 9 name space across a network
+ *
+ * convert 9P messages from the network into file system calls under the
+ * mountpoint of this server, and the reverse for results of those system
+ * calls back to 9P. the inverse of devmnt.
  */
 #include <u.h>
 #include <libc.h>
@@ -8,6 +12,8 @@
 #include <libsec.h>
 #define Extern
 #include "exportfs.h"
+
+#define MAXRPC (IOHDRSZ+16*1024) /* see MAXRPC in devmnt; was 8K+IOHDRSZ */
 
 #define QIDPATH	((1LL<<48)-1)
 vlong newqid = 0;
@@ -46,9 +52,10 @@ int	netfd;				/* initially stdin */
 int	srvfd = -1;
 int	nonone = 1;
 char	*filterp;
-char	*ealgs = "rc4_256 sha1";
+char	*ealgs = "rc4_256 sha1";	/* ssl only */
 char	*aanfilter = "/bin/aan";
 int	encproto = Encnone;
+char	*tlscert = "/sys/lib/tls/cert.pem";
 int	readonly;
 
 static void	mksecret(char *, uchar *);
@@ -58,6 +65,7 @@ static char *anstring  = "tcp!*!0";
 char *netdir = "", *local = "", *remote = "";
 
 int	filter(int, char *);
+void	procsetname(char *fmt, ...);
 
 void
 usage(void)
@@ -80,6 +88,28 @@ noteconn(int fd)
 	local = strdup(nci->lsys);
 	remote = strdup(nci->rsys);
 	freenetconninfo(nci);
+}
+
+static int
+pushtlsserver(int fd, char *tlscert)
+{
+	int efd, certlen;
+	uchar *cert;
+	TLSconn conn;
+
+	if (tlscert == nil)
+		return fd;
+	memset(&conn, 0, sizeof conn);
+	cert = readcert(tlscert, &certlen);
+	if (cert == nil) {
+		syslog(0, "cpu", "cpu -R: can't read cert %s: %r", tlscert);
+		return fd;
+	}
+	conn.cert = cert;
+	conn.certlen = certlen;
+	efd = tlsServer(fd, &conn);
+	free(conn.cert);
+	return efd;
 }
 
 void
@@ -106,71 +136,55 @@ main(int argc, char **argv)
 	case 'a':
 		doauth = 1;
 		break;
-
 	case 'd':
 		dbg++;
 		break;
-
 	case 'e':
 		ealgs = EARGF(usage());
 		if(*ealgs == 0 || strcmp(ealgs, "clear") == 0)
 			ealgs = nil;
 		break;
-
 	case 'f':
 		dbfile = EARGF(usage());
 		break;
-
 	case 'k':
 		keyspec = EARGF(usage());
 		break;
-
 	case 'm':
 		messagesize = strtoul(EARGF(usage()), nil, 0);
 		break;
-
 	case 'n':
 		nonone = 0;
 		break;
-
 	case 'r':
 		srv = EARGF(usage());
 		break;
-
 	case 's':
 		srv = "/";
 		break;
-
 	case 'A':
 		anstring = EARGF(usage());
 		break;
-
 	case 'B':
 		na = EARGF(usage());
 		break;
-
 	case 'F':
 		/* accepted but ignored, for backwards compatibility */
 		break;
-
 	case 'N':
 		nsfile = EARGF(usage());
 		break;
-
 	case 'P':
 		patternfile = EARGF(usage());
 		break;
-
 	case 'R':
 		readonly = 1;
 		break;
-
 	case 'S':
 		if(srvfdfile)
 			usage();
 		srvfdfile = EARGF(usage());
 		break;
-
 	default:
 		usage();
 	}ARGEND
@@ -178,12 +192,13 @@ main(int argc, char **argv)
 
 	if(doauth){
 		/*
-		 * We use p9any so we don't have to visit this code again, with the
-		 * cost that this code is incompatible with the old world, which
-		 * requires p9sk2. (The two differ in who talks first, so compatibility
-		 * is awkward.)
+		 * We use p9any so we don't have to visit this code again, with
+		 * the cost that this code is incompatible with the old world,
+		 * which requires p9sk2. (The two differ in who talks first,
+		 * so compatibility is awkward.)
 		 */
-		ai = auth_proxy(0, auth_getkey, "proto=p9any role=server %s", keyspec);
+		ai = auth_proxy(0, auth_getkey, "proto=p9any role=server %s",
+			keyspec);
 		if(ai == nil)
 			fatal("auth_proxy: %r");
 		if(nonone && strcmp(ai->cuid, "none") == 0)
@@ -193,10 +208,8 @@ main(int argc, char **argv)
 		putenv("service", "exportfs");
 	}
 
-	if(srvfdfile){
-		if((srvfd = open(srvfdfile, ORDWR)) < 0)
-			sysfatal("open '%s': %r", srvfdfile);
-	}
+	if(srvfdfile && (srvfd = open(srvfdfile, ORDWR)) < 0)
+		sysfatal("open '%s': %r", srvfdfile);
 
 	if(na){
 		if(srv == nil)
@@ -207,7 +220,8 @@ main(int argc, char **argv)
 		if((fd = dial(netmkaddr(na, 0, "importfs"), 0, 0, 0)) < 0)
 			sysfatal("can't dial %s: %r", na);
 	
-		ai = auth_proxy(fd, auth_getkey, "proto=p9any role=client %s", keyspec);
+		ai = auth_proxy(fd, auth_getkey, "proto=p9any role=client %s",
+			keyspec);
 		if(ai == nil)
 			sysfatal("%r: %s", na);
 
@@ -236,7 +250,7 @@ main(int argc, char **argv)
 	if(messagesize == 0){
 		messagesize = iounit(netfd);
 		if(messagesize == 0)
-			messagesize = 16*1024+IOHDRSZ;
+			messagesize = MAXRPC;
 	}
 
 	Workq = emallocz(sizeof(Fsrpc)*Nr_workbufs);
@@ -291,8 +305,9 @@ main(int argc, char **argv)
 		fatal("open ack write");
 
 	if (readn(netfd, &initial, sizeof(ulong)) < sizeof(ulong))
-		fatal("can't read initial string: %r\n");
+		fatal("can't read initial string: %r");
 
+	/* parse any import options */
 	if (strncmp((char *)&initial, "impo", sizeof(ulong)) == 0) {
 		char buf[128], *p, *args[3];
 
@@ -302,10 +317,10 @@ main(int argc, char **argv)
 		p = buf;
 		while (p - buf < sizeof buf) {
 			if ((n = read(netfd, p, 1)) < 0)
-				fatal("can't read impo arguments: %r\n");
+				fatal("can't read impo arguments: %r");
 
 			if (n == 0)
-				fatal("connection closed while reading arguments\n");
+				fatal("connection closed while reading arguments");
 
 			if (*p == '\n') 
 				*p = '\0';
@@ -314,24 +329,22 @@ main(int argc, char **argv)
 		}
 		
 		if (tokenize(buf, args, nelem(args)) != 2)
-			fatal("impo arguments invalid: impo%s...\n", buf);
+			fatal("impo arguments invalid: impo%s...", buf);
 
 		if (strcmp(args[0], "aan") == 0)
 			filterp = aanfilter;
 		else if (strcmp(args[0], "nofilter") != 0)
-			fatal("import filter argument unsupported: %s\n", args[0]);
+			fatal("import filter argument unsupported: %s", args[0]);
 
 		if (strcmp(args[1], "ssl") == 0)
 			encproto = Encssl;
 		else if (strcmp(args[1], "tls") == 0)
 			encproto = Enctls;
 		else if (strcmp(args[1], "clear") != 0)
-			fatal("import encryption proto unsupported: %s\n", args[1]);
-
-		if (encproto == Enctls)
-			sysfatal("%s: tls has not yet been implemented", argv[0]);
+			fatal("import encryption proto unsupported: %s", args[1]);
 	}
 
+	/* optionally start encrypting (server side) */
 	if (encproto != Encnone && ealgs && ai) {
 		uchar key[16];
 		uchar digest[SHA1dlen];
@@ -347,12 +360,12 @@ main(int argc, char **argv)
 			key[i+12] = rand();
 
 		if (initial) 
-			fatal("Protocol botch: old import\n");
+			fatal("Protocol botch: old import");
 		if(readn(netfd, key, 4) != 4)
-			fatal("can't read key part; %r\n");
+			fatal("can't read key part; %r");
 
 		if(write(netfd, key+12, 4) != 4)
-			fatal("can't write key part; %r\n");
+			fatal("can't write key part; %r");
 
 		/* scramble into two secrets */
 		sha1(key, sizeof(key), digest, nil);
@@ -362,22 +375,25 @@ main(int argc, char **argv)
 		if (filterp)
 			netfd = filter(netfd, filterp);
 
+		procsetname("push%s server", encproto == Enctls? "tls": "ssl");
 		switch (encproto) {
 		case Encssl:
 			netfd = pushssl(netfd, ealgs, fromserversecret, 
 						fromclientsecret, nil);
 			break;
 		case Enctls:
+			netfd = pushtlsserver(netfd, tlscert);
+			break;
 		default:
-			fatal("Unsupported encryption protocol\n");
+			fatal("Unsupported encryption protocol");
 		}
 
 		if(netfd < 0)
-			fatal("can't establish ssl connection: %r");
+			fatal("can't establish ssl or tls connection: %r");
 	}
 	else if (filterp) {
 		if (initial) 
-			fatal("Protocol botch: don't know how to deal with this\n");
+			fatal("Protocol botch: don't know how to deal with this");
 		netfd = filter(netfd, filterp);
 	}
 
@@ -920,9 +936,9 @@ filter(int fd, char *cmd)
 		fatal("rfork record module");
 	case 0:
 		if (dup(p[0], 1) < 0)
-			fatal("filter: Cannot dup to 1; %r\n");
+			fatal("filter: Cannot dup to 1; %r");
 		if (dup(p[0], 0) < 0)
-			fatal("filter: Cannot dup to 0; %r\n");
+			fatal("filter: Cannot dup to 0; %r");
 		close(p[0]);
 		close(p[1]);
 		exec(file, argv);
