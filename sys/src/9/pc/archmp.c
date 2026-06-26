@@ -76,7 +76,8 @@ identify(void)
 	if(sum || (pcmp->version != 1 && pcmp->version != 4))
 		return 1;
 
-	if(cpuserver && m->havetsc)
+	/* terminals under MP need the TSC fast clock too, not just cpu servers */
+	if(m->havetsc)
 		archmp.fastclock = tscticks;
 	return 0;
 }
