@@ -1604,7 +1604,7 @@ starttls(void)
 void
 auth(String *mech, String *resp)
 {
-	char *user, *pass, *scratch = nil;
+	char *user, *pass, *scratch = nil, *p, *e;
 	AuthInfo *ai = nil;
 	Chalstate *chs = nil;
 	String *s_resp1_64 = nil, *s_resp2_64 = nil, *s_resp1 = nil;
@@ -1643,8 +1643,21 @@ auth(String *mech, String *resp)
 			goto bomb_out;
 		}
 		memset(s_to_c(s_resp1_64), 'X', s_len(s_resp1_64));
-		user = s_to_c(s_resp1) + strlen(s_to_c(s_resp1)) + 1;
-		pass = user + strlen(user) + 1;
+		p = s_to_c(s_resp1);
+		e = p + s_len(s_resp1);
+		/* authorization-id\0user-id\0password */
+		if ((p = memchr(p, 0, e - p)) == nil) {
+			rejectcount++;
+			reply("501 5.5.4 Cannot decode base64\r\n");
+			goto bomb_out;
+		}
+		user = ++p;
+		if ((p = memchr(p, 0, e - p)) == nil) {
+			rejectcount++;
+			reply("501 5.5.4 Cannot decode base64\r\n");
+			goto bomb_out;
+		}
+		pass = ++p;
 		ai = auth_userpasswd(user, pass);
 		authenticated = ai != nil;
 		memset(pass, 'X', strlen(pass));
