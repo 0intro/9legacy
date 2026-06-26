@@ -189,7 +189,7 @@ fidGet(Con* con, u32int fidno, int flags)
 		 */
 		if(flags & FidFCreate){
 			qunlock(&con->fidlock);
-			werrstr("%s: fid 0x%ud in use", argv0, fidno);
+			werrstr("%s: fid 0x%ux in use", argv0, fidno);
 			return nil;
 		}
 		fid->ref++;
