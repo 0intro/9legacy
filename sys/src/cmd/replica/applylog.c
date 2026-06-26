@@ -1124,6 +1124,8 @@ samecontents(char *local, char *remote)
 		free(d1);
 		return 0;
 	}
+	free(d0);
+	free(d1);
 
 	do {
 		if((rfd = open(remote, OREAD)) < 0)
