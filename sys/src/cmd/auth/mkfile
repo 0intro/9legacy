@@ -3,6 +3,7 @@
 #		programs
 #
 TARG=\
+	acmed\
 	as\
 	asn12dsa\
 	asn12rsa\
@@ -27,6 +28,7 @@ TARG=\
 	printnetkey\
 	readnvram\
 	rsa2csr\
+	rsa2jwk\
 	rsa2pub\
 	rsa2ssh\
 	rsa2x509\
@@ -117,10 +119,10 @@ nuke:V:
 
 $O.%: lib.$O.a
 $O.dsa2ssh $O.dsafill $O.dsa2x509 $O.dsa2pub $O.dsa2csr: rsa2any.$O
-$O.rsa2ssh $O.rsafill $O.rsa2x509 $O.rsa2pub $O.rsa2csr: rsa2any.$O
+$O.rsa2ssh $O.rsafill $O.rsa2x509 $O.rsa2pub $O.rsa2csr $O.rsa2jwk: rsa2any.$O
 $O.authsrv $O.guard.srv: secureidcheck.$O
 
-rsa2ssh.$O rsafill.$O rsa2x509.$O rsa2pub.$O rsa2csr.$O: rsa2any.h
+rsa2ssh.$O rsafill.$O rsa2x509.$O rsa2pub.$O rsa2csr.$O rsa2jwk.$O: rsa2any.h
 
 $BIN/netkey:V:	$O.netkey
 	cp $O.netkey /$objtype/bin/netkey

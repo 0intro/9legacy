@@ -1,6 +1,6 @@
 .TH RSA 8
 .SH NAME
-rsagen, rsafill, asn12rsa, rsa2pub, rsa2ssh, rsa2x509 \- generate and format rsa keys
+rsagen, rsafill, asn12rsa, rsa2pub, rsa2ssh, rsa2x509, rsa2csr, rsa2jwk \- generate and format rsa keys
 .SH SYNOPSIS
 .B auth/rsagen
 [
@@ -42,6 +42,17 @@ rsagen, rsafill, asn12rsa, rsa2pub, rsa2ssh, rsa2x509 \- generate and format rsa
 .I expiretime
 ]
 .I certinfo
+[
+.I file
+]
+.PP
+.B auth/rsa2jwk
+[
+.I file
+]
+.PP
+.B auth/rsa2csr
+.I subject
 [
 .I file
 ]
@@ -111,7 +122,7 @@ whose
 .B n
 has exactly
 .I nbits
-(default 1024)
+(default 2048)
 significant bits.
 If
 .I tag
@@ -212,6 +223,25 @@ Applications that serve TLS-encrypted sessions (for example,
 and
 .IR tlssrv (8))
 expect certificates in ASN.1/DER/PEM format.
+.PP
+.I Rsa2jwk
+reads a Plan 9 RSA public or private key and prints the public portion
+as a RFC7517 formatted JSON Web Key.
+This is the account key format used by
+.IR acmed (8).
+.PP
+.I Rsa2csr
+takes the
+.I subject
+and a RSA private key and writes a PKCS #10 certificate signing request
+in binary ASN.1/DER format to standard output.
+The
+.I subject
+is a Distinguished Name as for
+.I rsa2x509
+above; any names after the first comma become subjectAltName
+DNS entries in the request, as required by ACME providers (see
+.IR acmed (8)).
 .SH EXAMPLES
 Generate a fresh key and use it to start a TLS-enabled web server:
 .IP
@@ -232,10 +262,20 @@ auth/rsa2ssh key | ssh unix 'cat >>.ssh/authorized_keys'
 cat key >/mnt/factotum/ctl
 ssh unix
 .EE
+.PP
+Generate a key and a certificate signing request for use with
+.IR acmed (8):
+.IP
+.EX
+auth/rsagen -t 'service=tls role=client owner=*' >key
+cat key >/mnt/factotum/ctl
+auth/rsa2csr 'CN=example.com, example.com' key >example.com.csr
+.EE
 .SH SOURCE
 .B /sys/src/cmd/auth
 .SH "SEE ALSO
 .IR ssh (1),
+.IR acmed (8),
 .IR factotum (4),
 .IR dsa (8),
 .IR pem (8)
