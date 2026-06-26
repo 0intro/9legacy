@@ -181,6 +181,7 @@ enum
 	MD4dlen=	16,	/* MD4 digest length */
 	MD5dlen=	16,	/* MD5 digest length */
 	AESdlen=	16,	/* TODO: see rfc */
+	Poly1305dlen=	16,	/* Poly1305 digest length */
 
 	Hmacblksz	= 64,	/* in bytes; from rfc2104 */
 };
@@ -231,6 +232,8 @@ char*		md5pickle(MD5state*);
 MD5state*	md5unpickle(char*);
 char*		sha1pickle(SHA1state*);
 SHA1state*	sha1unpickle(char*);
+
+DigestState*	poly1305(uchar*, ulong, uchar*, ulong, uchar*, DigestState*);
 
 /*
  * random number generation
