@@ -343,7 +343,17 @@ supported.  Anything else defaults to 16.
 skips any leading spaces or tabs.
 .IR Strtomp 's
 scan stops when encountering a digit not valid in the
-base.  If
+base.
+If
+.I base
+is zero then C-style prefixes select the base:
+.B 0x
+for hexadecimal,
+.B 0b
+for binary and
+.B 0
+for octal. Otherwise decimal is assumed.
+If
 .I rptr
 is not zero,
 .I *rptr
