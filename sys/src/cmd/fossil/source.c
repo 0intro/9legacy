@@ -929,10 +929,34 @@ sourceLoadBlock(Source *r, int mode)
 	}
 }
 
+/*
+ * Holding the locked block b entitles us to write r->b. Under
+ * concurrent access r->b may already be set (thanks Richard Miller,
+ * who hit the original assert r->b==nil under golang test load), so
+ * wait for it to clear rather than assert or overwrite it.
+ */
+static void
+sourceSetBlock(Source *r, Block *b)
+{
+	Block *xb;
+
+	while(!casp(&r->b, nil, b)){
+		xb = r->b;
+		if(xb != nil && xb != b)
+			fprint(2, "sourceSetBlock: %x (%V) != %x (%V)\n",
+				xb->addr, xb->score, b->addr, b->score);
+		else
+			fprint(2, "sourceSetBlock: %x (%V) waiting\n",
+				b->addr, b->score);
+		if(xb != nil)
+			sleep(1000);
+	}
+}
+
 int
 sourceLock(Source *r, int mode)
 {
-	Block *b, *xb;
+	Block *b;
 
 	if(mode == -1)
 		mode = r->mode;
@@ -940,29 +964,7 @@ sourceLock(Source *r, int mode)
 	b = sourceLoadBlock(r, mode);
 	if(b == nil)
 		return 0;
-	/*
-	 * From: Richard Miller <miller@hamnavoe.com>
-	 * Date: Sun, 14 Mar 2021 11:50:39 +0000
-	 *
-	 * I think it's a local fix for an assertion failure I was getting when
-	 * fossil is being hammered by golang tests.  The original assert,
-	 * assert(r->b == nil), turns out to be too strong.
-	 */
-	/*
-	 * The fact that we are holding b serves as the
-	 * lock entitling us to write to r->b.
-	 */
-	while(!casp(&r->b, nil, b)){
-		xb = r->b;
-		if(xb != nil && xb != b)
-			fprint(2, "sourceLock: %x (%V) != %x (%V)\n",
-				xb->addr, xb->score, b->addr, b->score);
-		else
-			fprint(2, "sourceLock: %x (%V) waiting\n",
-				b->addr, b->score);
-		if (xb != nil)
-			sleep(1000);
-	}
+	sourceSetBlock(r, b);
 	if(r->mode == OReadWrite)
 		assert(r->epoch == r->b->l.epoch);
 	return 1;
@@ -1015,8 +1017,8 @@ sourceLock2(Source *r, Source *rr, int mode)
 	 * The fact that we are holding b and bb serves
 	 * as the lock entitling us to write to r->b and rr->b.
 	 */
-	r->b = b;
-	rr->b = bb;
+	sourceSetBlock(r, b);
+	sourceSetBlock(rr, bb);
 	return 1;
 }
 
