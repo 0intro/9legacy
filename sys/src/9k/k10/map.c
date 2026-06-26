@@ -13,7 +13,7 @@ KADDR(uintptr pa)
 	u8int* va;
 
 	va = UINT2PTR(pa);
-	if(pa < TMFM)
+	if(pa < kernmem)
 		return KSEG0+va;
 	return KSEG2+va;
 }
@@ -24,7 +24,7 @@ PADDR(void* va)
 	uintmem pa;
 
 	pa = PTR2UINT(va);
-	if(pa >= KSEG0 && pa < KSEG0+TMFM)
+	if(pa >= KSEG0 && pa < KSEG0+kernmem)
 		return pa-KSEG0;
 	if(pa > KSEG2)
 		return pa-KSEG2;

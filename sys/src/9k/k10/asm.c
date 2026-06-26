@@ -327,9 +327,9 @@ asmmeminit(void)
 {
 	Asm* asm;
 	PTE *pte;
-	int i, j, l;
+	int i, j, l, first;
 	uintptr va;
-	uintmem hi, lo, mem, nextmem, pa, ksize;
+	uintmem hi, lo, mem, nextmem, pa, ksize, vmgap;
 	Pallocmem *pm;
 
 	/*
@@ -351,7 +351,18 @@ asmmeminit(void)
 	if((pa = mmuphysaddr(sys->vmunused)) == ~0)
 		panic("asmmeminit 1");
 	pa += sys->vmunmapped - sys->vmunused;
-	mem = asmalloc(pa, sys->vmend - sys->vmunmapped, AsmMEMORY, 0);
+	first = 1;
+	vmgap = sys->vmend - sys->vmunmapped;
+	while((mem = asmalloc(pa, vmgap, AsmMEMORY, 0)) != pa && kernmem >= 300*MiB){
+		if(first){
+			print("asmmeminit: can't get %#P bytes at %#P for unmapped vm, reducing kernmem\n",
+				vmgap, pa);
+			first = 0;
+		}
+		kernmem -= 50*MiB;
+		sys->vmend = ROUNDUP(sys->vmstart + kernmem, PGLSZ(1));
+		vmgap = sys->vmend - sys->vmunmapped;
+	}
 	if(mem != pa)
 		panic("asmmeminit 2");
 	DBG("asmmeminit: mem %#P\n", mem);
