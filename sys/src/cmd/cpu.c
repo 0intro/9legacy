@@ -425,14 +425,12 @@ readstr(int fd, char *str, int len)
 {
 	int n;
 
-	while(len) {
+	while(len--) {
 		n = read(fd, str, 1);
-		if(n < 0) 
-			return -1;
-		if(*str == '\0')
+		if(n <= 0)
+			break;
+		if(*str++ == '\0')
 			return 0;
-		str++;
-		len--;
 	}
 	return -1;
 }
