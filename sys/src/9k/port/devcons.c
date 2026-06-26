@@ -565,10 +565,10 @@ echo(char *buf, int n)
 		}
 	}
 
-	if(kbdq != nil)
-		qproduce(kbdq, buf, n);
 	if(kbd.raw == 0)
 		putstrn(buf, n);
+	if(kbdq != nil)
+		qproduce(kbdq, buf, n);
 }
 
 /*
