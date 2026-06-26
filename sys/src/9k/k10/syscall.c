@@ -169,7 +169,8 @@ notify(Ureg* ureg)
 		pexit("Suicide", 0);
 	}
 
-	sp = ureg->sp - sizeof(NFrame);
+	/* leave headroom below sp so a handler push (Go sigpanic) misses the saved ureg */
+	sp = ureg->sp - sizeof(NFrame) - 256;
 	if(!okaddr(sp, sizeof(NFrame), 1)){
 		qunlock(&up->debug);
 		pprint("suicide: bad stack address %#p in notify\n", sp);
