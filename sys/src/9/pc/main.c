@@ -46,6 +46,20 @@ options(void)
 	long i, n;
 	char *cp, *line[MAXCONF], *p, *q;
 
+	if(multibootheader != nil && BOOTARGS[0] == 0){
+		Mbi *mbi = (Mbi*)KADDR((uintptr)multibootheader);
+		if(mbi->flags & Fcmdline){
+			q = (char*)KADDR(mbi->cmdline);
+			p = BOOTARGS;
+			memset(BOOTLINE, 0, BOOTLINELEN);
+			while(*q && p < BOOTARGS+BOOTARGSLEN-1){
+				*p++ = (*q == ' ')? '\n' : *q;
+				q++;
+			}
+			*p = 0;
+		}
+	}
+
 	/*
 	 *  parse configuration args from dos file plan9.ini
 	 */
