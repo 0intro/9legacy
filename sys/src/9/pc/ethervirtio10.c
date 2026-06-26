@@ -613,7 +613,7 @@ static void*
 virtiomapregs(Pcidev *p, int cap, int size)
 {
 	int bar, len;
-	uvlong addr;
+	uvlong addr, base;
 
 	if(cap < 0)
 		return nil;
@@ -626,7 +626,27 @@ virtiomapregs(Pcidev *p, int cap, int size)
 		return nil;
 	if(addr+len > p->mem[bar].size)
 		return nil;
-	addr += p->mem[bar].bar & ~0xFULL;
+	base = p->mem[bar].bar & ~0xFULL;
+	if((p->mem[bar].bar & 6) == 4 && bar+1 < nelem(p->mem))
+		base |= (uvlong)p->mem[bar+1].bar << 32;
+	if(base >> 32){
+		/*
+		 * qemu with more than 3GB of memory places this modern 64-bit
+		 * BAR above 4GB, where the 32-bit kernel cannot map it. Move it
+		 * into the low device window from upaalloc and rewrite the BAR.
+		 */
+		ulong pa;
+
+		pa = upaalloc(p->mem[bar].size, p->mem[bar].size);
+		if(pa == 0)
+			return nil;
+		pcicfgw32(p, PciBAR0 + bar*4, pa);
+		pcicfgw32(p, PciBAR0 + (bar+1)*4, 0);
+		p->mem[bar].bar = pa | (p->mem[bar].bar & 0xF);
+		p->mem[bar+1].bar = 0;
+		base = pa;
+	}
+	addr += base;
 	return vmap(addr, size);
 }
 
