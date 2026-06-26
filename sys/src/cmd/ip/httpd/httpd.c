@@ -8,6 +8,7 @@
 
 enum {
 	Nbuckets	= 256,
+	HandshakeTimeout = 30*1000,	/* ms allowed for the TLS handshake */
 };
 
 typedef struct Strings		Strings;
@@ -310,7 +311,9 @@ dolisten(char *address)
 				conn.certlen = certlen;
 				if (certchain != nil)
 					conn.chain = certchain;
+				alarm(HandshakeTimeout);
 				data = tlsServer(data, &conn);
+				alarm(0);
 				scheme = "https";
 			}else
 				scheme = "http";
