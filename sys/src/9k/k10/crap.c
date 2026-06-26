@@ -32,12 +32,20 @@ int nconf = nelem(confname);
 char *confname[MAXCONF];
 char *confval[MAXCONF];
 int nconf;
+char *multibootcmdline;
 
 void
 crapoptions(void)
 {
 	long i, n;
 	char *cp, *line[MAXCONF], *p, *q;
+
+	if(multibootcmdline != nil && BOOTARGS[0] == 0){
+		p = BOOTARGS;
+		for(q = multibootcmdline; *q && p < BOOTARGS+BOOTARGSLEN-1; q++)
+			*p++ = (*q == ' ')? '\n' : *q;
+		*p = 0;
+	}
 
 	/*
 	 *  parse configuration args from dos file plan9.ini
