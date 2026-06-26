@@ -166,8 +166,10 @@ sched(void)
 	m->readied = nil;
 	up = p;
 	up->state = Running;
+	lock(runq);
 	up->mach = m;
 	m->proc = up;
+	unlock(runq);
 	mmuswitch(up);
 	gotolabel(&up->sched);
 }
@@ -1268,6 +1270,8 @@ procflushseg(Segment *s)
 		}
 		for(ns = 0; ns < NSEG; ns++){
 			if(p->seg[ns] == s){
+				splhi();
+				lock(runq);
 				p->newtlb = 1;
 				for(nm = 0; nm < MACHMAX; nm++){
 					if((mp = sys->machptr[nm]) == nil || !mp->online)
@@ -1277,6 +1281,8 @@ procflushseg(Segment *s)
 						nwait++;
 					}
 				}
+				unlock(runq);
+				spllo();
 				break;
 			}
 		}
