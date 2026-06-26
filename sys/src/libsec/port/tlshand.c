@@ -237,6 +237,7 @@ enum {
 	TLS_DHE_DSS_WITH_AES_256_CBC_SHA	= 0X0038,
 	TLS_DHE_RSA_WITH_AES_256_CBC_SHA	= 0X0039,
 	TLS_DH_anon_WITH_AES_256_CBC_SHA	= 0X003A,
+	TLS_EMPTY_RENEGOTIATION_INFO_SCSV	= 0x00FF,
 	CipherMax
 };
 
@@ -1193,7 +1194,7 @@ msgRecv(TlsConnection *c, Msg *m)
 			goto Short;
 		m->u.serverHello.cipher = get16(p);
 		m->u.serverHello.compressor = p[2];
-		n -= 3;
+		n = 0;	/* skip extensions */
 		break;
 	case HCertificate:
 		if(n < 3)
@@ -1680,12 +1681,14 @@ makeciphers(void)
 	Ints *is;
 	int i, j;
 
-	is = newints(nciphers);
+	is = newints(nciphers + 1);
 	j = 0;
 	for(i = 0; i < nelem(cipherAlgs); i++){
 		if(cipherAlgs[i].ok)
 			is->data[j++] = cipherAlgs[i].tlsid;
 	}
+	is->data[j++] = TLS_EMPTY_RENEGOTIATION_INFO_SCSV;
+	is->len = j;
 	return is;
 }
 
