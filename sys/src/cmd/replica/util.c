@@ -135,3 +135,51 @@ unroot(char *path, char *root)
 	}
 	return path;
 }
+
+/*
+ * SHA1 an open file by pread (so the caller's seek position is left
+ * alone) into buf as lowercase hex. buf must hold 2*SHA1dlen+1 bytes.
+ * Returns buf, or nil if the file cannot be read.
+ */
+char*
+hashfd(int fd, char *buf)
+{
+	static char hex[] = "0123456789abcdef";
+	uchar digest[SHA1dlen], data[8192];
+	DigestState *s;
+	vlong o;
+	int n;
+
+	s = nil;
+	o = 0;
+	while((n = pread(fd, data, sizeof data, o)) > 0){
+		s = sha1(data, n, nil, s);
+		o += n;
+	}
+	if(n < 0)
+		return nil;
+	sha1(nil, 0, digest, s);
+	for(n = 0; n < SHA1dlen; n++){
+		buf[2*n] = hex[digest[n]>>4];
+		buf[2*n+1] = hex[digest[n]&0xf];
+	}
+	buf[2*SHA1dlen] = 0;
+	return buf;
+}
+
+/*
+ * SHA1 the file at path. Returns buf, or nil if it cannot be read,
+ * in which case the caller uses "-".
+ */
+char*
+hashfile(char *path, char *buf)
+{
+	int fd;
+	char *r;
+
+	if((fd = open(path, OREAD)) < 0)
+		return nil;
+	r = hashfd(fd, buf);
+	close(fd);
+	return r;
+}

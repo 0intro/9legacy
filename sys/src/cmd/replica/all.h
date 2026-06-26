@@ -2,6 +2,7 @@
 #include <libc.h>
 #include <bio.h>
 #include <disk.h>
+#include <libsec.h>
 
 /* avl.c */
 typedef struct Avl Avl;
@@ -42,6 +43,7 @@ struct Entry
 		ulong mode;
 		int mark;
 		vlong length;
+		char *hash;
 	} d;
 };
 
@@ -56,7 +58,9 @@ Db *opendb(char*);
 int finddb(Db*, char*, Dir*);
 void removedb(Db*, char*);
 void insertdb(Db*, char*, Dir*);
+void insertdbh(Db*, char*, Dir*, char*);
 int markdb(Db*, char*, Dir*);
+char *dbhash(Db*, char*);
 
 /* util.c */
 void *erealloc(void*, int);
@@ -64,6 +68,8 @@ void *emalloc(int);
 char *estrdup(char*);
 char *atom(char*);
 char *unroot(char*, char*);
+char *hashfd(int, char*);
+char *hashfile(char*, char*);
 
 /* revproto.c */
 int revrdproto(char*, char*, char*, Protoenum*, Protowarn*, void*);
