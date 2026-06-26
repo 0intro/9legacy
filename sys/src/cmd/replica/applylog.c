@@ -967,7 +967,7 @@ copyfile(char *local, char *remote, char *name, Dir *d, int dowstat,
 	Dir *d0, *dl;
 	Dir nd;
 	int rfd, tfd, wfd, didcreate;
-	char tmp[32], *p, *safe;
+	char *p, *safe;
 	char err[ERRMAX];
 
 	do {
@@ -1023,6 +1023,7 @@ DoCopy:
 		nd.name = p;
 		if(dirwstat(local, &nd) < 0)
 			fprint(2, "warning: rename %s to %s: %r\n", local, p);
+		free(safe);
 	}
 
 	didcreate = 0;
@@ -1070,7 +1071,7 @@ err:
 
 okay:
 	free(dl);
-	if(copy1(tfd, wfd, tmp, local) < 0){
+	if(copy1(tfd, wfd, remote, local) < 0){
 		close(tfd);
 		close(wfd);
 		free(d0);
