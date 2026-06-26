@@ -2030,3 +2030,21 @@ mixedasop(Type *l, Type *r)
 {
 	return !typefd[l->etype] && typefd[r->etype];
 }
+
+
+/*
+ * (uvlong)~ul creates a ul mask with top bits zero, which is usually wrong
+ * an explicit cast to ulong after ~ suppresses the diagnostic
+ */
+int
+castucom(Node *r)
+{
+	Node *rl;
+
+	if(r->op == OCAST &&
+	   (rl = r->left)->op == OCOM &&
+	   (r->type->etype == TVLONG || r->type->etype == TUVLONG) &&
+	   typeu[rl->type->etype] && typechl[rl->type->etype])
+		return 1;
+	return 0;
+}

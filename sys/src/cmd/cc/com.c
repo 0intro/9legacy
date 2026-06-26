@@ -1055,6 +1055,8 @@ loop:
 		break;
 
 	case OCAST:
+		if(castucom(n))
+			warn(n, "32-bit unsigned complement zero-extended to 64 bits");
 		ccom(l);
 		if(l->op == OCONST) {
 			evconst(n);
