@@ -8,6 +8,7 @@ dev
 	pipe
 	proc
 	mnt
+	virtio9p
 	srv
 	dup
 	rtc
@@ -133,6 +134,7 @@ port
 boot cpu boot #S/sdC0/
 	tcp
 	local
+	virtio9p
 
 bootdir
 	boot$CONF.out boot
