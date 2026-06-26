@@ -78,6 +78,13 @@
  */
 
 /*
+ * Multiboot magic: MBOOTHDRMAG is in the kernel's multiboot header (l.s),
+ * MBOOTREGMAG is the value a multiboot loader leaves in AX at entry.
+ */
+#define	MBOOTHDRMAG	0x1badb002
+#define	MBOOTREGMAG	0x2badb002
+
+/*
  *  known x86 segments (in GDT) and their selectors
  */
 #define	NULLSEG	0	/* null segment */

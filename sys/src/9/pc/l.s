@@ -34,6 +34,8 @@
  * mapped, so behave as if the mmu was not setup
  */
 TEXT _startKADDR(SB), $0
+	MOVL	AX, CX			/* save multiboot magic */
+	MOVL	BX, DX			/* save multiboot info addr */
 	MOVL	$_startPADDR(SB), AX
 	ANDL	$~KZERO, AX
 	JMP*	AX
@@ -43,17 +45,8 @@ TEXT _startKADDR(SB), $0
  */
 TEXT _multibootheader(SB), $0
 	LONG	$0x1BADB002			/* magic */
-	LONG	$0x00010003			/* flags */
-	LONG	$-(0x1BADB002 + 0x00010003)	/* checksum */
-	LONG	$_multibootheader-KZERO(SB)	/* header_addr */
-	LONG	$_startKADDR-KZERO(SB)		/* load_addr */
-	LONG	$edata-KZERO(SB)		/* load_end_addr */
-	LONG	$end-KZERO(SB)			/* bss_end_addr */
-	LONG	$_startKADDR-KZERO(SB)		/* entry_addr */
-	LONG	$0				/* mode_type */
-	LONG	$0				/* width */
-	LONG	$0				/* height */
-	LONG	$0				/* depth */
+	LONG	$0x00000003			/* flags: page align + memory info (no bit 16: the loader uses the ELF program headers, so the kernel is linked with physical load/entry addresses, -P/-E) */
+	LONG	$-(0x1BADB002 + 0x00000003)	/* checksum */
 
 /*
  * In protected mode with paging turned off and segment registers setup
@@ -137,6 +130,10 @@ TEXT m0idtptr(SB), $0
 TEXT mode32bit(SB), $0
 	/* At this point, the GDT setup is done. */
 
+	CMPL	CX, $MBOOTREGMAG		/* started by a multiboot loader? */
+	JNE	notmboot
+	MOVL	DX, multibootheader-KZERO(SB)	/* save the multiboot info addr */
+notmboot:
 	MOVL	$PADDR(CPU0PDB), DI		/* clear 4 pages for the tables etc. */
 	XORL	AX, AX
 	MOVL	$(4*BY2PG), CX

@@ -12,6 +12,7 @@
 #include "fns.h"
 #include "io.h"
 #include "ureg.h"
+#include "multiboot.h"
 
 #define MEMDEBUG	0
 
@@ -782,6 +783,81 @@ e820scan(void)
 	return 0;
 }
 
+/*
+ * Set by l.s (mode32bit) to the loader's multiboot info, or nil if we were not
+ * started by a multiboot loader. multibootheader must live in the data segment,
+ * not bss: l.s writes it before _startpg clears bss.
+ */
+Mbi *multibootheader = nil;
+MMap mbmmap[Nmmap];		/* snapshot of the loader memory map */
+int nmbmmap;
+
+/*
+ * Snapshot the multiboot memory map while the loader's low memory is still
+ * intact (called from main() before realmode and screeninit reuse it).
+ */
+void
+multibootinit(void)
+{
+	int bytes;
+	Mbi *mbi;
+	MMap *lmmap;
+
+	nmbmmap = 0;
+	if(multibootheader == nil)
+		return;			/* not started by a multiboot loader */
+	mbi = (Mbi*)KADDR((uintptr)multibootheader);
+	if(!(mbi->flags & Fmmap) || mbi->mmapaddr == 0)
+		return;
+	if(mbi->mmaplength < 2*sizeof(MMap))
+		return;			/* too few entries to trust */
+	lmmap = (MMap*)KADDR(mbi->mmapaddr);
+	if(lmmap->size == 0 || lmmap->len == 0)
+		return;			/* bogus initial entry */
+	bytes = mbi->mmaplength;
+	if(bytes > sizeof mbmmap)
+		bytes = sizeof mbmmap;
+	memmove(mbmmap, lmmap, bytes);
+	nmbmmap = bytes / sizeof(MMap);
+}
+
+/*
+ * Feed the multiboot memory map into map(), as e820scan does for the BIOS
+ * E820 map.  Returns -1 if there is no multiboot map.
+ */
+int
+multibootmmap(void)
+{
+	int i;
+	ulong base, len;
+	uvlong last;
+	MMap *e;
+
+	if(nmbmmap == 0)
+		return -1;
+	last = 0;
+	for(i = 0; i < nmbmmap; i++){
+		e = &mbmmap[i];
+		if(e->base >= (1LL<<32))
+			break;
+		base = e->base;
+		if(e->base+e->len > (1LL<<32))
+			len = -base;
+		else
+			len = e->len;
+		if(last < e->base)
+			map(last, e->base-last, MemUPA);
+		last = e->base+len;
+		if(e->type == Ememory)
+			map(base, len, MemRAM);
+		else
+			map(base, len, MemReserved);
+	}
+	if(last < (1LL<<32))
+		map(last, (u32int)-last, MemUPA);
+	return 0;
+}
+
 void
 meminit(void)
 {
@@ -815,7 +891,13 @@ meminit(void)
 
 	umbscan();
 	lowraminit();
-	if(e820scan() < 0)
+	/*
+	 * Prefer the loader's multiboot memory map when present: under a
+	 * multiboot loader (qemu -kernel) the real-mode BIOS E820 probe is not
+	 * available, so e820scan would fault.  Fall back to e820scan (BIOS) and
+	 * then ramscan when not multibooted.
+	 */
+	if(multibootmmap() < 0 && e820scan() < 0)
 		ramscan(maxmem);
 
 	/*
