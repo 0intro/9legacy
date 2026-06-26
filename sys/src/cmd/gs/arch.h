@@ -20,6 +20,10 @@
 #include "riscv.h"
 #elif Triscv64
 #include "riscv64.h"
+#elif Tsparc
+#include "sparc.h"
+#elif Tpower64
+#include "power64.h"
 #else
 	I do not know about your architecture.
 	Update switch in arch.h with new architecture.
