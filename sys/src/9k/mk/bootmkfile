@@ -9,6 +9,7 @@ BOOTFILES=\
 	bootip.$O\
 	local.$O\
 	embed.$O\
+	bootvirtio9p.$O\
 	settime.$O\
 	parts.$O\
 	paq.$O\

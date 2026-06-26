@@ -71,6 +71,9 @@ extern int	connectpaq(void);
 extern void	configembed(Method*);
 extern int	connectembed(void);
 
+extern void	configvirtio9p(Method*);
+extern int	connectvirtio9p(void);
+
 extern void	configip(int, char**, int);
 
 /* hack for passing authentication address */
