@@ -1131,7 +1131,8 @@ closecookies(void)
 void
 initcookies(char *file)
 {
-	char *home;
+	char *home, *dir, *p;
+	int fd;
 
 	fmtinstall('J', jarfmt);
 	fmtinstall('K', cookiefmt);
@@ -1143,6 +1144,17 @@ initcookies(char *file)
 		file = emalloc9p(strlen(home)+30);
 		strcpy(file, home);
 		strcat(file, "/lib/webcookies");
+	}
+	if(access(file, AEXIST) < 0){
+		dir = estrdup9p(file);
+		if((p = strrchr(dir, '/')) != nil){
+			*p = 0;
+			if(access(dir, AEXIST) < 0 && (fd = create(dir, OREAD, DMDIR|0777)) >= 0)
+				close(fd);
+		}
+		free(dir);
+		if((fd = create(file, OWRITE, 0666)) >= 0)
+			close(fd);
 	}
 	jar = readjar(file);
 	if(jar == nil)
