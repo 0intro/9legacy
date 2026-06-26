@@ -1009,7 +1009,7 @@ val_enc(uchar** pp, Elem e, int *pconstr, int lenonly)
 			el = e.val.u.setval;
 		else
 			err = ASN_EINVAL;
-		if(el != nil) {
+		if(err == ASN_OK) {
 			*pconstr = CONSTR_MASK;
 			for(; el != nil; el = el->tl) {
 				err = enc(&p, el->hd, lenonly);
@@ -1614,6 +1614,8 @@ static Ints9 oid_sha256 ={9, 2, 16, 840, 1, 101, 3, 4, 2, 1 };
 static Ints9 oid_sha384 ={9, 2, 16, 840, 1, 101, 3, 4, 2, 2 };
 static Ints9 oid_sha512 ={9, 2, 16, 840, 1, 101, 3, 4, 2, 3 };
 static Ints9 oid_sha224 ={9, 2, 16, 840, 1, 101, 3, 4, 2, 4 };
+static Ints9 oid_subjectAltName ={4, 2, 5, 29, 17 };
+static Ints9 oid_extensionRequest ={7, 1, 2, 840, 113549, 1, 9, 14 };
 static Ints *alg_oid_tab[NUMALGS+1] = {
 	(Ints*)&oid_rsaEncryption,
 	(Ints*)&oid_md2WithRSAEncryption,
@@ -1697,15 +1699,13 @@ parse_name(Elem* e)
 		}
 		el = el->tl;
 	}
-	if(i > 0) {
-		ans = (char*)emalloc(plen);
-		*ans = '\0';
-		while(--i >= 0) {
-			s = parts[i];
-			strcat(ans, s);
-			if(i > 0)
-				strcat(ans, ", ");
-		}
+	ans = (char*)emalloc(plen + 1);
+	*ans = '\0';
+	while(--i >= 0) {
+		s = parts[i];
+		strcat(ans, s);
+		if(i > 0)
+			strcat(ans, ", ");
 	}
 
 errret:
@@ -2459,6 +2459,15 @@ mkset(Elist *el)
 }
 
 static Elem
+mkcont(int num, Elist *l)
+{
+	Elem e = mkseq(l);
+	e.tag.class = Context;
+	e.tag.num = num;
+	return e;
+}
+
+static Elem
 mkalg(int alg)
 {
 	return mkseq(mkel(mkoid(alg_oid_tab[alg]), mkel(Null(), nil)));
@@ -2602,6 +2611,94 @@ errret:
 	return cert;
 }
 
+static char*
+splitalts(char *s)
+{
+	int q;
+
+	for(q = 0; *s != '\0'; s++){
+		if(*s == '\'')
+			q ^= 1;
+		else if(q == 0 && *s == ','){
+			*s++ = 0;
+			return s;
+		}
+	}
+	return nil;
+}
+
+static Elem
+mkaltname(char *s)
+{
+	Elem e;
+
+	e = mkstring(s);
+	e.tag.class = Context;
+	e.tag.num = 2;	/* dNSName */
+	return e;
+}
+
+static Elist*
+mkaltnames(char *alts)
+{
+	Elist *el;
+	char *s, *p;
+
+	if(alts == nil)
+		return nil;
+	el = nil;
+	alts = estrdup(alts);
+	for(s = alts; s != nil; s = p){
+		while(*s == ' ')
+			s++;
+		if(*s == '\0')
+			break;
+		if((p = strchr(s, ',')) != nil)
+			*p++ = 0;
+		el = mkel(mkaltname(s), el);
+	}
+	free(alts);
+	return el;
+}
+
+static Elist*
+mkextel(Elem e, Ints *oid, Elist *el)
+{
+	Bytes *b = nil;
+
+	if(encode(e, &b) == ASN_OK){
+		el = mkel(mkseq(
+			mkel(mkoid(oid),
+			mkel(mkoctet(b->data, b->len),
+			nil))), el);
+		freebytes(b);
+	}
+	freevalfields(&e.val);
+	return el;
+}
+
+static Elist*
+mkextensions(char *alts, int isreq)
+{
+	Elist *sl, *xl;
+
+	xl = nil;
+	if((sl = mkaltnames(alts)) != nil)
+		xl = mkextel(mkseq(sl), (Ints*)&oid_subjectAltName, xl);
+	if(xl != nil){
+		xl = mkel(mkseq(xl), nil);
+		if(isreq)
+			xl = mkel(mkseq(
+				mkel(mkoid((Ints*)&oid_extensionRequest),
+				mkel(mkset(xl), nil))), nil);
+	}
+	if(isreq)
+		xl = mkel(mkcont(0, xl), nil);
+	else if(xl != nil)
+		xl = mkel(mkcont(3, xl), nil);
+	return xl;
+}
+
 uchar*
 X509req(RSApriv *priv, char *subj, int *certlen)
 {
@@ -2614,8 +2711,11 @@ X509req(RSApriv *priv, char *subj, int *certlen)
 	uchar digest[SHA2_256dlen], *buf;
 	int buflen;
 	mpint *pkcs1;
+	char *alts;
 
 	e.val.tag = VInt;  /* so freevalfields at errret is no-op */
+	subj = estrdup(subj);
+	alts = splitalts(subj);
 	subject = mkDN(subj);
 	pubkey = mkseq(mkel(mkbigint(pk->n),mkel(mkint(mptoi(pk->ek)),nil)));
 	if(encode(pubkey, &pkbytes) != ASN_OK)
@@ -2630,7 +2730,7 @@ X509req(RSApriv *priv, char *subj, int *certlen)
 		mkel(mkint(version),
 		mkel(subject,
 		mkel(pubkey,
-		nil))));
+		mkextensions(alts, 1)))));
 	if(encode(certinfo, &certinfobytes) != ASN_OK)
 		goto errret;
 	sha2_256(certinfobytes->data, certinfobytes->len, digest, 0);
@@ -2648,7 +2748,7 @@ X509req(RSApriv *priv, char *subj, int *certlen)
 	mpfree(pkcs1);
 	e = mkseq(
 		mkel(certinfo,
-		mkel(mkalg(ALG_sha256),
+		mkel(mkalg(ALG_sha256WithRSAEncryption),
 		mkel(mkbits(buf, buflen),
 		nil))));
 	free(buf);
@@ -2659,7 +2759,156 @@ X509req(RSApriv *priv, char *subj, int *certlen)
 	cert = certbytes->data;
 errret:
 	freevalfields(&e.val);
+	free(subj);
 	return cert;
+}
+
+static void
+copysubject(char *name, int nname, char *subject)
+{
+	char *e;
+
+	if(name == nil || nname < 1)
+		return;
+	memset(name, 0, nname);
+	if(subject == nil)
+		return;
+	if((e = strchr(subject, ',')) != nil)
+		*e = 0;	/* take just CN part of Distinguished Name */
+	strncpy(name, subject, nname-1);
+	name[nname-1] = 0;
+	if(e != nil)
+		*e = ',';
+}
+
+static void
+appendaltnames(char *name, int nname, Bytes *ext, int isreq)
+{
+	Elem eext, ealt, edn;
+	Elist *el, *l;
+	Ints *oid;
+	char *alt, *e;
+	int len;
+
+	if(name == nil || nname < 1 || ext == nil)
+		return;
+	if(decode(ext->data, ext->len, &eext) != ASN_OK)
+		return;
+	if(isreq){
+		if(!is_seq(&eext, &el) || elistlen(el) != 2)
+			goto errext;
+		if(!is_oid(&el->hd, &oid) || !ints_eq(oid, (Ints*)&oid_extensionRequest))
+			goto errext;
+		el = el->tl;
+		if(!is_set(&el->hd, &el))
+			goto errext;
+		if(!is_seq(&el->hd, &el))
+			goto errext;
+	} else {
+		if(!is_seq(&eext, &el))
+			goto errext;
+	}
+	for(; el != nil; el = el->tl){
+		if(!is_seq(&el->hd, &l) || elistlen(l) != 2)
+			goto errext;
+		if(!is_oid(&l->hd, &oid) || !ints_eq(oid, (Ints*)&oid_subjectAltName))
+			continue;
+		el = l->tl;
+		break;
+	}
+	if(el == nil)
+		goto errext;
+	if(!is_octetstring(&el->hd, &ext))
+		goto errext;
+	if(decode(ext->data, ext->len, &ealt) != ASN_OK)
+		goto errext;
+	if(!is_seq(&ealt, &el))
+		goto erralt;
+	for(; el != nil; el = el->tl){
+		ext = el->hd.val.u.octetsval;
+		switch(el->hd.tag.num){
+		default:
+			continue;
+		case 1:	/* email */
+		case 2:	/* DNS */
+			if(el->hd.val.tag != VOctets)
+				goto erralt;
+			alt = smprint("%.*s", ext->len, (char*)ext->data);
+			break;
+		case 4:	/* DN */
+			if(el->hd.val.tag != VOctets
+			|| decode(ext->data, ext->len, &edn) != ASN_OK)
+				goto erralt;
+			alt = parse_name(&edn);
+			freevalfields(&edn.val);
+			break;
+		}
+		if(alt == nil)
+			goto erralt;
+
+		/* take just CN part of Distinguished Name */
+		if((e = strchr(alt, ',')) != nil)
+			*e = '\0';
+
+		len = strlen(alt);
+		if(strncmp(name, alt, len) == 0 && strchr(",", name[len]) != nil){
+			free(alt);	/* same as the subject */
+			continue;
+		}
+
+		if(name[0] != '\0')
+			strncat(name, ", ", nname-1);
+		strncat(name, alt, nname-1);
+		free(alt);
+	}
+erralt:
+	freevalfields(&ealt.val);
+errext:
+	freevalfields(&eext.val);
+}
+
+RSApub*
+X509reqtoRSApub(uchar *req, int nreq, char *name, int nname)
+{
+	Elem ereq;
+	Elist *el;
+	char *subject;
+	Bits *bits;
+	Bytes *pk;
+	RSApub *pub;
+
+	pub = nil;
+	if(decode(req, nreq, &ereq) != ASN_OK)
+		goto errret;
+	if(!is_seq(&ereq, &el) || elistlen(el) != 3)
+		goto errret;
+	if(!is_seq(&el->hd, &el) || elistlen(el) < 3)
+		goto errret;
+ 	el = el->tl;
+	subject = parse_name(&el->hd);
+	copysubject(name, nname, subject);
+	free(subject);
+	el = el->tl;
+	if(el->tl != nil
+	&& el->tl->hd.tag.class == Context
+	&& el->tl->hd.tag.num == 0
+	&& el->tl->hd.val.tag == VOctets)
+		appendaltnames(name, nname, el->tl->hd.val.u.octetsval, 1);
+	if(!is_seq(&el->hd, &el) || elistlen(el) != 2)
+		goto errret;
+	if(parse_alg(&el->hd) != ALG_rsaEncryption)
+		goto errret;
+	el = el->tl;
+	if(!is_bitstring(&el->hd, &bits))
+		goto errret;
+	pk = makebytes(bits->data, bits->len);
+	pub = decode_rsapubkey(pk);
+	freebytes(pk);
+	if(pub == nil)
+		goto errret;
+errret:
+	freevalfields(&ereq.val);
+	return pub;
 }
 
 static char*

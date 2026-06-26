@@ -1779,6 +1779,10 @@ factotum_rsa_open(uchar *cert, int certlen)
 
 	// roll factotum keyring around to match certificate
 	rsapub = X509toRSApub(cert, certlen, nil, 0);
+	if(rsapub == nil){
+		factotum_rsa_close(rpc);
+		return nil;
+	}
 	while(1){
 		if(auth_rpc(rpc, "read", nil, 0) != ARok){
 			factotum_rsa_close(rpc);
