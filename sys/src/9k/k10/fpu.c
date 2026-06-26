@@ -410,8 +410,16 @@ fpunm(Ureg* ureg, void*)
 	if(up->fpustate & Hold){
 		pfpu = &up->notefpu;
 		if(pfpu->fpustate == Init){
-			*pfpu = up->PFPU;
-			pfpu->fpustate &= ~Hold;
+			/*
+			 * Copy the interrupted FP state into the note context.
+			 * The 512-byte save area is 16-aligned within fxsave[] at
+			 * an offset that differs between PFPU and notefpu, so copy
+			 * the aligned region. A struct copy would land the data at
+			 * the wrong offset and corrupt the control words.
+			 */
+			memmove((void*)((PTR2UINT(pfpu->fxsave)+15) & ~15),
+				(void*)((PTR2UINT(up->fxsave)+15) & ~15), sizeof(Fxsave));
+			pfpu->fpustate = up->fpustate & ~Hold;
 		}
 	}
 
