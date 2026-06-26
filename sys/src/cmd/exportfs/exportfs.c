@@ -7,6 +7,7 @@
  */
 #include <u.h>
 #include <libc.h>
+#include <bio.h>
 #include <auth.h>
 #include <fcall.h>
 #include <libsec.h>
@@ -57,6 +58,7 @@ char	*aanfilter = "/bin/aan";
 int	encproto = Encnone;
 char	*tlscert = "/sys/lib/tls/cert.pem";
 int	readonly;
+int	localonly;
 
 static void	mksecret(char *, uchar *);
 static int localread9pmsg(int, void *, uint, ulong *);
@@ -70,7 +72,7 @@ void	procsetname(char *fmt, ...);
 void
 usage(void)
 {
-	fprint(2, "usage: %s [-adnsR] [-f dbgfile] [-m msize] [-r root] "
+	fprint(2, "usage: %s [-adnsLR] [-f dbgfile] [-m msize] [-r root] "
 		"[-S srvfile] [-e 'crypt hash'] [-P exclusion-file] "
 		"[-A announce-string] [-B address]\n", argv0);
 	fatal("usage");
@@ -110,6 +112,31 @@ pushtlsserver(int fd, char *tlscert)
 	efd = tlsServer(fd, &conn);
 	free(conn.cert);
 	return efd;
+}
+
+/*
+ * report whether u is a user of the local file server, so a key in
+ * the auth domain alone does not grant a whole-namespace export
+ */
+int
+localuser(char *u)
+{
+	Biobuf *b;
+	char *l, *f[4];
+	int ok;
+
+	if((b = Bopen("/adm/users", OREAD)) == nil)
+		return 0;	/* fail closed */
+	ok = 0;
+	while((l = Brdline(b, '\n')) != nil){
+		l[Blinelen(b)-1] = '\0';
+		if(getfields(l, f, nelem(f), 0, ":") >= 2 && strcmp(f[1], u) == 0){
+			ok = 1;
+			break;
+		}
+	}
+	Bterm(b);
+	return ok;
 }
 
 void
@@ -155,6 +182,9 @@ main(int argc, char **argv)
 		break;
 	case 'n':
 		nonone = 0;
+		break;
+	case 'L':
+		localonly = 1;
 		break;
 	case 'r':
 		srv = EARGF(usage());
@@ -203,6 +233,8 @@ main(int argc, char **argv)
 			fatal("auth_proxy: %r");
 		if(nonone && strcmp(ai->cuid, "none") == 0)
 			fatal("exportfs by none disallowed");
+		if(localonly && !localuser(ai->cuid))
+			fatal("%s: not a local user", ai->cuid);
 		if(auth_chuid(ai, nsfile) < 0)
 			fatal("auth_chuid: %r");
 		putenv("service", "exportfs");
