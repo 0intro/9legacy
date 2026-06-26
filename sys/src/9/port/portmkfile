@@ -66,6 +66,7 @@ errstr.h:	../port/mkerrstr ../port/error.h
 	$CC -s$stem main.c | dbfmt > $stem.db
 
 alloc.$O:	/sys/include/pool.h
+random.$O:	/sys/include/libsec.h
 devmnt.$O:	/sys/include/fcall.h
 proc.$O:	errstr.h
 devroot.$O:	errstr.h
