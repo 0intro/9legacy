@@ -27,6 +27,7 @@ char	*rexcall(int*, char*, char*);
 void	rmtnoteproc(void);
 int	setam(char*);
 int	setamalg(char*);
+int	localuser(char*);
 void	usage(void);
 void	writestr(int, char*, char*, int);
 
@@ -42,6 +43,8 @@ char	*patternfile;
 char	*origargs;
 char	*keyspec = "";
 int	slow;
+int	localonly;
+int	rflag;
 
 char	*srvname = "ncpu";
 char	*exportfs = "/bin/exportfs";
@@ -241,7 +244,7 @@ main(int argc, char **argv)
 		patternfile = EARGF(usage());
 		break;
 	case 'R':			/* From listen; must be last option */
-		remoteside();
+		rflag = 1;
 		break;
 	case 's':
 		sslonly = 1;
@@ -262,9 +265,15 @@ main(int argc, char **argv)
 	case 'v':
 		conndbg = 1;
 		break;
+	case 'L':
+		localonly = 1;
+		break;
 	default:
 		usage();
 	}ARGEND;
+
+	if(rflag)
+		remoteside();
 
 	if(argc != 0)
 		usage();
@@ -618,6 +627,31 @@ netkeyauth(int fd)
 	return -1;
 }
 
+/*
+ * report whether u is a user of the local file server, so a key in
+ * the auth domain alone does not grant a whole-namespace session
+ */
+int
+localuser(char *u)
+{
+	Biobuf *b;
+	char *l, *f[4];
+	int ok;
+
+	if((b = Bopen("/adm/users", OREAD)) == nil)
+		return 0;	/* fail closed */
+	ok = 0;
+	while((l = Brdline(b, '\n')) != nil){
+		l[Blinelen(b)-1] = '\0';
+		if(getfields(l, f, nelem(f), 0, ":") >= 2 && strcmp(f[1], u) == 0){
+			ok = 1;
+			break;
+		}
+	}
+	Bterm(b);
+	return ok;
+}
+
 static int
 netkeysrvauth(int fd, char *user)
 {
@@ -645,6 +679,11 @@ netkeysrvauth(int fd, char *user)
 	auth_freechal(ch);
 	if(ai == nil)
 		return -1;
+	if(localonly && !localuser(user)){
+		werrstr("%s: not a local user", user);
+		auth_freeAI(ai);
+		return -1;
+	}
 	writestr(fd, "", "challenge", 1);
 	if(auth_chuid(ai, nil) < 0)
 		fatal(1, "newns");
@@ -791,6 +830,11 @@ srvp9auth(int fd, char *user)
 	ai = auth_proxy(0, nil, "proto=%q role=server %s", p9authproto, keyspec);
 	if(ai == nil)
 		return -1;
+	if(localonly && !localuser(ai->cuid)){
+		werrstr("%s: not a local user", ai->cuid);
+		auth_freeAI(ai);
+		return -1;
+	}
 	if(auth_chuid(ai, nil) < 0)	/* switch to user in keyspec */
 		return -1;
 	strecpy(user, user+MaxStr, ai->cuid);
