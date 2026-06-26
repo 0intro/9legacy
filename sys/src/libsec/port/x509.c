@@ -2353,15 +2353,20 @@ static Elem
 mkbigint(mpint *p)
 {
 	Elem e;
-	uchar *buf;
-	int buflen;
 
 	e.tag.class = Universal;
 	e.tag.num = INTEGER;
 	e.val.tag = VBigInt;
-	buflen = mptobe(p, nil, 0, &buf);
-	e.val.u.bigintval = makebytes(buf, buflen);
-	free(buf);
+	e.val.u.bigintval = newbytes((mpsignif(p)+8)/8);
+	if(p->sign < 0){
+		mpint *s = mpnew(e.val.u.bigintval->len*8+1);
+		mpleft(mpone, e.val.u.bigintval->len*8, s);
+		mpadd(p, s, s);
+		mptober(s, e.val.u.bigintval->data, e.val.u.bigintval->len);
+		mpfree(s);
+	} else {
+		mptober(p, e.val.u.bigintval->data, e.val.u.bigintval->len);
+	}
 	return e;
 }
 
