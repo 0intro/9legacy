@@ -22,6 +22,8 @@ case juke					# ye olde file server
 	srv -q il!jukefs && mount /srv/il!jukefs /n/juke
 case sources
 	srv -nq tcp!9p.io sources /n/sources
+case 9legacy
+	srv -nq tcp!sources.9legacy.org 9legacy /n/sources
 case sourcesdump
 	9fs sources
 	mount -n /srv/sources /n/sourcesdump main/archive
