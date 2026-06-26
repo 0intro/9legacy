@@ -932,7 +932,7 @@ sourceLoadBlock(Source *r, int mode)
 int
 sourceLock(Source *r, int mode)
 {
-	Block *b;
+	Block *b, *xb;
 
 	if(mode == -1)
 		mode = r->mode;
@@ -941,11 +941,28 @@ sourceLock(Source *r, int mode)
 	if(b == nil)
 		return 0;
 	/*
+	 * From: Richard Miller <miller@hamnavoe.com>
+	 * Date: Sun, 14 Mar 2021 11:50:39 +0000
+	 *
+	 * I think it's a local fix for an assertion failure I was getting when
+	 * fossil is being hammered by golang tests.  The original assert,
+	 * assert(r->b == nil), turns out to be too strong.
+	 */
+	/*
 	 * The fact that we are holding b serves as the
 	 * lock entitling us to write to r->b.
 	 */
-	assert(r->b == nil);
-	r->b = b;
+	while(!casp(&r->b, nil, b)){
+		xb = r->b;
+		if(xb != nil && xb != b)
+			fprint(2, "sourceLock: %x (%V) != %x (%V)\n",
+				xb->addr, xb->score, b->addr, b->score);
+		else
+			fprint(2, "sourceLock: %x (%V) waiting\n",
+				b->addr, b->score);
+		if (xb != nil)
+			sleep(1000);
+	}
 	if(r->mode == OReadWrite)
 		assert(r->epoch == r->b->l.epoch);
 	return 1;
