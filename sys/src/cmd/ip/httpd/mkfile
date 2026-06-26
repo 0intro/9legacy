@@ -6,6 +6,8 @@ HFILES=\
 
 TARG=\
 	httpd\
+	9down\
+	sources\
 	imagemap\
 	man2html\
 	save\
@@ -70,8 +72,11 @@ none:VQ:
 	echo usage: mk all, install, installall, '$O'.cmd, cmd.install, or cmd.installall
 	echo usage: mk safeinstall, safeinstallall, cmd.safeinstallall, or cmd.safeinstallall
 
-$O.9down: 9down.$O whois.$O classify.$O $LIB
+$O.9down: 9down.$O $LIB
 	$LD -o $target $prereq
+
+$O.sources: $O.9down
+	cp $O.9down $target
 
 $O.test9down: 9down4e.$O whois.$O classify.$O $LIB
 	$LD -o $target $prereq
