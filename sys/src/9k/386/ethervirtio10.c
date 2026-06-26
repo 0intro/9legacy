@@ -613,7 +613,7 @@ static void*
 virtiomapregs(Pcidev *p, int cap, int size)
 {
 	int bar, len;
-	uvlong addr;
+	uvlong addr, base;
 
 	if(cap < 0)
 		return nil;
@@ -626,7 +626,10 @@ virtiomapregs(Pcidev *p, int cap, int size)
 		return nil;
 	if(addr+len > p->mem[bar].size)
 		return nil;
-	addr += p->mem[bar].bar & ~0xFULL;
+	base = p->mem[bar].bar & ~0xFULL;
+	if((p->mem[bar].bar & 6) == 4 && bar+1 < nelem(p->mem))
+		base |= (uvlong)p->mem[bar+1].bar << 32;
+	addr += base;
 	return vmap(addr, size);
 }
 
