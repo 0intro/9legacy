@@ -117,7 +117,7 @@ walk(char *new, char *old, Dir *pd, void*)
 				return;
 			}
 			if((douid&&strcmp(od.uid,xd->uid)!=0)
-			|| strcmp(od.uid,xd->gid)!=0
+			|| strcmp(od.gid,xd->gid)!=0
 			|| od.mode!=xd->mode){
 				print("%s metaupdate/metaupdate conflict\n", new);
 				conflicts = 1;
