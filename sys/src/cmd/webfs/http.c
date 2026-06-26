@@ -286,7 +286,7 @@ httpopen(Client *c, Url *url)
 		fprint(2, "dial %s\n", hs->netaddr);
 		fprint(2, "dial port: %s\n", url->port);
 	}
-	fd = iotlsdial(io, hs->netaddr, 0, 0, 0, url->ischeme==UShttps);
+	fd = iotlsdial(io, hs->netaddr, url->host, 0, 0, 0, url->ischeme==UShttps);
 	if(fd < 0){
 	Error:
 		if(httpdebug)
@@ -312,6 +312,8 @@ httpopen(Client *c, Url *url)
 		fprint(2, "<- User-Agent: %s\n", c->ctl.useragent);
 	if(c->ctl.useragent)
 		ioprint(io, fd, "User-Agent: %s\r\n", c->ctl.useragent);
+	if(c->hdr)
+		ioprint(io, fd, "%s", c->hdr);
 	if(c->ctl.sendcookies){
 		/* should we use url->page here?  sometimes it is nil. */
 		cookies = httpcookies(url->host, url->http.page_spec,
@@ -323,10 +325,12 @@ httpopen(Client *c, Url *url)
 		free(cookies);
 	}
 	if(c->havepostbody){
-		ioprint(io, fd, "Content-type: %s\r\n", PostContentType);
+		if(c->hdr == nil)
+			ioprint(io, fd, "Content-type: %s\r\n", PostContentType);
 		ioprint(io, fd, "Content-length: %ud\r\n", c->npostbody);
 		if(httpdebug){
-			fprint(2, "<- Content-type: %s\n", PostContentType);
+			if(c->hdr == nil)
+				fprint(2, "<- Content-type: %s\n", PostContentType);
 			fprint(2, "<- Content-length: %ud\n", c->npostbody);
 		}
 	}
