@@ -1207,7 +1207,7 @@ bitno(long b)
 {
 	int i;
 
-	for(i=0; i<32; i++)
+	for(i=0; i < BI2LONG; i++)
 		if(b & (1L<<i))
 			return i;
 	diag(Z, "bad in bitno");
