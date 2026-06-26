@@ -21,6 +21,8 @@ int donothing;
 int verbose;
 char **match;
 int nmatch;
+char **xmatch;
+int nxmatch;
 int tempspool = 1;
 int safeinstall = 1;
 char *lroot;
@@ -145,7 +147,7 @@ chat(char *f, ...)
 void
 usage(void)
 {
-	fprint(2, "usage: replica/applylog [-cnSstuv] [-T timefile] clientdb clientroot serverroot [path ...]\n");
+	fprint(2, "usage: replica/applylog [-cnSstuv] [-T timefile] [-x path] clientdb clientroot serverroot [path ...]\n");
 	exits("usage");
 }
 
@@ -216,6 +218,11 @@ main(int argc, char **argv)
 	case 'v':
 		verbose++;
 		break;
+	case 'x':
+		if(nxmatch%16 == 0)
+			xmatch = erealloc(xmatch, (nxmatch+16)*sizeof xmatch[0]);
+		xmatch[nxmatch++] = EARGF(usage());
+		break;
 	default:
 		usage();
 	}ARGEND
@@ -238,6 +245,9 @@ main(int argc, char **argv)
 	for(i=0; i<nmatch; i++)
 		if(match[i][0] == '/')
 			match[i]++;
+	for(i=0; i<nxmatch; i++)
+		if(xmatch[i][0] == '/')
+			xmatch[i]++;
 
 	if((clientdb = opendb(argv[0])) == nil)
 		sysfatal("opendb %q: %r", argv[2]);
@@ -771,6 +781,11 @@ ismatch(char *s)
 {
 	int i, len;
 
+	for(i=0; i<nxmatch; i++){
+		len = strlen(xmatch[i]);
+		if(len && strncmp(s, xmatch[i], len) == 0 && (s[len]=='/' || s[len] == 0))
+			return 0;
+	}
 	if(nmatch == 0)
 		return 1;
 	for(i=0; i<nmatch; i++){

@@ -44,6 +44,10 @@ applychanges, applylog, compactdb, updatedb \- simple client-server replica mana
 .B -s
 .I name
 ]...
+[
+.B -x
+.I path
+] ...
 .I clientdb
 .I clientroot
 .I serverroot
@@ -235,6 +239,10 @@ is similar but causes
 .I applylog
 to overwrite the local changes.
 (The conflict is resolved in favor of the server.)
+The
+.B -x
+option (which may be specified multiple times) excludes the named path
+and all its children from the update.
 .PP
 .I Applychanges
 is, in some sense, the opposite of
