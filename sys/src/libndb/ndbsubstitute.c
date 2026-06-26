@@ -7,7 +7,7 @@
 Ndbtuple*
 ndbsubstitute(Ndbtuple *t, Ndbtuple *a, Ndbtuple *b)
 {
-	Ndbtuple *nt;
+	Ndbtuple *nt, *next;
 
 	if(a == b){
 		ndbsetmalloctag(t, getcallerpc(&t));
@@ -19,8 +19,13 @@ ndbsubstitute(Ndbtuple *t, Ndbtuple *a, Ndbtuple *b)
 		return t;
 	}
 
-	/* all pointers to a become pointers to b */
-	for(nt = t; nt != nil; nt = nt->entry){
+	/*
+	 * all pointers to a become pointers to b. save next first, else
+	 * redirecting a predecessor's entry to b skips a, leaving a's own
+	 * line pointing at freed a.
+	 */
+	for(nt = t; nt != nil; nt = next){
+		next = nt->entry;
 		if(nt->line == a)
 			nt->line = b;
 		if(nt->entry == a)
