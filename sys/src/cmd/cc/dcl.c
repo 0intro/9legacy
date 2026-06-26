@@ -281,6 +281,20 @@ isstruct(Node *a, Type *t)
 	return 0;
 }
 
+static int
+isnameoffset(Node *n, Type *t)
+{
+	if(!sametype(n->type, t))
+		return 0;
+	while(n->op == OCAST)
+		n = n->left;
+	if(n->op != OADD)
+		return 0;
+	return n->left->op == OADDR && n->left->left->op == ONAME &&
+		n->right->op == OCONST &&
+		sametype(n->left->type, n->right->type);
+}
+
 Node*
 init1(Sym *s, Type *t, long o, int exflag)
 {
@@ -393,6 +407,8 @@ init1(Sym *s, Type *t, long o, int exflag)
 			goto gext;
 		}
 
+		if(isnameoffset(a, t))
+			goto gext;
 		while(a->op == OCAST)
 			a = a->left;
 		if(a->op == OADDR) {
