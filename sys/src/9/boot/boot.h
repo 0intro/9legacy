@@ -66,6 +66,9 @@ extern int	connecttcp(void);
 extern void	configlocal(Method*);
 extern int	connectlocal(void);
 
+extern void	configvirtio9p(Method*);
+extern int	connectvirtio9p(void);
+
 extern void	configpaq(Method*);
 extern int	connectpaq(void);
 
