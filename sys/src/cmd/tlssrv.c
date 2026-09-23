@@ -7,7 +7,7 @@
 enum{ BufSize = 8192 };
 
 char *remotesys, *logfile;
-int debug, p[2];
+int debug, p[2], timeout;
 
 void
 death(void *, char *)
@@ -105,7 +105,7 @@ reporter(char *fmt, ...)
 void
 usage(void)
 {
-	fprint(2, "usage: tlssrv -c cert [-D] [-l logfile] [-r remotesys] [cmd args...]\n");
+	fprint(2, "usage: tlssrv -c cert [-D] [-T timeout] [-l logfile] [-r remotesys] [cmd args...]\n");
 	fprint(2, "  after  auth/secretpem key.pem > /mnt/factotum/ctl\n");
 	exits("usage");
 }
@@ -135,6 +135,9 @@ main(int argc, char *argv[])
 	case 'r':
 		remotesys = EARGF(usage());
 		break;
+	case 'T':
+		timeout = atoi(EARGF(usage()));
+		break;
 	default:
 		usage();
 	}ARGEND
@@ -159,12 +162,16 @@ main(int argc, char *argv[])
 	fd = 1;
 	if(debug > 1)
 		fd = dumper(fd);
+	if(timeout)
+		alarm(timeout);
 	fd = tlsServer(fd, conn);
 	if(fd < 0){
 		if(debug)
 			reporter("failed: %r");
 		exits(0);
 	}
+	if(timeout)
+		alarm(0);
 	reporter("open");
 
 	if(argc > 0){

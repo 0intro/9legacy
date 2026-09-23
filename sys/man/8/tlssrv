@@ -5,6 +5,10 @@ tlssrv, tlsclient, tlssrvtunnel, tlsclienttunnel \- TLS server and client
 .PP
 .B tlssrv
 [
+.B -T
+.I timeout
+]
+[
 .B -c
 .I cert.pem
 ]
@@ -50,6 +54,12 @@ file to establish an SSL or TLS connection before launching
 .I cmd
 .IR args ;
 a typical command might start the IMAP or HTTP server.
+A millisecond
+.I timeout
+for the TLS handshake phase can be set using the
+.B -T
+option.
+This can prevent clients from hogging connections.
 .I Cert.pem
 is the server certificate;
 .IR factotum (4)
