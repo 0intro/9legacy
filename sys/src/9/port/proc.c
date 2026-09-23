@@ -170,8 +170,10 @@ sched(void)
 	m->readied = 0;
 	up = p;
 	up->state = Running;
+	lock(runq);
 	up->mach = MACHP(m->machno);
 	m->proc = up;
+	unlock(runq);
 	mmuswitch(up);
 	gotolabel(&up->sched);
 }
@@ -1326,6 +1328,8 @@ procflushseg(Segment *s)
 			continue;
 		for(ns = 0; ns < NSEG; ns++)
 			if(p->seg[ns] == s){
+				splhi();
+				lock(runq);
 				p->newtlb = 1;
 				for(nm = 0; nm < conf.nmach; nm++){
 					if(MACHP(nm)->proc == p){
@@ -1333,6 +1337,8 @@ procflushseg(Segment *s)
 						nwait++;
 					}
 				}
+				unlock(runq);
+				spllo();
 				break;
 			}
 	}
