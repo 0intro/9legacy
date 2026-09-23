@@ -49,6 +49,20 @@ void	aesCTRencrypt(uchar *p, int len, AESstate *s);
 void	setupAESXCBCstate(AESstate *s);
 uchar*	aesXCBCmac(uchar *p, int len, AESstate *s);
 
+typedef struct AESGCMstate AESGCMstate;
+struct AESGCMstate
+{
+	AESstate;
+
+	ulong	H[4];
+	ulong	M[16][256][4];
+};
+
+void	setupAESGCMstate(AESGCMstate *s, uchar *key, int keylen, uchar *iv, int ivlen);
+void	aesgcm_setiv(AESGCMstate *s, uchar *iv, int ivlen);
+void	aesgcm_encrypt(uchar *dat, ulong ndat, uchar *aad, ulong naad, uchar tag[16], AESGCMstate *s);
+int	aesgcm_decrypt(uchar *dat, ulong ndat, uchar *aad, ulong naad, uchar tag[16], AESGCMstate *s);
+
 /*
  * Blowfish Definitions
  */
