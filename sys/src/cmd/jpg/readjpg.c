@@ -474,12 +474,14 @@ readsegment(Header *h, int *markerp)
 
 static
 int
-huffmantable(Header *h, uchar *b)
+huffmantable(Header *h, uchar *b, int nb)
 {
 	Huffman *t;
 	int Tc, th, n, nsize, i, j, k, v, cnt, code, si, sr, m;
 	int *maxcode;
 
+	if(nb < 17)
+		jpgerror(h, "ReadJPG: truncated Huffman table");
 	nibbles(b[0], &Tc, &th);
 	if(Tc > 1)
 		jpgerror(h, "ReadJPG: unknown Huffman table class %d", Tc);
@@ -494,6 +496,8 @@ huffmantable(Header *h, uchar *b)
 	nsize = 0;
 	for(i=0; i<16; i++)
 		nsize += b[1+i];
+	if(nb < 17+nsize)
+		jpgerror(h, "ReadJPG: truncated Huffman table");
 	t->size = jpgmalloc(h, (nsize+1)*sizeof(int), 1);
 	k = 0;
 	for(i=1; i<=16; i++){
@@ -585,7 +589,7 @@ huffmantables(Header *h, uchar *b, int n)
 	int l, mt;
 
 	for(l=0; l<n; l+=17+mt)
-		mt = huffmantable(h, &b[l]);
+		mt = huffmantable(h, &b[l], n-l);
 }
 
 static
