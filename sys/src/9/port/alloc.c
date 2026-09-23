@@ -113,7 +113,7 @@ punlock(Pool *p)
 
 	memmove(msg, pv->msg, sizeof msg);
 	iunlock(&pv->lk);
-	iprint("%.*s", sizeof pv->msg, msg);
+	iprint("%.*s", (int)sizeof pv->msg, msg);
 }
 
 void
@@ -174,6 +174,8 @@ smalloc(ulong size)
 		v = poolalloc(mainmem, size+Npadlong*sizeof(ulong));
 		if(v != nil)
 			break;
+		if(up == nil)
+			panic("smalloc: nil up");
 		tsleep(&up->sleep, return0, 0, 100);
 	}
 	if(Npadlong){
