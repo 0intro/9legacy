@@ -166,7 +166,7 @@ enum {
 
 
 void*
-smalloc(ulong size)
+smalloc(uintptr size)
 {
 	void *v;
 
@@ -187,7 +187,7 @@ smalloc(ulong size)
 }
 
 void*
-malloc(ulong size)
+malloc(uintptr size)
 {
 	void *v;
 
@@ -204,7 +204,7 @@ malloc(ulong size)
 }
 
 void*
-mallocz(ulong size, int clr)
+mallocz(uintptr size, int clr)
 {
 	void *v;
 
@@ -220,7 +220,7 @@ mallocz(ulong size, int clr)
 }
 
 void*
-mallocalign(ulong size, ulong align, long offset, ulong span)
+mallocalign(uintptr size, uintptr align, vlong offset, uintptr span)
 {
 	void *v;
 
@@ -243,7 +243,7 @@ free(void *v)
 }
 
 void*
-realloc(void *v, ulong size)
+realloc(void *v, uintptr size)
 {
 	void *nv;
 
@@ -261,7 +261,7 @@ realloc(void *v, ulong size)
 	return nv;
 }
 
-ulong
+uintptr
 msize(void *v)
 {
 	return poolmsize(mainmem, (ulong*)v-Npadlong)-Npadlong*sizeof(ulong);
@@ -277,7 +277,7 @@ calloc(ulong n, ulong szelem)
 }
 
 void
-setmalloctag(void *v, ulong pc)
+setmalloctag(void *v, uintptr pc)
 {
 	ulong *u;
 	USED(v, pc);
@@ -288,7 +288,7 @@ setmalloctag(void *v, ulong pc)
 }
 
 void
-setrealloctag(void *v, ulong pc)
+setrealloctag(void *v, uintptr pc)
 {
 	ulong *u;
 	USED(v, pc);
@@ -298,7 +298,7 @@ setrealloctag(void *v, ulong pc)
 	u[-Npadlong+ReallocOffset] = pc;
 }
 
-ulong
+uintptr
 getmalloctag(void *v)
 {
 	USED(v);
@@ -307,7 +307,7 @@ getmalloctag(void *v)
 	return ((ulong*)v)[-Npadlong+MallocOffset];
 }
 
-ulong
+uintptr
 getrealloctag(void *v)
 {
 	USED(v);
