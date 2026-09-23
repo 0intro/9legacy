@@ -153,6 +153,8 @@ fixfault(Segment *s, uintptr addr, int read, int dommuput)
 			*pg = new;
 			copypage(lkp, *pg);
 			putpage(lkp);
+			if(s->ref > 1)
+				procflushseg(s);
 		}
 		mmuphys = PPN((*pg)->pa) | PTEWRITE | PTEVALID;
 		(*pg)->modref = PG_MOD|PG_REF;
