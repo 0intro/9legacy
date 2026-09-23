@@ -149,7 +149,7 @@ xallocz(ulong size, int zero)
 }
 
 void*
-xalloc(ulong size)
+xalloc(uintptr size)
 {
 	return xallocz(size, 1);
 }

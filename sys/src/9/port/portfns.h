@@ -383,7 +383,7 @@ Proc*		wakeup(Rendez*);
 int		walk(Chan**, char**, int, int, int*);
 void		wlock(RWlock*);
 void		wunlock(RWlock*);
-void*		xalloc(ulong);
+void*		xalloc(uintptr);
 void*		xallocz(ulong, int);
 void		xfree(void*);
 void		xhole(ulong, ulong);
