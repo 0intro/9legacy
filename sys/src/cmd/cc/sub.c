@@ -2113,7 +2113,8 @@ castucom(Node *r)
 	Node *rl;
 
 	if(r->op == OCAST &&
-	   (rl = r->left)->op == OCOM &&
+	   ((rl = r->left)->op == OCOM ||
+	    rl->op == OXOR) &&			/* ||XOR experiment - geoff */
 	   (r->type->etype == TVLONG || r->type->etype == TUVLONG) &&
 	   typeu[rl->type->etype] && typechl[rl->type->etype])
 		return 1;
