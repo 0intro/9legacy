@@ -1093,8 +1093,11 @@ parseoptions(Req *rp)
 			c = nhgets(o);
 			c -= 28;
 			c += Udphdrsize;
-			if(c > 0)
+			if(c > 0){
+				if(c > sizeof(rp->buf))
+					c = sizeof(rp->buf);
 				rp->max = rp->buf + c;
+			}
 			break;
 		case ODclientid:
 			if(n <= 1)
