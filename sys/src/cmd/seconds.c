@@ -6,8 +6,6 @@
 #include <libc.h>
 #include <ctype.h>
 
-typedef ulong Time;
-
 enum {
 	AM, PM, HR24,
 
@@ -208,7 +206,7 @@ validtm(Tm *tm)
 	return 1;
 }
 
-Time
+uvlong
 seconds(char *timestr)
 {
 	Tm date;
@@ -216,6 +214,7 @@ seconds(char *timestr)
 	memset(&date, 0, sizeof date);
 	if (prsabsdate(timestr, localtime(time(0)), &date) < 0)
 		return -1;
+	/* a uvlong version of tm2sec would work here, without the 2106 check */
 	return validtm(&date)? tm2sec(&date): -1;
 }
 
@@ -223,18 +222,19 @@ int
 convert(char *timestr)
 {
 	char *copy;
-	Time tstime;
+	uvlong tstime;
 
 	copy = strdup(timestr);
 	if (copy == nil)
 		sysfatal("out of memory");
 	tstime = seconds(copy);
 	free(copy);
-	if (tstime == -1) {
-		fprint(2, "%s: `%s' not a valid date\n", argv0, timestr);
+	if (tstime == (uvlong)-1) {
+		fprint(2, "%s: `%s' not a valid unix-era date\n",
+			argv0, timestr);
 		return 1;
 	}
-	print("%lud\n", tstime);
+	print("%llud\n", tstime);
 	return 0;
 }
 

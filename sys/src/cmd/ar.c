@@ -670,9 +670,9 @@ rderr(void)
 }
 
 void
-phaseerr(int offset)
+phaseerr(vlong offset)
 {
-	fprint(2, "ar: phase error at offset %d\n", offset);
+	fprint(2, "ar: phase error at offset %lld\n", offset);
 	exits("error");
 }
 
