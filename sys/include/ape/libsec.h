@@ -382,6 +382,56 @@ DSApub*		dsaprivtopub(DSApriv*);
 DSApriv*	asn1toDSApriv(uchar*, int);
 
 /*
+ * elliptic curves
+ */
+typedef struct ECpoint{
+	int inf;
+	mpint *x;
+	mpint *y;
+	mpint *z;	/* nil when using affine coordinates */
+} ECpoint;
+
+typedef ECpoint ECpub;
+typedef struct ECpriv{
+	ECpoint;
+	mpint *d;
+} ECpriv;
+
+typedef struct ECdomain{
+	mpint *p;
+	mpint *a;
+	mpint *b;
+	ECpoint G;
+	mpint *n;
+	mpint *h;
+} ECdomain;
+
+void	ecdominit(ECdomain *, void (*init)(mpint *p, mpint *a, mpint *b, mpint *x, mpint *y, mpint *n, mpint *h));
+void	ecdomfree(ECdomain *);
+void	ecassign(ECdomain *, ECpoint *old, ECpoint *new);
+void	ecadd(ECdomain *, ECpoint *a, ECpoint *b, ECpoint *s);
+void	ecmul(ECdomain *, ECpoint *a, mpint *k, ECpoint *s);
+ECpoint*	strtoec(ECdomain *, char *, char **, ECpoint *);
+ECpriv*	ecgen(ECdomain *, ECpriv*);
+int	ecverify(ECdomain *, ECpoint *);
+int	ecpubverify(ECdomain *, ECpub *);
+void	ecdsasign(ECdomain *, ECpriv *, uchar *, int, mpint *, mpint *);
+int	ecdsaverify(ECdomain *, ECpub *, uchar *, int, mpint *, mpint *);
+void	base58enc(uchar *, char *, int);
+int	base58dec(char *, uchar *, int);
+ECpub*	ecdecodepub(ECdomain *dom, uchar *, int);
+int	ecencodepub(ECdomain *dom, ECpub *, uchar *, int);
+void	ecpubfree(ECpub *);
+
+void	secp256r1(mpint *p, mpint *a, mpint *b, mpint *x, mpint *y, mpint *n, mpint *h);
+
+/* x25519 elliptic curve diffie-hellman */
+void	curve25519(uchar mypublic[32], uchar secret[32], uchar basepoint[32]);
+int	x25519(uchar out[32], uchar s[32], uchar u[32]);
+void	curve25519_dh_new(uchar x[32], uchar y[32]);
+int	curve25519_dh_finish(uchar x[32], uchar y[32], uchar z[32]);
+
+/*
  * TLS
  */
 typedef struct Thumbprint{

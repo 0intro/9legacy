@@ -22,6 +22,9 @@ CFILES = des.c desmodes.c desECB.c desCBC.c des3ECB.c des3CBC.c\
 	hkdf.c\
 	tsmemcmp.c\
 	ccpoly.c\
+	ecc.c jacobian.c secp256r1.c curve25519.c curve25519_dh.c\
+
+CLEANFILES=secp256r1.c jacobian.c
 
 ALLOFILES=${CFILES:%.c=%.$O}
 
@@ -37,6 +40,12 @@ UPDATE=mkfile\
 	$CFILES\
 
 </sys/src/cmd/mksyslib
+
+# generate the elliptic curve parameter tables from their mp source
+%.c:D:	%.mp
+	echo '#include "os.h"' > $target
+	echo '#include <mp.h>' >> $target
+	mpc $prereq >> $target
 
 $O.rsatest: rsatest.$O
 	$LD -o $target $prereq
