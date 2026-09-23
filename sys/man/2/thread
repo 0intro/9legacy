@@ -184,6 +184,11 @@ on a stack of size
 .IR stacksize .
 Thread stacks are allocated in shared memory, making it valid to pass
 pointers to stack variables between threads and procs.
+The thread library attempts to detect approaching stack overflow,
+but can be defeated by enough automatic storage,
+with often puzzling consequences, so be generous.
+A minimum size is silently enforced
+and stack sizes are doubled on 64-bit architectures.
 .I Procrfork
 creates a new proc, and inside that proc creates
 a single thread as
