@@ -743,6 +743,8 @@ tlsrecread(TlsRec *tr)
 		if(strcmp(up->errstr, Eintr) == 0 && !waserror()){
 			regurgitate(tr, header, nconsumed);
 			poperror();
+		}else if(strcmp(up->errstr, Ehungup) == 0 && nconsumed == 0){
+			tlsclosed(tr, SRClose);
 		}else
 			tlsError(tr, "channel error");
 		nexterror();
