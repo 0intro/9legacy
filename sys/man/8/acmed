@@ -47,6 +47,10 @@ outputs the new certificate in
 PEM format to standard output.
 .PP
 .I Acmed
+talks to the provider over HTTP itself,
+so no separate web file server is needed.
+.PP
+.I Acmed
 accepts the following options:
 .TP
 .B -a
@@ -160,7 +164,7 @@ and certificate signing request file like this:
 .IP
 .EX
 auth/rsagen -t 'service=tls role=client owner=*' > cert.key
-auth/rsa2csr 'CN=mydomain.com' cert.key \\
+auth/rsa2csr 'CN=mydomain.com, mydomain.com' cert.key \\
 	> /sys/lib/tls/acmed/mydomain.com.csr
 .EE
 .PP
@@ -171,11 +175,7 @@ and
 for more examples on how to use RSA keys.
 .IP
 .PP
-The certificate for the domain can now be fetched.
-This requires
-.IR webfs (4)
-to be mounted as the ACME protocol uses HTTP
-to talk to the provider.
+The certificate for the domain can now be fetched:
 .IP
 .EX
 auth/acmed me@example.com /sys/lib/tls/acmed/mydomain.com.csr \\
@@ -231,8 +231,7 @@ Account public keys.
 .IR ndb (8),
 .IR rsa (8),
 .IR secstore (1),
-.IR tlssrv (8),
-.IR webfs (4).
+.IR tlssrv (8).
 .SH  BUGS
 .PP
 When using DNS challenge,
@@ -262,4 +261,4 @@ can be used to work around this.
 .SH HISTORY
 .PP
 .I Auth/acmed
-first appeared in 9front (Oct 2021)
+first appeared in 9front (Oct 2021).
