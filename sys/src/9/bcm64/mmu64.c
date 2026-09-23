@@ -134,7 +134,8 @@ mmuinit(ulong a)
 	/*
 	 * map 4G for I/O registers at VIRTIO = 06 0000 0000
 	 * first half maps to local bus at 10 0000 0000 - 10 7FFF FFFF
-	 * second half maps to RP1 in PCI window at 1C 0000 0000 - 1C 7FFF FFFF
+	 * third quarter maps to RP1 in PCI window at 1C 0000 0000 - 1C 3FFF FFFF
+	 * fourth quarter maps to other PCI window at 18 0000 0000 - 18 3FFF FFFF
 	 */
 	pa = 0x1000000000ull;
 	va = VIRTIO;
@@ -145,6 +146,12 @@ mmuinit(ulong a)
 		pa += GiB;
 	}
 	pa = soc.pcispace;
+	for(; i < 3; i++){
+		l0[L0X(va)] = pa|LAttrIO|LBlock;
+		va += GiB;
+		pa += GiB;
+	}
+	pa = soc.pcispace1;
 	for(; i < 4; i++){
 		l0[L0X(va)] = pa|LAttrIO|LBlock;
 		va += GiB;

@@ -364,7 +364,7 @@ syscall(Ureg* ureg)
 	up->psstate = 0;
 
 	if(scallnr == NOTED)
-		noted(ureg, *(ulong*)(sp+BY2WD));
+		noted(ureg, up->s.args[0]);
 
 	splhi();
 	if(scallnr != RFORK && (up->procctl || up->nnote))

@@ -424,7 +424,7 @@ gemtransmit(Ether *edev)
 	}
 	//if(td == nil && qcanread(edev->oq))
 	//	iprint("gemtransmit(after %d): queue full\n", n);
-	if(n)
+	if(ringtail(r) != nil)
 		regs[Ctl] |= Txstart;
 	iunlock(&ctlr->txlock);
 }
