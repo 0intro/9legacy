@@ -456,3 +456,5 @@ void	hkdfExtract(uchar*, DigestState*(*)(uchar*, ulong, uchar*, DigestState*), i
 int	hkdfExpand(uchar*, DigestState*(*)(uchar*, ulong, uchar*, DigestState*), int, uchar*, int, uchar*, int, int);
 int	hkdfKey(uchar*, DigestState*(*x)(uchar*, ulong, uchar*, DigestState*), int xlen, uchar*, int, uchar*, int, uchar*, int, int);
 
+/* timing safe memcmp() */
+int	tsmemcmp(void*, void*, ulong);
