@@ -34,6 +34,8 @@ cpu \- secure connection to CPU server
 .I cert
 ] [
 .B -t
+] [
+.B -L
 ]
 .B -R
 .SH DESCRIPTION
@@ -186,6 +188,15 @@ the
 and
 .B objtype
 environment variables reflect the server's architecture.
+.PP
+The
+.B -L
+flag, given to the server side
+.RB ( -R ),
+restricts logins to users listed in the local file server's
+.B /adm/users
+file, so that a key in the authentication domain alone does not
+grant a session.
 .PP
 The
 .B -R
