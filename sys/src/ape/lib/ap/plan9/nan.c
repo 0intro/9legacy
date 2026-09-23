@@ -10,7 +10,7 @@ NaN(void)
 {
 	FPdbleword a;
 
-	a.hi = NANEXP;
+	a.hi = NANEXP;			/* no NANQUIET, so signalling NaN */
 	a.lo = 1;
 	return a.x;
 }

@@ -11,18 +11,29 @@ typedef short		gid_t;
 typedef short		nlink_t;
 typedef int		pid_t;
 
+#include "_apetypes.h"
+
 #ifndef _SIZE_T
 #define _SIZE_T
+#ifdef _BITS64
+typedef unsigned long long size_t;
+#else
 typedef unsigned long size_t;
 #endif
+#endif
+
 #ifndef _SSIZE_T
 #define _SSIZE_T
+#ifdef _BITS64
+typedef long long ssize_t;
+#else
 typedef long ssize_t;
+#endif
 #endif
 
 #ifndef _TIME_T
 #define _TIME_T
-typedef long time_t;
+typedef long time_t;		/* should be ulong */
 #endif
 
 #ifdef _BSD_EXTENSION

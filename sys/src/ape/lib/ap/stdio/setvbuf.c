@@ -3,6 +3,8 @@
  */
 #include "iolib.h"
 int setvbuf(FILE *f, char *buf, int mode, size_t size){
+	if(f == 0)
+		return -1;
 	if(f->state!=OPEN){
 		f->state=ERR;
 		return -1;

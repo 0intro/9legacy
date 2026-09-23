@@ -1,10 +1,13 @@
+/* must match setjmp.s */
 #include "../plan9/lib.h"
 #include "../plan9/sys9.h"
 #include <signal.h>
 #include <setjmp.h>
+#include <assert.h>
 
 /* A stack to hold pcs when signals nest */
 #define MAXSIGSTACK 20
+
 typedef struct Pcstack Pcstack;
 static struct Pcstack {
 	int sig;
@@ -39,6 +42,7 @@ notecont(Ureg *u, char *s)
 	Pcstack *p;
 	void(*f)(int, char*, Ureg*);
 
+	assert(nstack >= 1);
 	p = &pcstack[nstack-1];
 	f = p->hdlr;
 	u->pc = p->restorepc;
@@ -52,23 +56,28 @@ notecont(Ureg *u, char *s)
 
 extern sigset_t	_psigblocked;
 
+typedef struct {
+	sigset_t set;
+	sigset_t blocked;
+	jmp_buf jmpbuf;			/* APE version: 4 uintptrs */
+} sigjmp_buf_riscv64;
+
 void
-siglongjmp(sigjmp_buf _j, int ret)
+siglongjmp(sigjmp_buf j, int ret)
 {
 	struct Ureg *u;
-	unsigned long long *j;
+	sigjmp_buf_riscv64 *jb;
 
-	j = (uvlong*)_j;
-	if(j[0])
-		_psigblocked = j[1];
-	if(nstack == 0 || pcstack[nstack-1].u->sp > j[2+JMPBUFSP])
-		longjmp((int*)(j+2), ret);
+	jb = (sigjmp_buf_riscv64 *)j;
+	if(jb->set)
+		_psigblocked = jb->blocked;
+	if(nstack == 0 || pcstack[nstack-1].u->sp > jb->jmpbuf[JMPBUFSP])
+		longjmp((void*)jb->jmpbuf, ret);
+	assert(nstack >= 1);
 	u = pcstack[nstack-1].u;
 	nstack--;
-	u->ret = ret;
-	if(ret == 0)
-		u->ret = 1;
-	u->pc = j[2+JMPBUFPC];
-	u->sp = j[2+JMPBUFSP];
+	u->ret = ret == 0? 1: ret;
+	u->pc = jb->jmpbuf[JMPBUFPC];
+	u->sp = jb->jmpbuf[JMPBUFSP];		/* amd64 adds 8; why? */
 	_NOTED(3);	/* NRSTR */
 }

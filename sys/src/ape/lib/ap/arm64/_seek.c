@@ -1,13 +1,11 @@
-typedef long long vlong;
+extern long __SEEK(long long*, int, long long, int);
 
-extern int __SEEK(vlong*, int, vlong, int);
-
-vlong
-_SEEK(int fd, vlong o, int p)
+long long
+_SEEK(int fd, long long o, int p)
 {
-	vlong l;
+	long long l;
 
 	if(__SEEK(&l, fd, o, p) < 0)
-		l = -1LL;
+		l = -1;
 	return l;
 }

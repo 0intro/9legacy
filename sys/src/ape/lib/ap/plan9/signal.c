@@ -7,6 +7,8 @@
 
 extern sigset_t	_psigblocked;
 
+typedef void (*Handler)(int, char *, Ureg *);
+
 static struct {
 	char	*msg;	/* just check prefix */
 	int	num;
@@ -93,7 +95,7 @@ int
 _notehandler(void *u, char *msg)
 {
 	int i;
-	void(*f)(int, char*, Ureg*);
+	void (*f)(int, char*, Ureg*);
 	extern void _doatexits(void);	/* in stdio/exit.c */
 
 	if(_finishing)

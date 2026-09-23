@@ -1,3 +1,4 @@
+/* must match setjmp.s */
 #include "../plan9/lib.h"
 #include "../plan9/sys9.h"
 #include <signal.h>
@@ -5,6 +6,7 @@
 
 /* A stack to hold pcs when signals nest */
 #define MAXSIGSTACK 20
+
 typedef struct Pcstack Pcstack;
 static struct Pcstack {
 	int sig;
@@ -55,7 +57,7 @@ extern sigset_t	_psigblocked;
 typedef struct {
 	sigset_t set;
 	sigset_t blocked;
-	unsigned long long jmpbuf[2];
+	jmp_buf jmpbuf;			/* APE version: 4 uintptrs */
 } sigjmp_buf_amd64;
 
 void
@@ -65,16 +67,13 @@ siglongjmp(sigjmp_buf j, int ret)
 	sigjmp_buf_amd64 *jb;
 
 	jb = (sigjmp_buf_amd64*)j;
-
 	if(jb->set)
 		_psigblocked = jb->blocked;
 	if(nstack == 0 || pcstack[nstack-1].u->sp > jb->jmpbuf[JMPBUFSP])
 		longjmp((void*)jb->jmpbuf, ret);
 	u = pcstack[nstack-1].u;
 	nstack--;
-	u->ax = ret;
-	if(ret == 0)
-		u->ax = 1;
+	u->ax = ret == 0? 1: ret;
 	u->ip = jb->jmpbuf[JMPBUFPC];
 	u->sp = jb->jmpbuf[JMPBUFSP] + 8;
 	_NOTED(3);	/* NRSTR */

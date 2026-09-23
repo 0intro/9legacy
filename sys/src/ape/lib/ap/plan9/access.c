@@ -26,6 +26,10 @@ access(const char *name, int mode)
 	};
 	char tname[1024];
 
+	if (name == 0) {
+		errno = EINVAL;
+		return -1;
+	}
 	if(mode == 0){
 		db = _dirstat(name);
 		if(db == nil){
