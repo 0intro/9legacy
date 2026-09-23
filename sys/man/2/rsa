@@ -14,6 +14,7 @@ rsapuballoc,
 rsapubfree,
 RSApubtoasn1,
 X509toRSApub,
+X509reqtoRSApub,
 X509gen,
 X509verify \- RSA encryption algorithm
 .SH SYNOPSIS
@@ -52,6 +53,9 @@ RSApub*	rsaprivtopub(RSApriv*)
 .PP
 .B
 RSApub*	X509toRSApub(uchar *cert, int ncert, char *name, int nname)
+.PP
+.B
+RSApub*	X509reqtoRSApub(uchar *req, int nreq, char *name, int nname)
 .PP
 .B
 RSApub*	asn1toRSApub(uchar *pub, int npub)
@@ -159,6 +163,19 @@ certificates signed by a known trusted key
 checks the signature on
 .IR cert .
 It returns nil if successful, else an error string.
+.PP
+The routine
+.I X509reqtoRSApub
+is similar to
+.I X509toRSApub
+above, but decodes an X.509 certificate request (CSR) such as one
+produced by
+.I rsa2csr
+(see
+.IR rsa (8)),
+returning the public key and, if
+.I name
+is not nil, the subject and any subjectAltName entries.
 .PP
 .I X509gen
 creates a self-signed X.509 certificate, given an RSA keypair
