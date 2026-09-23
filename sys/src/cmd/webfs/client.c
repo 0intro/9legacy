@@ -57,6 +57,8 @@ closeclient(Client *c)
 		c->redirect = nil;
 		free(c->authenticate);
 		c->authenticate = nil;
+		free(c->hdr);
+		c->hdr = nil;
 		c->npostbody = 0;
 		c->havepostbody = 0;
 		c->bodyopened = 0;
@@ -322,7 +324,15 @@ clientctlwrite(Req *r, Client *c, char *cmd, char *arg)
 {
 	void *a;
 	Ctab *t;
+	char *p;
 
+	if(strcmp(cmd, "headers") == 0){
+		p = smprint("%s%s\r\n", c->hdr ? c->hdr : "", arg);
+		free(c->hdr);
+		c->hdr = p;
+		respond(r, nil);
+		return 1;
+	}
 	if((t = findcmd(cmd, clienttab, nelem(clienttab))) == nil)
 		return 0;
 	a = (void*)((uintptr)c+(uintptr)t->offset);
