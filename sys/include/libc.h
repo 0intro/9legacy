@@ -50,6 +50,23 @@ enum
 };
 
 /*
+ * byte serialization
+ */
+extern	uint	begeth(void *vp);
+extern	uint	begetl(void *vp);
+extern	uvlong	begetvl(void *vp);
+extern	void*	beputh(void *vp, ushort l);
+extern	void*	beputl(void *vp, ulong l);
+extern	void*	beputvl(void *vp, uvlong l);
+
+extern	uint	legeth(void *vp);
+extern	uint	legetl(void *vp);
+extern	uvlong	legetvl(void *vp);
+extern	void*	leputh(void *vp, ushort l);
+extern	void*	leputl(void *vp, ulong l);
+extern	void*	leputvl(void *vp, uvlong l);
+
+/*
  * rune routines
  */
 extern	int	runetochar(char*, Rune*);

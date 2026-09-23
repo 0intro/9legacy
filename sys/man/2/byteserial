@@ -1,0 +1,54 @@
+.TH BYTESERIAL 2
+.SH NAME
+byteserial: begeth, begetl, begetvl, beputh, beputl, beputvl, legeth, legetl, legetvl, leputh, leputl, leputvl \- converts integers to bytes, and vice versa, in either byte order
+.SH SYNOPSIS
+.EX
+#include <u.h>
+#include <libc.h>
+.EE
+.PP
+.EX
+uint	begeth(void *vp)
+uint	begetl(void *vp)
+uvlong	begetvl(void *vp)
+void*	beputh(void *vp, ushort l)
+void*	beputl(void *vp, ulong l)
+void*	beputvl(void *vp, uvlong l)
+.EE
+.PP
+.EX
+uint	legeth(void *vp)
+uint	legetl(void *vp)
+uvlong	legetvl(void *vp)
+void*	leputh(void *vp, ushort l)
+void*	leputl(void *vp, ulong l)
+void*	leputvl(void *vp, uvlong l)
+.EE
+.SH DESCRIPTION
+The
+.I get
+functions convert bytes at
+.I vp
+by shifting bytes and OR-ing them into unsigned integers, which they return.
+Host byte order is irrelevant.
+The
+.B be*
+functions assume big-endian (e.g., 68020, MIPS) byte order:
+the first byte is the most significant.
+The
+.B le*
+functions assume little-endian (e.g., 386) byte order:
+the first byte is the least significant.
+.PP
+The
+.I put
+functions do the reverse, converting unsigned integers to bytes at
+.I vp
+and returning the address of the byte after those generated.
+.SH SOURCE
+.B /sys/src/libc/port/byteserial.c
+.SH SEE ALSO
+.IR ip (2)
+.SH BUGS
+Only the common byte orders are supported.
+PDP-11 (a.k.a. middle-endian or German) byte order is not supported.
