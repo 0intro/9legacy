@@ -68,7 +68,7 @@ fixfault(Segment *s, ulong addr, int read, int doputmmu)
 	int ref;
 	Pte **p, *etp;
 	ulong mmuphys=0, soff;
-	Page **pg, *lkp, *new;
+	Page **pg, *lkp, *new, *mpg;
 	Page *(*fn)(Segment*, ulong);
 
 	addr &= ~(BY2PG-1);
@@ -173,10 +173,19 @@ fixfault(Segment *s, ulong addr, int read, int doputmmu)
 		(*pg)->modref = PG_MOD|PG_REF;
 		break;
 	}
+	mpg = *pg;
 	qunlock(&s->lk);
 
-	if(doputmmu)
+	if(doputmmu){
 		putmmu(addr, mmuphys, *pg);
+		/*
+		 * s was unlocked before this mapping was installed, so a
+		 * process sharing it can have replaced the page in between,
+		 * and the flush it asked for came too early to reach here.
+		 */
+		if(*pg != mpg)
+			flushmmu();
+	}
 
 	return 0;
 }
