@@ -34,8 +34,10 @@ loop1:	MOVW	$-1, R3
 
 /*
  * int cas(uint* p, int ov, int nv);
+ * int casp(void** p, void* ov, void* nv);
  */
 TEXT cas(SB), 1, $-4
+TEXT casp(SB), 1, $-4
 	MOVW	ov+4(FP), R2
 	MOVW	nv+8(FP), R3
 spincas:
