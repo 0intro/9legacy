@@ -533,6 +533,29 @@ rdgeom(SDunit *unit)
 }
 
 static void
+exportpartitions(SDunit *unit, char *var)
+{
+	SDpart *pp;
+	char buf[Maxsec];
+	char *s, *se;
+	char *sep;
+	int i;
+
+	s = buf;
+	se = buf + Maxsec;
+	sep = "";
+	pp = unit->part;
+	for(i = 0; i < unit->npart; i++, pp++){
+		if(!pp->valid || strcmp(pp->name, "data") == 0)
+			continue;
+		s = seprint(s, se, "%s%s %lld %lld", sep, pp->name, pp->start, pp->end);
+		sep = "/";
+	}
+	if(s > buf)
+		setenv(var, buf);
+}
+
+static void
 setpartitions(char *name, int ctl, int data)
 {
 	SDunit sdunit;
@@ -559,6 +582,12 @@ setpartitions(char *name, int ctl, int data)
 	mbrbuf = malloc(Maxsec);
 	partbuf = malloc(Maxsec);
 	partition(unit);
+	/*
+	 * export usb storage partition definitions for partfs
+	 * if the boot loader didn't do it
+	 */
+	if(strncmp(unit->name, "/dev/sdU0.0/", 12) == 0 && getenv("sdB0part") == nil)
+		exportpartitions(unit, "sdB0part");
 	free(unit->part);
 }
 
@@ -594,11 +623,10 @@ readparts(void)
 
 		ctl  = open(ctlname, ORDWR);
 		data = open(dataname, OREAD);
-		free(ctlname);
-		free(dataname);
-
 		if (ctl >= 0 && data >= 0)
 			setpartitions(dataname, ctl, data);
+		free(ctlname);
+		free(dataname);
 		close(ctl);
 		close(data);
 	}
