@@ -173,7 +173,7 @@ spread(struct segment *s, void *buf, int n, uvlong off)
 	} cache;
 
 	if(s->cache){
-		base = off&~(sizeof cache.a-1);
+		base = off & ~(uvlong)(sizeof cache.a-1);
 		if(cache.s != s || cache.off != base){
 			cache.off = ~0;
 			if(seek(s->fd, base, 0) >= 0
