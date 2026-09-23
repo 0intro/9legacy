@@ -46,6 +46,27 @@ configuration file preventing automatic boot.
 .TP
 .B boot
 will end the console and attempt booting the kernel.
+.PP
+If the configuration holds a
+.B menu
+block, its
+.B menuitem
+lines are presented as a numbered menu and the block selected is
+read together with the
+.B common
+block, as
+.IR plan9.ini (8)
+describes.
+.B menudefault
+and
+.B menuconsole
+are honored.
+A
+.B p
+after the selection is ignored, and because the loader makes a
+single pass over the configuration, the
+.B menu
+block must come before any other block.
 .SS
 There are many ways to boot a PC so
 .IR 9boot

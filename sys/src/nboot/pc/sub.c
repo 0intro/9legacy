@@ -3,6 +3,8 @@
 #include "fns.h"
 #include "mem.h"
 
+static int decfmt(char *s, int i, ulong a);
+
 void
 putc(int c)
 {
@@ -20,6 +22,13 @@ print(char *s)
 			putc('\r');
 		putc(*s++);
 	}
+}
+
+static void
+printn(char *s, int n)
+{
+	while(n-- > 0)
+		putc(*s++);
 }
 
 int
@@ -109,11 +118,18 @@ memset(void *dst, int v, int n)
 	}
 }
 
+static int lookahead;
+
 int
 getc(void)
 {
 	int c = 0;
 
+	if(lookahead){
+		c = lookahead;
+		lookahead = 0;
+		return c;
+	}
 	if(!nokbd)
 		c = kbdgetc();
 	if(c == 0 && uart >= 0)
@@ -122,14 +138,14 @@ getc(void)
 }
 
 static int
-readline(void *f, char *buf)
+readline(int doprompt, void *f, char *buf)
 {
 	static char white[] = "\t ";
 	char *p;
 
 	p = buf;
 	do{
-		if(f == nil)
+		if(f == nil && doprompt)
 			putc('>');
 		for(;;){
 			if(f == nil){
@@ -156,7 +172,7 @@ readline(void *f, char *buf)
 		}
 		while(p > buf && strchr(white, p[-1]))
 			p--;
-	}while(p == buf);
+	}while(p == buf && doprompt);
 	*p = 0;
 
 	return p - buf;
@@ -167,11 +183,12 @@ timeout(int ms)
 {
 	long v;
 	volatile long *ticks = (long *) 0x46c;
+	int c;
 
 	v = *ticks;
 	while(ms > 0){
-		if(getc() != 0)
-			return 1;
+		if((c = getc()) != 0)
+			return c;
 
 		if (v != *ticks) {
 			ms -= 55;
@@ -237,11 +254,178 @@ delconf(char *s)
 	return 0;
 }
 
+static int
+atoi(char *s)
+{
+	int n;
+
+	n = 0;
+	while(*s >= '0' && *s <= '9'){
+		n = n*10 + *s-'0';
+		s++;
+	}
+	return n;
+}
+
+/*
+ * temporary storage for menu items at the start of BOOTARGS
+ * one-pass algorithm assumes that [menu] is the first named block
+ * each entry looks like:
+ *   | n | m | label[n] | descriptor[m] | ...
+ * 0 < n < 128, 0 <= m < 128
+ */
+
+char *labels;
+char *labelend;
+char *nextlabel;
+int nextnum;
+int menudefault;
+int menudelay;
+char *choice;
+int choicelen;
+
+static int
+findlabel(char *s)
+{
+	char *p;
+	int i, n;
+
+	p = labels;
+	n = strlen(s);
+	for(i = 1; i < nextnum; i++){
+		if(p[0] == n && memcmp(p+2, s, n) == 0)
+			return i;
+		p += 2 + p[0] + p[1];
+	}
+	return 0;
+}
+
+static char*
+numlabel(int n)
+{
+	char *p;
+	int i;
+
+	p = labels;
+	for(i = 1; i < n; i++)
+		p += 2 + p[0] + p[1];
+	return p;
+}
+
+static void
+addmenuitem(char *s, int isdefault)
+{
+	char *se, *desc, *p;
+	int n, m;
+
+	desc = s;
+	se = strchr(s, ',');
+	if(se != nil){
+		*se = '\0';
+		desc = se + 1;
+		while(*desc && strchr(" \t", *desc))
+			desc++;
+		if(*desc == '\0')
+			desc = s;
+	}
+	n = strlen(s) & 0x7F;
+	if(n == 0)
+		return;
+	if(isdefault){
+		menudelay = 0;
+		if(desc != s)
+			menudelay = atoi(desc);
+		n = findlabel(s);
+		if(n != 0){
+			menudefault = n;
+			return;
+		}
+		print("default label not found ");
+		print(s);
+		print("\n");
+		return;
+	}
+	m = 0;
+	if(desc != s)
+		m = strlen(desc) & 0x7F;
+	p = nextlabel;
+	if(p + n + m + 2 < labelend){
+		*p++ = n;
+		*p++ = m;
+		memmove(p, s, n);
+		p += n;
+		if(m){
+			memmove(p, desc, m);
+			p += m;
+		}
+		nextnum++;
+		confend = nextlabel = p;
+	}
+}
+
+static int
+getresponse(char *buf, int secs)
+{
+	int c;
+
+	if(secs){
+		c = timeout(1000*secs);
+		if(c == 0)
+			return 0;
+		lookahead = c;
+	}
+	return readline(0, nil, buf);
+}
+
+static int
+pickmenu(char *line)
+{
+	char num[8];
+	char *p;
+	int i, n;
+
+	print("Plan 9 Startup Menu:\n");
+	print("====================\n");
+	p = labels;
+	for(i = 1; i < nextnum; i++){
+		decfmt(num, 4, i);
+		num[4] = '.';
+		num[5] = ' ';
+		printn(num, 6);
+		if(p[1])
+			printn(p + 2 + p[0], p[1]);
+		else
+			printn(p + 2, p[0]);
+		print("\n");
+		p += 2 + p[0] + p[1];
+	}
+	print("Selection");
+	if(menudefault){
+		print("[default==");
+		n = decfmt(num, 4, menudefault);
+		printn(num + 4 - n, n);
+		if(menudelay){
+			print(" (");
+			n = decfmt(num, 4, menudelay);
+			printn(num + 4 - n, n);
+			print("s timeout)");
+		}
+		print("]");
+	}
+	print(": ");
+	if(!getresponse(line, menudelay)){
+		if(menudefault)
+			return menudefault;
+		return 0;
+	}
+	return atoi(line);
+}
+
 char*
 configure(void *f, char *path)
 {
-	char *line, *kern, *s, *p;
-	int inblock, nowait, n;
+	char *line, *kern, *p;
+	int inblock, inmenu, picked, nowait, n;
 	static int once = 1;
 
 	if(once){
@@ -251,20 +435,69 @@ Clear:
 
 		confend = BOOTARGS;
 		memset(confend, 0, BOOTARGSLEN);
+		labels = confend;
+		labelend = BOOTARGS + BOOTARGSLEN - 64;
 
 		e820conf();
 		ramdiskconf(0);
 	}
 	nowait = 1;
-	inblock = 0;
 Loop:
-	while(readline(f, line = confend+1) > 0){
+	inblock = 1;
+	inmenu = 0;
+	while((n = readline(1, f, line = confend+1)) > 0){
 		if(*line == 0 || strchr("#;=", *line) != nil)
 			continue;
 		if(*line == '['){
-			inblock = memcmp("[common]", line, 8) != 0;
+			if(memcmp("[menu]", line, 6) == 0){
+				labels = nextlabel = confend;
+				nextnum = 1;
+				inmenu = 1;
+				continue;
+			}
+			picked = 0;
+			while(inmenu){
+				picked = pickmenu(line+n+1);
+				menudelay = 0;
+				if(picked >= 1 && picked < nextnum){
+					choice = numlabel(picked);
+					choicelen = *choice;
+					choice += 2;
+					confend = labels;
+					inmenu = 0;
+				}
+			}
+			inblock = memcmp("[common]", line, 8) == 0 ||
+			  memcmp(choice, line+1, choicelen) == 0 && line[1+choicelen] == ']';
+			if(!inblock && nextnum == 0)
+				print("[menu] must precede other labelled blocks\n");
+			if(picked){
+				memmove(confend+9, choice, choicelen);
+				choice = confend + 9;
+				memmove(confend, "menuitem=", 9);
+				confend += 9 + choicelen;
+				*confend++ = '\n';
+				*confend = 0;
+			}
 			continue;
 		}
+		if(inmenu){
+			if(memcmp("menuitem=", line, 9) == 0){
+				addmenuitem(line+9, 0);
+				continue;
+			}
+			if(memcmp("menudefault=", line, 12) == 0){
+				addmenuitem(line+12, 1);
+				continue;
+			}
+			if(memcmp("menuconsole=", line, 12) == 0){
+				/* ignore baud rate, fixed at 9600 */
+				uartconf(line+12);
+				continue;
+			}
+		}
+		if(inblock == 0)
+			continue;
 		if(memcmp("boot", line, 5) == 0){
 			nowait=1;
 			break;
@@ -285,7 +518,7 @@ Loop:
 				print("ok\n");
 			continue;
 		}
-		if(inblock != 0 || (p = strchr(line, '=')) == nil)
+		if((p = strchr(line, '=')) == nil)
 			continue;
 		*p++ = 0;
 		delconf(line);
@@ -302,13 +535,11 @@ Loop:
 		if(memcmp("console", line, 8) == 0 && uart != -2)
 			uartconf(p);
 
-		s = confend;
 		memmove(confend, line, n = strlen(line)); confend += n;
 		*confend++ = '=';
 		memmove(confend, p, n = strlen(p)); confend += n;
 		*confend++ = '\n';
 		*confend = 0;
-		print(s);
 	}
 	kern = getconf("bootfile=", path);
 
@@ -340,6 +571,26 @@ hexfmt(char *s, int i, ulong a)
 		a >>= 4;
 		i--;
 	}
+}
+
+static int
+decfmt(char *s, int i, ulong a)
+{
+	int d;
+
+	s += i;
+	d = 0;
+	while(i > 0){
+		if(a == 0 && d > 0)
+			*--s = ' ';
+		else{
+			*--s = hex[a%10];
+			a /= 10;
+			d++;
+		}
+		i--;
+	}
+	return d;
 }
 
 static void
