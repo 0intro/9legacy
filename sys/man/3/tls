@@ -270,6 +270,12 @@ Currently implemented encryption algorithms are
 .B 'aes_128_cbc'
 and
 .BR 'aes_256_cbc' .
+For TLSv1.2, which adds authenticated encryption with
+associated data (AEAD), the supported ciphers are
+.BR 'ccpoly96_aead' ,
+.B 'aes_128_gcm_aead'
+and
+.BR 'aes_256_gcm_aead' .
 Currently implemented hashing algorithms are
 .BR "md5" ,
 .BR "sha1" ,
