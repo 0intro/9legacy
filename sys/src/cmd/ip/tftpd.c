@@ -732,15 +732,14 @@ ack(int fd, ushort block)
 void
 nak(int fd, int code, char *msg)
 {
-	char buf[128];
+	char buf[Maxerr+4+1];
 	int n;
 
 	buf[0] = 0;
 	buf[1] = Tftp_ERROR;
 	buf[2] = 0;
 	buf[3] = code;
-	strcpy(buf+4, msg);
-	n = strlen(msg) + 4 + 1;
+	n = strecpy(buf+4, buf+sizeof buf, msg) - buf + 1;
 	if(write(fd, buf, n) < n)
 		sysfatal("write nak: %r");
 }
