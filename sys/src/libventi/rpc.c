@@ -60,18 +60,26 @@ _vtrpc(VtConn *z, Packet *p, VtFcall *tx)
 	top = packetpeek(p, buf, 0, 2);
 	if(top == nil){
 		packetfree(p);
+		puttag(z, r, tag);
+		vtfree(r);
+		qunlock(&z->lk);
 		return nil;
 	}
 	if(top == buf){
 		werrstr("first two bytes must be in same packet fragment");
 		packetfree(p);
+		puttag(z, r, tag);
 		vtfree(r);
+		qunlock(&z->lk);
 		return nil;
 	}
 	top[1] = tag;
 	qunlock(&z->lk);
 	if(vtsend(z, p) < 0){
+		qlock(&z->lk);
+		puttag(z, r, tag);
 		vtfree(r);
+		qunlock(&z->lk);
 		return nil;
 	}
 
