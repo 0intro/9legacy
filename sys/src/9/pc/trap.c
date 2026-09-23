@@ -871,6 +871,7 @@ if(0) print("%s %lud: notify %.8lux %.8lux %.8lux %s\n",
 void
 noted(Ureg* ureg, ulong arg0)
 {
+	int s;
 	Ureg *nureg;
 	ulong oureg, sp;
 
@@ -884,9 +885,17 @@ noted(Ureg* ureg, ulong arg0)
 
 	nureg = up->ureg;	/* pointer to user returned Ureg struct */
 
+	/*
+	 * The fpu and fpstate must change together. This runs with
+	 * interrupts enabled, and a preemption in between leaves the
+	 * note state active with the fpu off, which faults in the
+	 * fpsave of procsave.
+	 */
+	s = splhi();
 	if((up->fpstate>>FPnoteshift) == FPactive)
 		fpoff();
 	up->fpstate &= ~FPnotemask;
+	splx(s);
 
 	/* sanity clause */
 	oureg = (ulong)nureg;
