@@ -195,7 +195,7 @@ getfcallnew(int fd, Fcall *fc, int have)
 		sysfatal("couldn't read message");
 
 	len = GBIT32(rxbuf);
-	if(len <= BIT32SZ)
+	if(len <= BIT32SZ || len > msize)
 		sysfatal("bogus message");
 
 	len -= BIT32SZ;
@@ -224,6 +224,8 @@ getfcallold(int fd, Fcall *fc, int have)
 		sysfatal("couldn't read message");
 
 	n = iosize(rxbuf);
+	if(len+n > msize)
+		sysfatal("bogus message");
 	if(readn(fd, rxbuf+len, n) != n)
 		sysfatal("couldn't read message");
 	len += n;
