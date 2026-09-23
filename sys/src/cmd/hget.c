@@ -1289,6 +1289,7 @@ readline(int fd, char *buf, int len)
 
 	for(p = buf;;){
 		if(b.rp >= b.wp){
+			b.rp = b.wp = b.buf;
 			n = read(fd, b.wp, sizeof(b.buf)/2);
 			if(n < 0)
 				return -1;
