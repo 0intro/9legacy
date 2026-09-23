@@ -32,9 +32,9 @@ main(int argc, char **argv)
 	db = opendb(argv[0]);
 	w = avlwalk(db->avl);
 	while(e = (Entry*)avlnext(w))
-		Bprint(&bout, "%q %q %luo %q %q %lud %lld\n",
+		Bprint(&bout, "%q %q %luo %q %q %lud %lld %s\n",
 			e->name, strcmp(e->name, e->d.name)==0 ? "-" : e->d.name, e->d.mode,
-			e->d.uid, e->d.gid, e->d.mtime, e->d.length);
+			e->d.uid, e->d.gid, e->d.mtime, e->d.length, e->d.hash ? e->d.hash : "-");
 	if(Bterm(&bout) < 0)
 		sysfatal("writing output: %r");
 

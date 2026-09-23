@@ -35,7 +35,7 @@ ismatch(char *s)
 }
 
 void
-xlog(int c, char *name, Dir *d)
+xlog(int c, char *name, Dir *d, char *hash)
 {
 	char *dname;
 
@@ -44,8 +44,8 @@ xlog(int c, char *name, Dir *d)
 		dname = "-";
 	if(!justlog)
 		Bprint(&blog, "%lud %d ", now, n++);
-	Bprint(&blog, "%c %q %q %luo %q %q %lud %lld\n",
-		c, name, dname, d->mode, uid ? uid : d->uid, d->gid, d->mtime, d->length);
+	Bprint(&blog, "%c %q %q %luo %q %q %lud %lld %s\n",
+		c, name, dname, d->mode, uid ? uid : d->uid, d->gid, d->mtime, d->length, hash);
 }
 
 void
@@ -53,7 +53,9 @@ walk(char *new, char *old, Dir *xd, void*)
 {
 	int i, change, len;
 	Dir od, d;
+	char *path, *h, hbuf[2*SHA1dlen+1];
 
+	path = old;			/* full on-disk path, before unroot */
 	new = unroot(new, "/");
 	old = unroot(old, root);
 
@@ -71,20 +73,34 @@ walk(char *new, char *old, Dir *xd, void*)
 	d.name = old;
 	memset(&od, 0, sizeof od);
 	change = 0;
+	h = "-";
 	if(markdb(db, new, &od) < 0){
 		if(!changesonly){
-			xlog('a', new, &d);
+			if((d.mode&DMDIR)==0 && hashfile(path, hbuf)!=nil)
+				h = hbuf;
+			xlog('a', new, &d, h);
 			change = 1;
 		}
 	}else{
+		h = dbhash(db, new);	/* keep the stored hash unless content changed */
 		if((d.mode&DMDIR)==0 && (od.mtime!=d.mtime || od.length!=d.length)){
-			xlog('c', new, &d);
-			change = 1;
+			if(hashfile(path, hbuf) == nil){
+				h = "-";	/* can't hash: fall back to mtime|length */
+				xlog('c', new, &d, h);
+				change = 1;
+			}else if(strcmp(hbuf, h) == 0){
+				h = hbuf;	/* churn only: refresh the db, no log entry */
+				change = 1;
+			}else{
+				h = hbuf;
+				xlog('c', new, &d, h);
+				change = 1;
+			}
 		}
 		if((!uid&&strcmp(od.uid,d.uid)!=0)
-		|| strcmp(od.gid,d.gid)!=0 
+		|| strcmp(od.gid,d.gid)!=0
 		|| od.mode!=d.mode){
-			xlog('m', new, &d);
+			xlog('m', new, &d, "-");
 			change = 1;
 		}
 	}
@@ -92,7 +108,7 @@ walk(char *new, char *old, Dir *xd, void*)
 		if(uid)
 			d.uid = uid;
 		d.muid = "mark";	/* mark bit */
-		insertdb(db, new, &d);
+		insertdbh(db, new, &d, h);
 	}
 }
 
@@ -199,7 +215,7 @@ main(int argc, char **argv)
 				d.gid = e->d.gid;
 				d.mtime = e->d.mtime;
 				d.mode = e->d.mode;
-				xlog('d', e->name, &d);
+				xlog('d', e->name, &d, "-");
 				if(!justlog)
 					removedb(db, e->name);
 			}
