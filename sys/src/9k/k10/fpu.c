@@ -139,15 +139,22 @@ fpunotify(Ureg*)
 void
 fpunoted(void)
 {
+	Mreg s;
+
 	/*
 	 * Called from sysnoted() via the machine-dependent
 	 * noted() routine.
-	 * Clear the flag set above in fpunotify().
+	 * Clear the flag set above in fpunotify(). Ts and the state
+	 * must change together. noted() runs with interrupts enabled,
+	 * and a preemption in between leaves the note state Busy with
+	 * the FPU disabled, which faults in the save of fpuprocsave.
 	 */
+	s = splhi();
 	if(up->notefpu.fpustate == Busy)
 		_stts();
 	up->notefpu.fpustate = Init;
 	up->fpustate &= ~Hold;
+	splx(s);
 }
 
 void
@@ -255,16 +262,20 @@ fpuprocrestore(Proc* p)
 void
 fpusysprocsetup(Proc* p)
 {
+	Mreg s;
+
 	/*
 	 * Disable the FPU.
 	 * Called from sysexec() via sysprocsetup() to
 	 * set the FPU for the new process.
 	 */
 	if(p->fpustate != Init){
+		s = splhi();
 		_clts();
 		_fnclex();
 		_stts();
 		p->fpustate = Init;
+		splx(s);
 	}
 }
 
