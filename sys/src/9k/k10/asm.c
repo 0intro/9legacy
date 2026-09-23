@@ -282,14 +282,54 @@ asmwalkalloc(usize size)
 
 static int npg[4];
 
+/*
+ * return space needed for the Page array, plus the top of kernel
+ * allocation space below 4GB (via *ksizep).  pageinit has not run yet.
+ */
+static uintmem
+pagesarraysize(Asm *asmlist, uintmem *ksizep)
+{
+	Asm *asm;
+	uintmem np, ksize;
+
+	np = ksize = 0;
+	for(asm = asmlist; asm != nil; asm = asm->next){
+		if(asm->limit == asm->base || asm->type != AsmMEMORY)
+			continue;
+		/*
+		 * kernel memory is contiguous from 1 MB to the first gap;
+		 * there can be unmapped gaps (e.g. ACPI) from the e820 map.
+		 */
+		if (ksize == 0 && asm->base >= MB && asm->base < 4ull*GB &&
+		    asm->limit <= 4ull*GB)
+			ksize = asm->limit;
+		np += (asm->limit - asm->base)/PGSZ;
+	}
+	*ksizep = ksize;
+	DBG("kernel stops at %#P\n", ksize);
+
+	/*
+	 * leave room in the kernel for things other than Pages.
+	 * if the machine has > ~8GB, put Pages above 4GB rather than
+	 * reducing np.
+	 */
+	if (ksize && np*sizeof(Page) > ksize*3/4 && sys->pmend < 7ull*GB) {
+		ksize = (ksize/PGSZ)*3/4;
+		print("reduced kernel pages %llud to %llud to fit bottom 4GB\n",
+			(uvlong)np, (uvlong)ksize);
+		np = ksize;
+	}
+	return PGROUND(np * sizeof(Page));
+}
+
 void
 asmmeminit(void)
 {
 	Asm* asm;
 	PTE *pte;
 	int i, j, l;
-	uintptr n, va;
-	uintmem hi, lo, mem, nextmem, pa;
+	uintptr va;
+	uintmem hi, lo, mem, nextmem, pa, ksize;
 	Pallocmem *pm;
 
 	/*
@@ -370,10 +410,7 @@ asmmeminit(void)
 		asm->kbase = PTR2UINT(KADDR(asm->base));
 	}
 
-	n = sys->vmend - sys->vmstart;			/* close enough */
-	if(n > 600*MiB)
-		n = 600*MiB;
-	ialloclimit(n/2);
+	ialloclimit((sys->vmend - sys->vmstart)/2);	/* close enough */
 
 	pm = palloc.mem;
 	j = 0;
@@ -393,4 +430,9 @@ asmmeminit(void)
 		j++;
 		pm++;
 	}
+
+	/* allocate the Page array from a high memory bank or, failing that, malloc */
+	pgmem = pagesarraysize(asmlist, &ksize);
+	mallocinit();
+	allocpages(ksize, pgmem, Mustmalloc);
 }

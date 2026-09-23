@@ -210,9 +210,8 @@ main(u32int ax, u32int bx)
 	ioinit();
 	kbdinit();
 
-	meminit();
+	meminit();			/* now also calls mallocinit + allocpages */
 	archinit();
-	mallocinit();
 	trapinit();
 
 	/*

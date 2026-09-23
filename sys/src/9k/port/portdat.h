@@ -492,13 +492,21 @@ struct Palloc
 	Pallocmem mem[32];
 	Page	*head;			/* most recently used */
 	Page	*tail;			/* least recently used */
-	ulong	freecount;		/* how many pages on free list now */
+	uintptr	freecount;		/* how many pages on free list now */
 	Page	*pages;			/* array of all pages */
-	ulong	user;			/* how many user pages */
+	uintptr	user;			/* how many user pages */
 	Page	*hash[PGHSIZE];
 	Lock	hashlock;
 	Rendez	r;			/* Sleep for free mem */
 	QLock	pwait;			/* Queue of procs waiting for memory */
+};
+
+extern uintptr	pgmem;		/* bytes allocated for palloc.pages */
+extern uchar	pgcarved;	/* palloc.pages carved from a memory bank? */
+
+enum {				/* allocpages() forcemalloc argument */
+	Couldmalloc,
+	Mustmalloc,
 };
 
 struct Waitq
@@ -998,3 +1006,4 @@ enum
 
 #pragma	varargck	type	"m"	Mreg
 #pragma	varargck	type	"P"	uintmem
+#pragma	varargck	type	"N"	uvlong
