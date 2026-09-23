@@ -943,7 +943,9 @@ wakeup(Rendez *r)
 	lock(r);
 	p = r->p;
 
-	if(p != nil){
+	if(p == nil)
+		unlock(r);
+	else{
 		lock(&p->rlock);
 		if(p->state != Wakeme || p->r != r){
 			iprint("%p %p %d\n", p->r, r, p->state);
@@ -951,10 +953,11 @@ wakeup(Rendez *r)
 		}
 		r->p = nil;
 		p->r = nil;
-		ready(p);
 		unlock(&p->rlock);
+		unlock(r);
+		/* hands off r */
+		ready(p);
 	}
-	unlock(r);
 
 	splx(s);
 
@@ -1007,9 +1010,16 @@ postnote(Proc *p, int dolock, char *n, int flag)
 				panic("postnote: state %d %d %d", r->p != p, p->r != r, p->state);
 			p->r = nil;
 			r->p = nil;
-			ready(p);
+			/*
+			 * The unlock must precede ready(p), in case the readied process
+			 * immediately deallocates the Rendez. This can happen with semacquire,
+			 * where the Rendez is on the stack.
+			 */
 			unlock(r);
-			break;
+			unlock(&p->rlock);
+			ready(p);
+			splx(s);
+			return ret;
 		}
 
 		/* give other process time to get out of critical section and try again */
