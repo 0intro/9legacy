@@ -146,6 +146,8 @@ fixfault(Segment *s, ulong addr, int read, int doputmmu)
 			*pg = new;
 			copypage(lkp, *pg);
 			putpage(lkp);
+			if(s->ref > 1)
+				procflushseg(s);
 		}
 		mmuphys = PPN((*pg)->pa) | PTEWRITE | PTEVALID;
 		(*pg)->modref = PG_MOD|PG_REF;
