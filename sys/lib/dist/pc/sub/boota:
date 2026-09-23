@@ -6,6 +6,9 @@ if(! test -f /srv/dos)
 unmount /n/a:>[2]/dev/null
 
 switch($bootfile) {
+case sdB*
+	adisk=/dev/sdXX/dos
+	test -r $adisk || adisk=/dev/sdXX/9fat
 case sd*!cdboot!*
 	# just look for the right file.  bootfile isn''t trustworthy
 	adisk=/dev/sd*/9fat
