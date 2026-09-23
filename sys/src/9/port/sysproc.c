@@ -502,9 +502,10 @@ shargs(char *s, int n, char **ap)
 
 	s += 2;
 	n -= 2;		/* skip #! */
-	for(i=0; s[i]!='\n'; i++)
-		if(i == n-1)
-			return 0;
+	for(i=0; i<n && s[i]!='\n'; i++)
+		;
+	if(i == n)
+		return 0;
 	s[i] = 0;
 	*ap = 0;
 	i = 0;
