@@ -144,14 +144,13 @@ int vtType[BtMax] = {
  * Allocate the memory cache.
  */
 Cache *
-cacheAlloc(Disk *disk, VtConn *z, ulong nblocks, int mode)
+cacheAlloc(Disk *disk, VtConn *z, uvlong nblocks, int mode)
 {
-	int i;
+	uvlong i, nbl;
 	Cache *c;
 	Block *b;
 	BList *bl;
 	u8int *p;
-	int nbl;
 
 	c = vtmallocz(sizeof(Cache));
 
@@ -283,7 +282,6 @@ cacheCheck(Cache *c)
 {
 	u32int size, now;
 	int i, k, refed;
-	static uchar zero[VtScoreSize];
 	Block *b;
 
 	size = c->size;
@@ -305,7 +303,7 @@ cacheCheck(Cache *c)
 	refed = 0;
 	for(i = 0; i < c->nblocks; i++){
 		b = &c->blocks[i];
-		if(b->data != &c->mem[i * size])
+		if(b->data != &c->mem[(uintptr)i * size])
 			sysfatal("mis-blocked at %d", i);
 		if(b->ref && b->heap == BadHeap){
 			refed++;
@@ -851,7 +849,6 @@ cacheCountUsed(Cache *c, u32int epochLow, u32int *used, u32int *total, u32int *b
 	*used = nused;
 	*total = fl->end;
 	qunlock(&fl->lk);
-	return;
 }
 
 static FreeList *
@@ -1209,7 +1206,7 @@ blockWrite(Block *b, int waitlock)
 			fprint(2, "%s: %d:%x:%d iostate is %d in blockWrite\n",
 				argv0, bb->part, bb->addr, bb->l.type, bb->iostate);
 			/* probably BioWriting if it happens? */
-			if(bb->iostate == BioClean){
+			if(bb->iostate == BioClean) {
 				blockPut(bb);
 				goto ignblock;
 			}

@@ -8,7 +8,7 @@ static Snap *snapInit(Fs*);
 static void snapClose(Snap*);
 
 Fs *
-fsOpen(char *file, VtConn *z, long ncache, int mode)
+fsOpen(char *file, VtConn *z, vlong ncache, int mode)
 {
 	int fd, m;
 	uchar oscore[VtScoreSize];
@@ -432,7 +432,6 @@ bumpEpoch(Fs *fs, int doarchive)
 		return 0;
 	}
 
-	if(0) fprint(2, "%s: snapshot root from %d to %d\n", argv0, oldaddr, b->addr);
 	entryPack(&e, b->data, 1);
 	blockDirty(b);
 
@@ -451,6 +450,8 @@ bumpEpoch(Fs *fs, int doarchive)
 	super.active = b->addr;
 	if(doarchive)
 		super.next = oldaddr;
+	if(0) fprint(2, "%s: snapshot root from %d to %d\n",
+		argv0, oldaddr, b->addr);
 
 	/*
 	 * Record that the new super.active can't get written out until

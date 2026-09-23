@@ -18,7 +18,7 @@ int	sourceTruncate(Source*);
 void	sourceUnlock(Source*);
 
 Block*	cacheAllocBlock(Cache*, int, u32int, u32int, u32int);
-Cache*	cacheAlloc(Disk*, VtConn*, ulong, int);
+Cache*	cacheAlloc(Disk*, VtConn*, uvlong, int);
 void	cacheCountUsed(Cache*, u32int, u32int*, u32int*, u32int*);
 int	cacheDirty(Cache*);
 void	cacheFlush(Cache*, int);
