@@ -1558,6 +1558,48 @@ symadjust(Sym *s, Node *n, long del)
 	}
 }
 
+static int
+covered1(long o, Node *n)
+{
+	if(n->op == OLIST)
+		return covered1(o, n->left) || covered1(o, n->right);
+	if(n->op == OASI)
+		return covered1(o, n->left);
+	if(n->op != ONAME)
+		return 0;
+	return o >= n->xoffset && o < n->xoffset+n->type->width;
+}
+
+static int
+covered(long o, long w, Node *n)
+{
+	while(w > 0 && covered1(o, n)) {
+		o++;
+		w--;
+	}
+	return w == 0;
+}
+
+static Node*
+initz(Node *q, Type *t, long o, Node *n)
+{
+	Node *p;
+
+	if(covered(o, t->width, n))
+		return n;
+
+	p = new(ONAME, Z, Z);
+	*p = *q;
+	p->type = t;
+	p->xoffset = o;
+
+	q = new(OCONST, Z, Z);
+	q->vconst = 0;
+	q->type = t;
+
+	return new(OLIST, new(OASI, p, q), n);
+}
+
 Node*
 contig(Sym *s, Node *n, long v)
 {
@@ -1587,22 +1629,48 @@ contig(Sym *s, Node *n, long v)
 		stkoff = maxround(stkoff, autoffset);
 		symadjust(s, n, v - s->offset);
 	}
-	if(w <= ewidth[TIND])
-		goto no;
+
 	if(n->op == OAS)
 		diag(Z, "oops in contig");
-/*ZZZ this appears incorrect
-need to check if the list completely covers the data.
-if not, bail
- */
-	if(n->op == OLIST)
-		goto no;
+
 	if(n->op == OASI)
 		if(n->left->type)
 		if(n->left->type->width == w)
 			goto no;
-	while(w & (ewidth[TIND]-1))
-		w++;
+
+	for(q=n; q->op != ONAME; q=q->left)
+		;
+
+	v = s->offset;
+
+	/* unaligned front */
+	while(w > 0 && (v % ewidth[TIND]) != 0) {
+		zt = types[TCHAR];
+		if(w >= ewidth[TLONG] && (v % ewidth[TLONG]) == 0)
+			zt = types[TLONG];
+		n = initz(q, zt, v, n);
+		v += zt->width;
+		w -= zt->width;
+	}
+
+	/* skip initialized words */
+	while(w >= ewidth[TIND] && covered(v, ewidth[TIND], n)) {
+		v += ewidth[TIND];
+		w -= ewidth[TIND];
+	}
+
+	/* unaligned (or small) back */
+	while(w > 0 && ((w % ewidth[TIND]) != 0 || w <= 16)) {
+		zt = types[TCHAR];
+		if(w >= ewidth[TLONG] && (w % ewidth[TLONG]) == 0)
+			zt = types[TLONG];
+		w -= zt->width;
+		n = initz(q, zt, v + w, n);
+	}
+
+	if(w == 0)
+		goto no;
+
 /*
  * insert the following code, where long becomes vlong if pointers are fat
  *
@@ -1613,15 +1681,12 @@ if not, bail
 	} while(*(long**)&X);
  */
 
-	for(q=n; q->op != ONAME; q=q->left)
-		;
-
 	zt = ewidth[TIND] > ewidth[TLONG]? types[TVLONG]: types[TLONG];
 
 	p = new(ONAME, Z, Z);
 	*p = *q;
 	p->type = typ(TIND, zt);
-	p->xoffset = s->offset;
+	p->xoffset = v;
 
 	r = new(ONAME, Z, Z);
 	*r = *p;
