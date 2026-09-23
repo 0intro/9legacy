@@ -1443,7 +1443,7 @@ ndbwrite(Fs *f, char *a, ulong off, int n)
 ulong
 scalednconv(void)
 {
-	if(cpuserver)
+	if(sys->pmoccupied >= 128*MB)
 		return Nchans*4;
 	return Nchans;
 }
