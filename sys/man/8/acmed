@@ -1,0 +1,265 @@
+.TH ACMED 8
+.SH NAME
+auth/acmed \- acme certificate client
+.SH SYNOPSIS
+.B auth/acmed
+[
+.B -a
+.I acctkey
+]
+[
+.B -e
+.I cmd
+|
+.B -o
+.I chalout
+.B -t
+.I type
+]
+[
+.B -p
+.I provider
+]
+.I acctname
+.I csr
+>
+.I crt
+.SH DESCRIPTION
+Acmed fetches and renews a TLS certificate
+using the
+.I ACME (RFC8555)
+protocol.
+It requires a pre-generated account key in
+.IR factotum (4)
+that is identified by
+.I acctname
+or an
+.I acctkey
+file.
+It also needs a certificate signing request file
+.I csr
+in binary X.509 ASN.1/DER format
+that contains the public key and subjects (domain names)
+that we want to get a certificate for.
+On success,
+.I acmed
+outputs the new certificate in
+PEM format to standard output.
+.PP
+.I Acmed
+accepts the following options:
+.TP
+.B -a
+.I acctkey
+Specifies that
+.I acctkey
+is used to sign requests to the
+.I provider
+in place of the default
+.BI /sys/lib/tls/acmed/ acctname .pub
+file.
+The key must be a JWK formatted RSA public key
+(see
+.IR rsa (8)).
+.TP
+.B -e
+.I cmd
+Specifies that an external command should be run to
+install the challenge material.
+The
+.I cmd
+is run with the following four arguments:
+The challenge method,
+the subject (domain),
+the token,
+and last the challenge response.
+If
+.I cmd
+returns an error status,
+it is assumed that it does not support the
+challenge method for the given subject (domain)
+and another method might be tried.
+Because of this, the
+.B -o
+and
+.B -t
+options are unnecessary.
+.TP
+.B -o
+.I chalout
+Specifies that the challenge material is
+placed in the location
+.IR chalout .
+Its behavior depends on the challenge type,
+as specified with the
+.B -t
+flag.
+.IP
+For HTTP challenges,
+.I chalout
+must be a directory that your webserver will serve at
+.br
+.BI http:// mydomain.com /.well-known/acme-challenge .
+.br
+It defaults to
+.BR /usr/web/.well-known/acme-challenge .
+.IP
+For DNS challenges,
+.I chalout
+is a file that should be included in your
+.IR ndb (6)
+database.
+It defaults to
+.BR /lib/ndb/dnschallenge .
+.TP
+.B -t
+.I type
+Specifies the challenge type. Supported challenge
+types are currently
+.B http
+and
+.BR dns .
+.TP
+.B -p
+.I provider
+Specifies that
+.I provider
+is used as the provider URL, in place of the default
+.BR https://acme-v02.api.letsencrypt.org/directory .
+This must be the directory URL for the desired
+.I RFC8555
+compliant provider.
+.SH EXAMPLES
+Before
+.I acmed
+can be used, the account key must be generated:
+.IP
+.EX
+auth/rsagen -t \\
+	'service=acme role=sign hash=sha256 acct=me@example.com' \\
+	> acct.key
+auth/rsa2jwk acct.key > /sys/lib/tls/acmed/me@example.com.pub
+.EE
+.PP
+Then the
+.B acct.key
+must be loaded into
+.IR factotum (4).
+It is recommended to put
+.B acct.key
+into
+.IR secstore (1)
+instead of saving it unencrypted on the file system.
+.IP
+.EX
+cat acct.key > /mnt/factotum/ctl
+.EE
+.PP
+On the TLS server side, you can generate a RSA key
+and certificate signing request file like this:
+.IP
+.EX
+auth/rsagen -t 'service=tls role=client owner=*' > cert.key
+auth/rsa2csr 'CN=mydomain.com' cert.key \\
+	> /sys/lib/tls/acmed/mydomain.com.csr
+.EE
+.PP
+See
+.IR rsa (8)
+and
+.IR tlssrv (8)
+for more examples on how to use RSA keys.
+.IP
+.PP
+The certificate for the domain can now be fetched.
+This requires
+.IR webfs (4)
+to be mounted as the ACME protocol uses HTTP
+to talk to the provider.
+.IP
+.EX
+auth/acmed me@example.com /sys/lib/tls/acmed/mydomain.com.csr \\
+	> /sys/lib/tls/acmed/mydomain.com.crt
+.EE
+.PP
+When using the DNS challenge method,
+your DNS server
+(see
+.IR ndb (8))
+must be configured,
+and
+.IR ndb (6)
+must be setup to include the
+.I chalout
+file that
+.I acmed
+can write to:
+.IP
+.EX
+database=
+	file=/net/ndb
+	file=/lib/ndb/local
+	file=/lib/ndb/common
+	file=/lib/ndb/dnschallenge
+.EE
+.PP
+In addition, the domain that you like to get verified
+needs to have a certificate authority authorization record
+of your ACME provider declared:
+.IP
+.EX
+dom=mydomain.com caa=letsencrypt.org
+.EE
+.PP
+Then
+.I acmed
+can be invoked to fetch the certificate using the
+DNS challenge method:
+.IP
+.EX
+auth/acmed -t dns me@example.com mydomain.com.csr \\
+	> /sys/lib/tls/acmed/mydomain.com.crt
+.EE
+.SH FILES
+.BI /sys/lib/tls/acmed/ * .pub
+Account public keys.
+.SH SOURCE
+.B /sys/src/cmd/auth/acmed.c
+.SH SEE ALSO
+.IR factotum (4),
+.IR ndb (6),
+.IR ndb (8),
+.IR rsa (8),
+.IR secstore (1),
+.IR tlssrv (8),
+.IR webfs (4).
+.SH  BUGS
+.PP
+When using DNS challenge,
+the
+.B -t
+.B dns
+method assumes that the DNS server runs
+on the same machine as
+.I acmed
+and that it is mounted on
+.B /net
+and that we have hostowner permissions to
+write the
+.B refresh
+command to
+.BR /net/dns .
+Also, when using multi-domain certificates,
+the usable challenge methods might be different for
+individual domains.
+Using the
+.B -e
+.I cmd
+option to customize the challenge installation procedure
+can be used to work around this.
+.PP
+.B https://bugzilla.mozilla.org/show_bug.cgi?id=647959
+.SH HISTORY
+.PP
+.I Auth/acmed
+first appeared in 9front (Oct 2021)
