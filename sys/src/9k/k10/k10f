@@ -6,6 +6,7 @@ dev +dev
 	pipe
 	proc
 	mnt
+	virtio9p
 	srv
 	dup
 	rtc
@@ -87,6 +88,7 @@ misc +dev
 boot
 	tcp
 	local
+	virtio9p
 
 rootdir
 	bootk10f.out boot
