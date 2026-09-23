@@ -84,8 +84,14 @@ $p$CONF:	$CONF.c $OBJ $LIB
 	$LD -o $target -T$KTZERO -l $OBJ $CONF.$O $LIB
 	size $target
 
-# this makes an ELF kernel:
-# $LD -o $target.elf -PH5 -R4096 -T$KTZERO -F$KTZEROP -l $OBJ $CONF.$O $LIB
+# an ELF kernel, for booting via qemu -kernel (multiboot): qemu's ELF loader
+# honours the program headers, placing text/data/bss correctly (the a.out
+# multiboot kludge loads contiguously and mis-places the page-aligned data).
+# -P/-E set physical load and entry addresses (a multiboot loader enters with
+# paging off), as the 9k kernel's mkfile does, so no post-processing is needed.
+$p$CONF.elf:	$p$CONF
+	$LD -o $target -H5 -T$KTZERO -P$KTZEROP -E$KTZEROP -R4096 -l $OBJ $CONF.$O $LIB
+	size $target
 
 # don't strip the gzipped kernels -- too frustrating when that's all you have!
 $p%.gz:D:	$p%
@@ -100,8 +106,8 @@ $p%.gz:D:	$p%
 	strip -o /fd/1 9pccd | gzip -9 >9pccd.gz
 
 # we don't need gzipped kernels otherwise, so don't make them
-install:V:	$p$CONF				# $p$CONF.gz
-	cp $p$CONF /$objtype/ &
+install:V:	$p$CONF $p$CONF.elf		# $p$CONF.gz
+	cp $p$CONF $p$CONF.elf /$objtype/ &
 	for(i in $EXTRACOPIES)
 		{ 9fs $i && cp $p$CONF /n/$i/$objtype && echo -n $i... & }
 	wait
@@ -122,6 +128,7 @@ sd53c8xx.$O:			sd53c8xx.i
 sdiahci.$O:			ahci.h
 devaoe.$O sdaoe.$O:		../port/aoe.h
 main.$O:			init.h reboot.h
+main.$O memory.$O:		multiboot.h
 wavelan.$O:			wavelan.c ../pc/wavelan.c ../pc/wavelan.h
 etherwavelan.$O:		etherwavelan.c ../pc/wavelan.h
 devusb.$O usbuhci.$O usbohci.$O usbehci.$O: ../port/usb.h
