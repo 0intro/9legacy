@@ -40,6 +40,7 @@ char *timefile;
 int timefd;
 int samecontents(char*, char*);
 int samematches(char*, char*, char*);
+void matchmeta(char*, char*, Dir*);
 
 Db *copyerr;
 
@@ -397,6 +398,7 @@ main(int argc, char **argv)
 					break;
 				if(samematches(local, remote, rhash) > 0){
 					chat("= %q %luo %q %q %lud\n", name, rd.mode, rd.uid, rd.gid, rd.mtime);
+					matchmeta(local, remote, &rd);
 					goto DoCreateDb;
 				}
 				if(resolve1 == 's')
@@ -420,6 +422,7 @@ main(int argc, char **argv)
 				SET(checkedmatch2);
 				if(samematches(local, remote, rhash) > 0){
 					chat("= %q %luo %q %q %lud\n", name, rd.mode, rd.uid, rd.gid, rd.mtime);
+					matchmeta(local, remote, &rd);
 					goto DoCreateDb;
 				}
 				if(dbd.mtime==ld.mtime && dbd.length==ld.length)
@@ -505,6 +508,7 @@ main(int argc, char **argv)
 					goto DoCopyDb;
 				if(samematches(local, remote, rhash) > 0){
 					chat("= %q %luo %q %q %lud\n", name, rd.mode, rd.uid, rd.gid, rd.mtime);
+					matchmeta(local, remote, &rd);
 					goto DoCopyDb;
 				}
 				if(havelocal)
@@ -544,6 +548,7 @@ main(int argc, char **argv)
 				}
 				if(samematches(local, remote, rhash) > 0){
 					chat("= %q %luo %q %q %lud\n", name, rd.mode, rd.uid, rd.gid, rd.mtime);
+					matchmeta(local, remote, &rd);
 					goto DoCopyDb;
 				}
 				if(resolve1 == 's')
@@ -553,6 +558,11 @@ main(int argc, char **argv)
 				conflict(name, "locally modified; will not update [%llud %lud -> %llud %lud]", dbd.length, dbd.mtime, ld.length, ld.mtime);
 				skip = 1;
 				continue;
+			}
+			if(samematches(local, remote, rhash) > 0){
+				chat("= %q %luo %q %q %lud\n", name, rd.mode, rd.uid, rd.gid, rd.mtime);
+				matchmeta(local, remote, &rd);
+				goto DoCopyDb;
 			}
 		    DoCopy:
 			USED(checkedmatch3);
@@ -1240,6 +1250,30 @@ samematches(char *local, char *remote, char *hash)
 		return strcmp(buf, hash) == 0;
 	}
 	return samecontents(local, remote);
+}
+
+/*
+ * A content match should leave what a real copy leaves: the served
+ * file's current mtime and length, in rd for the db record and on the
+ * local file. Then the mtime gate skips the rest of a churned run, and
+ * db and disk agree so no later change sees a false conflict.
+ */
+void
+matchmeta(char *local, char *remote, Dir *rd)
+{
+	Dir *d0, nd;
+
+	if((d0 = dirstat(remote)) == nil)
+		return;
+	rd->mtime = d0->mtime;
+	rd->length = d0->length;
+	free(d0);
+	if(donothing)
+		return;
+	nulldir(&nd);
+	nd.mtime = rd->mtime;
+	if(dirwstat(local, &nd) < 0)
+		fprint(2, "warning: cannot set mtime on %s\n", local);
 }
 
 /*
