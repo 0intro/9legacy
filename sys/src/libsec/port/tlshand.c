@@ -46,6 +46,11 @@ typedef struct Algs{
 	int ok;
 } Algs;
 
+typedef struct Namedcurve{
+	int tlsid;
+	void (*init)(mpint *p, mpint *a, mpint *b, mpint *x, mpint *y, mpint *n, mpint *h);
+} Namedcurve;
+
 typedef struct Finished{
 	uchar verify[SSL3FinishedLen];
 	int n;
@@ -145,6 +150,13 @@ typedef struct TlsSec{
 	uchar srandom[RandomSize];	// server random
 	int clientVers;		// version in ClientHello
 	int vers;			// final version
+	// ephemeral elliptic curve diffie-hellman state
+	Namedcurve *nc;		// selected curve
+	struct {
+		ECdomain dom;
+		ECpriv Q;
+	} ec;
+	uchar X[32];		// x25519 scalar
 	// byte generation and handshake checksum
 	void (*prf)(uchar*, int, uchar*, int, char*, uchar*, int, uchar*, int);
 	void (*setFinished)(TlsSec*, HandHash, uchar*, int);
@@ -253,7 +265,20 @@ enum {
 	TLS_DH_anon_WITH_AES_256_CBC_SHA	= 0X003A,
 	TLS_EMPTY_RENEGOTIATION_INFO_SCSV	= 0x00FF,
 	TLS_FALLBACK_SCSV			= 0x5600,
-	CipherMax
+	CipherMax,
+
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA	= 0xC013,
+	TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA	= 0xC014,
+	TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256	= 0xC027,
+	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256	= 0xC02F,
+	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384	= 0xC030,
+	TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256	= 0xCCA8,
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA	= 0xC009,
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA	= 0xC00A,
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256	= 0xC023,
+	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256	= 0xC02B,
+	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384	= 0xC02C,
+	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305	= 0xCCA9,
 };
 
 // compression methods
@@ -265,8 +290,16 @@ enum {
 // extensions
 enum {
 	ExtServerName = 0,
+	ExtEllipticCurves = 0x000a,	// supported_groups
+	ExtPointFormats = 0x000b,
 	ExtSigalgs = 0xd,
 	ExtRenegInfo = 0xff01,
+};
+
+// elliptic curves (named groups)
+enum {
+	X25519 = 0x001d,
+	secp256r1Curve = 0x0017,
 };
 
 // signature algorithms
@@ -292,6 +325,16 @@ static uchar compressors[] = {
 static int sigAlgs[] = {
 	RSA_PKCS1_SHA256,
 	RSA_PKCS1_SHA1,
+};
+
+static Namedcurve namedcurves[] = {
+	{X25519, nil},
+	{secp256r1Curve, secp256r1},
+};
+
+static int tlscurves[] = {
+	X25519,
+	secp256r1Curve,
 };
 
 static TlsConnection *tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...), PEMChain *chain);
@@ -742,8 +785,10 @@ tlsClient2(int ctl, int hand, uchar *csid, int ncsid, char *serverName, int (*tr
 	m.u.clientHello.ciphers = makeciphers();
 	m.u.clientHello.compressors = makebytes(compressors,sizeof(compressors));
 	m.u.clientHello.serverName = serverName;
-	if(c->clientVersion >= TLS12Version)
+	if(c->clientVersion >= TLS12Version){
 		m.u.clientHello.sigAlgs = makeints(sigAlgs, nelem(sigAlgs));
+		m.u.clientHello.curves = makeints(tlscurves, nelem(tlscurves));
+	}
 	if(!msgSend(c, &m, AFlush))
 		goto Err;
 	msgClear(&m);
@@ -1046,6 +1091,23 @@ msgSend(TlsConnection *c, Msg *m, int act)
 			}
 		}
 
+		if(m->u.clientHello.curves != nil) {
+			n = m->u.clientHello.curves->len;
+			put16(q, ExtEllipticCurves);
+			put16(q+2, 2 + 2*n); /* length of extension content */
+			put16(q+4, 2*n);     /* length of curve list */
+			q += 6;
+			for(i = 0; i < n; i++) {
+				put16(q, m->u.clientHello.curves->data[i]);
+				q += 2;
+			}
+			put16(q, ExtPointFormats);
+			put16(q+2, 2);       /* length of extension content */
+			q[4] = 1;            /* length of point format list */
+			q[5] = 0;            /* uncompressed */
+			q += 6;
+		}
+
 		if(q > ep) {
 			put16(p, q - ep); /* length of extensions */
 			p = q;
@@ -1336,6 +1398,14 @@ msgRecv(TlsConnection *c, Msg *m)
 				m->u.clientHello.sigAlgs = newints(nn/2);
 				for(i = 0; i < nn; i += 2)
 					m->u.clientHello.sigAlgs->data[i >> 1] = get16(&p[i]);
+			} else if(i == ExtEllipticCurves){
+				int j, nc;
+				if(nn < 2 || get16(p) != nn-2 || ((nn-2) & 1))
+					goto Short;
+				nc = (nn-2)/2;
+				m->u.clientHello.curves = newints(nc);
+				for(j = 0; j < nc; j++)
+					m->u.clientHello.curves->data[j] = get16(p+2+2*j);
 			} else if(i == ExtRenegInfo){
 				if(nn < 1 || p[0] != nn-1)
 					goto Short;
@@ -2261,6 +2331,11 @@ tlsSecClose(TlsSec *sec)
 	if(!sec)
 		return;
 	factotum_rsa_close(sec->rpc);
+	mpfree(sec->ec.Q.x);
+	mpfree(sec->ec.Q.y);
+	mpfree(sec->ec.Q.d);
+	if(sec->ec.dom.p != nil)
+		ecdomfree(&sec->ec.dom);
 	free(sec->server);
 	free(sec);
 }
@@ -2469,7 +2544,21 @@ pkcs1_verify(RSApub *pk, Bytes *sig, uchar *digest, int digestlen)
 static int
 isECDHE(int tlsid)
 {
-	USED(tlsid);
+	switch(tlsid){
+	case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
+	case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
+	case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256:
+	case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
+	case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
+	case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
+	case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
+	case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
+	case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
+	case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+	case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
+	case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305:
+		return 1;
+	}
 	return 0;
 }
 
@@ -2484,7 +2573,18 @@ isDHE(int tlsid)
 static int
 tlsSecECDHEs0(TlsSec *sec, Ints *curves)
 {
-	USED(sec); USED(curves);
+	Namedcurve *nc;
+	int i;
+
+	sec->nc = nil;
+	for(i = 0; curves != nil && i < curves->len && sec->nc == nil; i++)
+		for(nc = namedcurves; nc < &namedcurves[nelem(namedcurves)]; nc++)
+			if(nc->tlsid == curves->data[i]){
+				sec->nc = nc;
+				break;
+			}
+	if(sec->nc == nil)
+		return -1;
 	return 0;
 }
 
@@ -2492,25 +2592,156 @@ tlsSecECDHEs0(TlsSec *sec, Ints *curves)
 static Bytes*
 tlsSecECDHEs1(TlsSec *sec, int *curve)
 {
-	USED(sec); USED(curve);
-	return nil;
+	ECdomain *dom = &sec->ec.dom;
+	ECpriv *Q = &sec->ec.Q;
+	Bytes *par;
+	int n;
+
+	if(sec->nc == nil)
+		return nil;
+	*curve = sec->nc->tlsid;
+	if(sec->nc->tlsid == X25519){
+		par = newbytes(1+2+1+32);
+		par->data[0] = 3;		/* named_curve */
+		put16(par->data+1, X25519);
+		par->data[3] = 32;
+		curve25519_dh_new(sec->X, par->data+4);
+		return par;
+	}
+	ecdominit(dom, sec->nc->init);
+	memset(Q, 0, sizeof(*Q));
+	Q->x = mpnew(0);
+	Q->y = mpnew(0);
+	Q->d = mpnew(0);
+	ecgen(dom, Q);
+	n = 1 + 2*((mpsignif(dom->p)+7)/8);
+	par = newbytes(1+2+1+n);
+	par->data[0] = 3;			/* named_curve */
+	put16(par->data+1, sec->nc->tlsid);
+	n = ecencodepub(dom, Q, par->data+4, par->len-4);
+	par->data[3] = n;
+	par->len = 1+2+1+n;
+	return par;
 }
 
 // server: compute the shared secret from the client's ephemeral key
 static int
 tlsSecECDHEs2(TlsSec *sec, Bytes *Yc)
 {
-	USED(sec); USED(Yc);
-	werrstr("ECDHE not supported");
-	return -1;
+	ECdomain *dom = &sec->ec.dom;
+	ECpriv *Q = &sec->ec.Q;
+	ECpoint K;
+	ECpub *Y;
+	Bytes *Z;
+	int n;
+
+	if(Yc == nil){
+		werrstr("no public key");
+		return -1;
+	}
+	if(sec->nc->tlsid == X25519){
+		if(Yc->len != 32){
+			werrstr("bad public key");
+			return -1;
+		}
+		Z = newbytes(32);
+		if(!curve25519_dh_finish(sec->X, Yc->data, Z->data)){
+			werrstr("unlucky shared key");
+			freebytes(Z);
+			return -1;
+		}
+		setMasterSecret(sec, Z);
+		memset(Z->data, 0, Z->len);
+		freebytes(Z);
+		return 0;
+	}
+	if((Y = ecdecodepub(dom, Yc->data, Yc->len)) == nil){
+		werrstr("bad public key");
+		return -1;
+	}
+	memset(&K, 0, sizeof(K));
+	K.x = mpnew(0);
+	K.y = mpnew(0);
+	ecmul(dom, Y, Q->d, &K);
+	n = (mpsignif(dom->p)+7)/8;
+	Z = newbytes(n);
+	mptober(K.x, Z->data, n);
+	setMasterSecret(sec, Z);
+	memset(Z->data, 0, Z->len);
+	freebytes(Z);
+	mpfree(K.x);
+	mpfree(K.y);
+	ecpubfree(Y);
+	return 0;
 }
 
 // client: compute the shared secret and return our ephemeral key
 static Bytes*
 tlsSecECDHEc(TlsSec *sec, int curve, Bytes *par)
 {
-	USED(sec); USED(curve); USED(par);
-	return nil;
+	ECdomain *dom = &sec->ec.dom;
+	ECpriv *Q = &sec->ec.Q;
+	ECpub *pub;
+	ECpoint K;
+	Namedcurve *nc;
+	Bytes *Yc, *Z, *Ys;
+	int n;
+
+	if(par == nil || par->len < 4)
+		return nil;
+	/* the point follows the 4-byte ECParams header */
+	Ys = makebytes(par->data+4, par->len-4);
+	if(curve == X25519){
+		if(Ys->len != 32){
+			freebytes(Ys);
+			return nil;
+		}
+		Yc = newbytes(32);
+		curve25519_dh_new(sec->X, Yc->data);
+		Z = newbytes(32);
+		if(!curve25519_dh_finish(sec->X, Ys->data, Z->data)){
+			freebytes(Yc);
+			freebytes(Z);
+			freebytes(Ys);
+			return nil;
+		}
+		setMasterSecret(sec, Z);
+		memset(Z->data, 0, Z->len);
+		freebytes(Z);
+		freebytes(Ys);
+		return Yc;
+	}
+	for(nc = namedcurves; nc->tlsid != curve;)
+		if(++nc >= &namedcurves[nelem(namedcurves)]){
+			freebytes(Ys);
+			return nil;
+		}
+	ecdominit(dom, nc->init);
+	pub = ecdecodepub(dom, Ys->data, Ys->len);
+	freebytes(Ys);
+	if(pub == nil)
+		return nil;
+	memset(Q, 0, sizeof(*Q));
+	Q->x = mpnew(0);
+	Q->y = mpnew(0);
+	Q->d = mpnew(0);
+	memset(&K, 0, sizeof(K));
+	K.x = mpnew(0);
+	K.y = mpnew(0);
+	ecgen(dom, Q);
+	ecmul(dom, pub, Q->d, &K);
+	n = (mpsignif(dom->p)+7)/8;
+	Z = newbytes(n);
+	mptober(K.x, Z->data, n);
+	setMasterSecret(sec, Z);
+	memset(Z->data, 0, Z->len);
+	freebytes(Z);
+	Yc = newbytes(1 + 2*n);
+	Yc->len = ecencodepub(dom, Q, Yc->data, Yc->len);
+	mpfree(K.x);
+	mpfree(K.y);
+	ecpubfree(pub);
+	return Yc;
 }
 
 // server: generate the ephemeral DH params to be signed
