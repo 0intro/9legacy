@@ -257,15 +257,14 @@ ber_decode(uchar** pp, uchar* pend, Elem* pelem)
 	Tag tag;
 	Value val;
 
+	memset(pelem, 0, sizeof(*pelem));
 	err = tag_decode(pp, pend, &tag, &isconstr);
 	if(err == ASN_OK) {
 		err = length_decode(pp, pend, &length);
 		if(err == ASN_OK) {
-			if(tag.class == Universal) {
+			if(tag.class == Universal)
 				err = value_decode(pp, pend, length, tag.num, isconstr, &val);
-				if(val.tag == VSeq || val.tag == VSet)
-					setmalloctag(val.u.seqval, getcallerpc(&pp));
-			}else
+			else
 				err = value_decode(pp, pend, length, OCTET_STRING, 0, &val);
 			if(err == ASN_OK) {
 				pelem->tag = tag;
