@@ -13,7 +13,7 @@ enum {
 
 static int	is32;
 static int	infd, outfd;
-static uchar	buf[IOUNIT];
+static uchar	buf[8192];
 
 static void
 pack(uchar **pp, char *fmt, ...)
@@ -27,8 +27,6 @@ pack(uchar **pp, char *fmt, ...)
 	va_start(args, fmt);
 	for(; *fmt; fmt++){
 		c = *fmt;
-		if(c == 'q' && is32)
-			c = 'l';
 		p = *pp;
 		switch(c){
 		case 'b':
@@ -55,11 +53,14 @@ pack(uchar **pp, char *fmt, ...)
 			p[1] = l>>8;
 			p[2] = l>>16;
 			p[3] = l>>24;
+			*pp += 4;
+			if(is32)
+				break;
 			p[4] = l>>32;
 			p[5] = l>>40;
 			p[6] = l>>48;
 			p[7] = l>>56;
-			*pp += 8;
+			*pp += 4;
 			break;
 		case '0':
 			*pp += va_arg(args, int);
@@ -83,6 +84,7 @@ main(int argc, char **argv)
 {
 	Fhdr fhdr;
 	u64int kzero;
+	u32int entry;
 	uchar *header;
 	char *ofile, *iname;
 	int arch, chars, relocs;
@@ -131,6 +133,7 @@ main(int argc, char **argv)
 	}
 	szofdat = fhdr.txtsz + fhdr.datsz;
 	szofimage = szofdat + fhdr.bsssz + HDRSZ;
+	entry = fhdr.entry - kzero;
 
 	iname = strrchr(argv[0], '/');
 	if(iname != nil)
@@ -168,7 +171,7 @@ main(int argc, char **argv)
 		0,			/* SizeOfCode UNUSED */
 		0,			/* SizeOfInitializedData UNUSED */
 		0,			/* SizeOfUninitializedData UNUSED */
-		fhdr.entry-kzero,	/* AddressOfEntryPoint */
+		entry,			/* AddressOfEntryPoint */
 		0);			/* BaseOfCode UNUSED */
 	if(is32)
 	pack(&header, "l", 0);	/* BaseOfData UNUSED */
@@ -188,10 +191,10 @@ main(int argc, char **argv)
  		0,		/* CheckSum UNUSED */
 		10,		/* Subsystem (10 = efi application) */
 		0,		/* DllCharacteristics UNUSED */
-		0,		/* SizeOfStackReserve UNUSED */
-		0,		/* SizeOfStackCommit UNUSED */
-		0,		/* SizeOfHeapReserve UNUSED */
-		0,		/* SizeOfHeapCommit UNUSED */
+		(u64int)0,	/* SizeOfStackReserve UNUSED */
+		(u64int)0,	/* SizeOfStackCommit UNUSED */
+		(u64int)0,	/* SizeOfHeapReserve UNUSED */
+		(u64int)0,	/* SizeOfHeapCommit UNUSED */
 		0,		/* LoaderFlags UNUSED */
 		16,		/* NumberOfRvaAndSizes UNUSED */
 		32*4);		/* RVA UNUSED */
