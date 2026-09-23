@@ -19,7 +19,7 @@ typedef struct Qlist Qlist;
 union Header {
 	struct {
 		Header*	next;
-		uint	size;
+		uintptr	size;
 	} s;
 	Align	al;
 };
@@ -28,7 +28,7 @@ struct Qlist {
 	Lock	lk;
 	Header*	first;
 
-	uint	nalloc;
+	uintptr	nalloc;
 };
 
 enum {
@@ -41,12 +41,12 @@ enum {
 static	Qlist	quicklist[NQUICK+1];
 static	Header	misclist;
 static	Header	*rover;
-static	unsigned tailsize;
-static	unsigned availnunits;
+static	uintptr tailsize;
+static	uintptr availnunits;
 static	Header	*tailbase;
 static	Header	*tailptr;
 static	Header	checkval;
-static	int	morecore(unsigned);
+static	uintptr	morecore(uintptr);
 
 enum
 {
@@ -86,7 +86,7 @@ static	char*	qstatstr[QSmax] = {
 [QSfreeprev]	"freeprev",
 };
 
-static	void*	qmalloc(usize);
+static	void*	qmalloc(uintptr);
 static	void	qfreeinternal(void*);
 static	int	qstats[QSmax];
 
@@ -105,12 +105,12 @@ static	Lock		mainlock;
 #define ALIGNED(h, a)	((((uintptr)(h)) & (a-1)) == 0)
 
 static void*
-qmallocalign(usize nbytes, uintptr align, long offset, usize span)
+qmallocalign(uintptr nbytes, uintptr align, vlong offset, uintptr span)
 {
 	Qlist *qlist;
 	uintptr aligned;
 	Header **pp, *p, *q, *r;
-	uint naligned, nunits, n;
+	uintptr naligned, nunits, n;
 
 	if(nbytes == 0 || offset != 0 || span != 0)
 		return nil;
@@ -240,11 +240,11 @@ qmallocalign(usize nbytes, uintptr align, long offset, usize span)
 }
 
 static void*
-qmalloc(usize nbytes)
+qmalloc(uintptr nbytes)
 {
 	Qlist *qlist;
 	Header *p, *q;
-	uint nunits, n;
+	uintptr nunits, n;
 
 ///* FIXME: (ignore for now)
 	if(nbytes == 0)
@@ -305,7 +305,7 @@ qfreeinternal(void* ap)
 {
 	Qlist *qlist;
 	Header *p, *q;
-	uint nunits;
+	uintptr nunits;
 
 	if(ap == nil)
 		return;
@@ -362,9 +362,9 @@ mallocreadfmt(char* s, char* e)
 	Qlist *qlist;
 
 	p = s;
-	p = seprint(p, e, "%lud/%lud kernel malloc\n",
-		(tailptr-tailbase)*sizeof(Header),
-		(tailsize+availnunits + tailptr-tailbase)*sizeof(Header));
+	p = seprint(p, e, "%llud/%llud kernel malloc\n",
+		(vlong)(tailptr-tailbase)*sizeof(Header),
+		(vlong)(tailsize+availnunits + tailptr-tailbase)*sizeof(Header));
 	p = seprint(p, e, "0/0 kernel draw\n"); // keep scripts happy
 
 	t = 0;
@@ -395,8 +395,8 @@ mallocreadfmt(char* s, char* e)
 //			p = seprint(p, e, "m%d\t%#p\n", q->s.size, q);
 		} while((q = q->s.next) != rover);
 
-		p = seprint(p, e, "rover: %d blocks %ud bytes total\n",
-			i, t*sizeof(Header));
+		p = seprint(p, e, "rover: %d blocks %llud bytes total\n",
+			i, (vlong)t*sizeof(Header));
 	}
 
 	for(i = 0; i < nelem(qstats); i++){
@@ -440,7 +440,7 @@ mallocsummary(void)
 		QLOCK(&qlist->lk);
 		for(q = qlist->first; q != nil; q = q->s.next){
 			if(q->s.size != i)
-				DBG("q%d\t%#p\t%ud\n", i, q, q->s.size);
+				DBG("q%d\t%#p\t%llud\n", i, q, (uvlong)q->s.size);
 			n++;
 		}
 		QUNLOCK(&qlist->lk);
@@ -460,12 +460,12 @@ mallocsummary(void)
 	MUNLOCK;
 
 	if(i != 0){
-		print("rover: %d blocks %ud bytes total\n",
-			i, t*sizeof(Header));
+		print("rover: %d blocks %llud bytes total\n",
+			i, (vlong)t*sizeof(Header));
 	}
-	print("total allocated %lud, %ud remaining\n",
-		(tailptr-tailbase)*sizeof(Header),
-		(tailsize+availnunits)*sizeof(Header));
+	print("total allocated %llud, %llud remaining\n",
+		(vlong)(tailptr-tailbase)*sizeof(Header),
+		(vlong)(tailsize+availnunits)*sizeof(Header));
 
 	for(i = 0; i < nelem(qstats); i++){
 		if(qstats[i] == 0)
@@ -483,7 +483,7 @@ free(void* ap)
 }
 
 void*
-malloc(ulong size)
+malloc(uintptr size)
 {
 	void* v;
 
@@ -494,7 +494,7 @@ malloc(ulong size)
 }
 
 void*
-mallocz(ulong size, int clr)
+mallocz(uintptr size, int clr)
 {
 	void *v;
 
@@ -505,7 +505,7 @@ mallocz(ulong size, int clr)
 }
 
 void*
-mallocalign(ulong nbytes, ulong align, long offset, ulong span)
+mallocalign(uintptr nbytes, uintptr align, vlong offset, uintptr span)
 {
 	void *v;
 
@@ -526,7 +526,7 @@ mallocalign(ulong nbytes, ulong align, long offset, ulong span)
 }
 
 void*
-smalloc(ulong size)
+smalloc(uintptr size)
 {
 	void *v;
 
@@ -538,12 +538,12 @@ smalloc(ulong size)
 }
 
 void*
-realloc(void* ap, ulong size)
+realloc(void* ap, uintptr size)
 {
 	void *v;
 	Header *p;
 	ulong osize;
-	uint nunits, ounits;
+	uintptr nunits, ounits;
 	int delta;
 
 	/*
@@ -615,7 +615,7 @@ realloc(void* ap, ulong size)
 }
 
 void
-setmalloctag(void*, ulong)
+setmalloctag(void*, uintptr)
 {
 }
 
@@ -628,11 +628,11 @@ mallocinit(void)
 	tailbase = UINT2PTR(sys->vmunused);
 	tailptr = tailbase;
 	availnunits = HOWMANY(sys->vmend - sys->vmunused, Unitsz);
-	print("base %#p ptr %#p nunits %ud\n", tailbase, tailptr, availnunits);
+	print("base %#p ptr %#p nunits %llud\n", tailbase, tailptr, (uvlong)availnunits);
 }
 
-static int
-morecore(uint nunits)
+static uintptr
+morecore(uintptr nunits)
 {
 	/*
 	 * First (simple) cut.
