@@ -639,34 +639,16 @@ i8250alloc(int io, int irq, int tbdf)
 static Uart*
 i8250pnp(void)
 {
-	int i;
-	Ctlr *ctlr;
-	Uart *head, *uart;
-
-	head = i8250uart;
-	for(i = 0; i < nelem(i8250uart); i++){
-		/*
-		 * Does it exist?
-		 * Should be able to write/read the Scratch Pad
-		 * (except on COM1, where it seems to confuse the 8250)
-		 * and reserve the I/O space.
-		 */
-		uart = &i8250uart[i];
-		ctlr = uart->regs;
-		if (0) {
-			csr8o(ctlr, Scr, 0x55);
-			if(csr8r(ctlr, Scr) == 0x55)
-				continue;
-		}
-		if(ioalloc(ctlr->io, 8, 0, uart->name) < 0)
-			continue;
-		if(uart == head)
-			head = uart->next;
-		else
-			(uart-1)->next = uart->next;
-	}
-
-	return head;
+	/*
+	 * Present COM1 and COM2 unconditionally, like the pc kernel. The
+	 * removed loop reserved the I/O and then, through an inverted test,
+	 * unlinked every uart whose ioalloc *succeeded* (i.e. all of them),
+	 * returning an empty list, so the console uart was never enabled
+	 * and the serial console took no input. (The scratch-pad existence
+	 * test it keyed off was unreliable on COM1 and already disabled, so
+	 * the loop could never actually detect or drop a missing uart.)
+	 */
+	return i8250uart;
 }
 
 static int
