@@ -293,6 +293,7 @@ enum
 	OELEM,
 
 	OTST,		/* used in some compilers */
+	OROL,
 	OINDEX,
 	OFAS,
 	OREGPAIR,
@@ -699,6 +700,7 @@ int	log2(uvlong);
 int	vlog(Node*);
 int	topbit(ulong);
 void	simplifyshift(Node*);
+void	rolor(Node*);
 long	typebitor(long, long);
 void	diag(Node*, char*, ...);
 void	warn(Node*, char*, ...);
