@@ -6,7 +6,7 @@
 void
 usage(void)
 {
-	fprint(2, "usage: tlsclient [-t /sys/lib/tls/xxx] [-x /sys/lib/tls/xxx.exclude] dialstring\n");
+	fprint(2, "usage: tlsclient [-t /sys/lib/tls/xxx] [-x /sys/lib/tls/xxx.exclude] [-n servername] dialstring\n");
 	exits("usage");
 }
 
@@ -27,11 +27,12 @@ main(int argc, char **argv)
 	int fd, netfd;
 	uchar digest[20];
 	TLSconn conn;
-	char *addr, *file, *filex;
+	char *addr, *file, *filex, *servername;
 	Thumbprint *thumb;
 
 	file = nil;
 	filex = nil;
+	servername = nil;
 	thumb = nil;
 	ARGBEGIN{
 	case 't':
@@ -39,6 +40,9 @@ main(int argc, char **argv)
 		break;
 	case 'x':
 		filex = EARGF(usage());
+		break;
+	case 'n':
+		servername = EARGF(usage());
 		break;
 	default:
 		usage();
@@ -60,6 +64,7 @@ main(int argc, char **argv)
 		sysfatal("dial %s: %r", addr);
 
 	memset(&conn, 0, sizeof conn);
+	conn.serverName = servername;
 	fd = tlsClient(netfd, &conn);
 	if(fd < 0)
 		sysfatal("tlsclient: %r");
