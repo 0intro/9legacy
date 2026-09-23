@@ -308,10 +308,14 @@ enum {
 	RSA_PKCS1_SHA1   = 0x0201,
 	RSA_PKCS1_SHA256 = 0x0401,
 	RSA_PKCS1_SHA384 = 0x0501,
-	RSA_PKCS1_SHA512 = 0x0601
+	RSA_PKCS1_SHA512 = 0x0601,
+	ECDSA_SECP256R1_SHA256 = 0x0403,
 };
 
 static Algs cipherAlgs[] = {
+	{"aes_128_cbc", "sha256", 2*(16+16+SHA2_256dlen), TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256},
+	{"aes_128_cbc", "sha1", 2*(16+16+SHA1dlen), TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA},
+	{"aes_256_cbc", "sha1", 2*(32+16+SHA1dlen), TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA},
 	{"rc4_128", "md5", 2*(16+MD5dlen), TLS_RSA_WITH_RC4_128_MD5},
 	{"rc4_128", "sha1", 2*(16+SHA1dlen), TLS_RSA_WITH_RC4_128_SHA},
 	{"3des_ede_cbc", "sha1", 2*(4*8+SHA1dlen), TLS_RSA_WITH_3DES_EDE_CBC_SHA},
@@ -324,6 +328,7 @@ static uchar compressors[] = {
 };
 
 static int sigAlgs[] = {
+	ECDSA_SECP256R1_SHA256,
 	RSA_PKCS1_SHA256,
 	RSA_PKCS1_SHA1,
 };
@@ -385,6 +390,7 @@ static mpint* factotum_rsa_decrypt(AuthRpc *rpc, mpint *cipher);
 static void factotum_rsa_close(AuthRpc*rpc);
 
 static int	isECDHE(int tlsid);
+static int	isECDSA(int tlsid);
 static int	isDHE(int tlsid);
 static int	tlsSecECDHEs0(TlsSec *sec, Ints *curves);
 static Bytes*	tlsSecECDHEs1(TlsSec *sec, int *curve);
@@ -847,24 +853,43 @@ tlsClient2(int ctl, int hand, uchar *csid, int ncsid, char *serverName, int (*tr
 			tlsError(c, EUnexpectedMessage, "unexpected server key exchange");
 			goto Err;
 		}
-		if(m.u.serverKeyExchange.sigalg != RSA_PKCS1_SHA256){
+		par = m.u.serverKeyExchange.key;
+		memmove(c->sec->srandom, c->srandom, RandomSize);
+		dhParamsDigest(c->sec, par, digest);
+		if((m.u.serverKeyExchange.sigalg & 0xff) == 0x03){
+			ECdomain dom;
+			ECpub *ecpub;
+			char *e;
+
+			ecpub = X509toECpub(c->cert->data, c->cert->len, nil, 0, &dom);
+			if(ecpub == nil){
+				tlsError(c, EBadCertificate, "invalid x509/ecdsa certificate");
+				goto Err;
+			}
+			e = X509ecdsaverifydigest(m.u.serverKeyExchange.signature->data,
+				m.u.serverKeyExchange.signature->len, digest, SHA2_256dlen, &dom, ecpub);
+			ecdomfree(&dom);
+			ecpubfree(ecpub);
+			if(e != nil){
+				tlsError(c, EDecryptError, "can't verify ecdsa server key exchange");
+				goto Err;
+			}
+		}else if(m.u.serverKeyExchange.sigalg == RSA_PKCS1_SHA256){
+			pub = X509toRSApub(c->cert->data, c->cert->len, nil, 0);
+			if(pub == nil){
+				tlsError(c, EBadCertificate, "invalid x509/rsa certificate");
+				goto Err;
+			}
+			if(pkcs1_verify(pub, m.u.serverKeyExchange.signature, digest, SHA2_256dlen) < 0){
+				rsapubfree(pub);
+				tlsError(c, EDecryptError, "can't verify server key exchange signature");
+				goto Err;
+			}
+			rsapubfree(pub);
+		}else{
 			tlsError(c, EHandshakeFailure, "unsupported server key exchange signature");
 			goto Err;
 		}
-		par = m.u.serverKeyExchange.key;
-		pub = X509toRSApub(c->cert->data, c->cert->len, nil, 0);
-		if(pub == nil){
-			tlsError(c, EBadCertificate, "invalid x509/rsa certificate");
-			goto Err;
-		}
-		memmove(c->sec->srandom, c->srandom, RandomSize);
-		dhParamsDigest(c->sec, par, digest);
-		if(pkcs1_verify(pub, m.u.serverKeyExchange.signature, digest, SHA2_256dlen) < 0){
-			rsapubfree(pub);
-			tlsError(c, EDecryptError, "can't verify server key exchange signature");
-			goto Err;
-		}
-		rsapubfree(pub);
 		c->curve = m.u.serverKeyExchange.curve;
 		c->Ys = m.u.serverKeyExchange.key;
 		m.u.serverKeyExchange.key = nil;
@@ -1903,8 +1928,11 @@ okCipher(Ints *cv)
 		else
 			weak &= weakCipher[c];
 		for(j = 0; j < nelem(cipherAlgs); j++)
-			if(cipherAlgs[j].ok && cipherAlgs[j].tlsid == c)
+			if(cipherAlgs[j].ok && cipherAlgs[j].tlsid == c){
+				if(isECDSA(c))
+					break;	/* server has no ecdsa key */
 				return c;
+			}
 	}
 	if(weak)
 		return -2;
@@ -2554,6 +2582,21 @@ isECDHE(int tlsid)
 	case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:
 	case TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:
 	case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256:
+	case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
+	case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
+	case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
+	case TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
+	case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
+	case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305:
+		return 1;
+	}
+	return 0;
+}
+
+static int
+isECDSA(int tlsid)
+{
+	switch(tlsid){
 	case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
 	case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
 	case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
