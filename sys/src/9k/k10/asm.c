@@ -434,5 +434,5 @@ asmmeminit(void)
 	/* allocate the Page array from a high memory bank or, failing that, malloc */
 	pgmem = pagesarraysize(asmlist, &ksize);
 	mallocinit();
-	allocpages(ksize, pgmem, Mustmalloc);
+	allocpages(ksize, pgmem, Couldmalloc);	/* carve from a high bank if it won't fit low */
 }

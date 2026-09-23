@@ -107,7 +107,7 @@
  * page-table page at level 'l' for the virtual address 'v'.
  */
 #define PTLX(v, l)	(((v)>>(((l)*PTSHFT)+PGSHFT)) & ((1<<PTSHFT)-1))
-#define PGLSZ(l)	(1<<(((l)*PTSHFT)+PGSHFT))
+#define PGLSZ(l)	(1ull<<(((l)*PTSHFT)+PGSHFT))
 
 #define TMFM		((256-32)*MiB)			/* GAK kernel memory */
 
