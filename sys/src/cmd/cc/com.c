@@ -1063,8 +1063,11 @@ loop:
 
 	case OCAST:
 		if(n->type == types[TVOID] && !side(l)){
+			n->op = OCONST;
 			n->left = Z;
-			n->type = T;
+			n->right = Z;
+			n->type = types[TINT];
+			n->vconst = 0;
 			break;
 		}
 		if(castucom(n))
