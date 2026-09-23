@@ -1067,6 +1067,11 @@ openfname(Hdr *hp, char *fname, int dir, int mode)
 
 	fd = -1;
 	cleanname(fname);
+	/* cleanname leaves a leading .. alone, and that escapes the directory */
+	if (strcmp(fname, "..") == 0 || strncmp(fname, "../", 3) == 0) {
+		fprint(2, "%s: refusing to extract %s\n", argv0, fname);
+		return -1;
+	}
 	switch (hp->linkflag) {
 	case LF_LINK:
 	case LF_SYMLINK1:
