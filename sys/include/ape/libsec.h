@@ -153,6 +153,15 @@ enum
 	Maxdlen=	64,
 
 	Hmacblksz	= 64,	/* in bytes; from rfc2104 */
+
+	SHA1blksz=	64,	/* SHA block size */
+	SHA2_224blksz=	64,	/* SHA-224 block size */
+	SHA2_256blksz=	64,	/* SHA-256 block size */
+	SHA2_384blksz=	128,	/* SHA-384 block size */
+	SHA2_512blksz=	128,	/* SHA-512 block size */
+	MD4blksz=	64,	/* MD4 block size */
+	MD5blksz=	64,	/* MD5 block size */
+	Maxblksz		= 128,
 };
 
 typedef struct DigestState DigestState;
