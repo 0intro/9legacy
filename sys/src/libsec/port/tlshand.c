@@ -98,6 +98,7 @@ typedef struct Msg{
 			Ints*	ciphers;
 			Bytes*	compressors;
 			Ints*	sigAlgs;
+			char*	serverName;
 			int	secReneg;
 		} clientHello;
 		struct {
@@ -251,6 +252,7 @@ enum {
 
 // extensions
 enum {
+	ExtServerName = 0,
 	ExtSigalgs = 0xd,
 	ExtRenegInfo = 0xff01,
 };
@@ -281,7 +283,7 @@ static int sigAlgs[] = {
 };
 
 static TlsConnection *tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...), PEMChain *chain);
-static TlsConnection *tlsClient2(int ctl, int hand, uchar *csid, int ncsid, int (*trace)(char*fmt, ...));
+static TlsConnection *tlsClient2(int ctl, int hand, uchar *csid, int ncsid, char *serverName, int (*trace)(char*fmt, ...));
 
 static void	msgClear(Msg *m);
 static char* msgPrint(char *buf, int n, Msg *m);
@@ -432,7 +434,7 @@ tlsClient(int fd, TLSconn *conn)
 		return -1;
 	}
 	fprint(ctl, "fd %d 0x%x", fd, ProtocolVersion);
-	tls = tlsClient2(ctl, hand, conn->sessionID, conn->sessionIDlen, conn->trace);
+	tls = tlsClient2(ctl, hand, conn->sessionID, conn->sessionIDlen, conn->serverName, conn->trace);
 	close(fd);
 	close(hand);
 	close(ctl);
@@ -641,7 +643,7 @@ Err:
 }
 
 static TlsConnection *
-tlsClient2(int ctl, int hand, uchar *csid, int ncsid, int (*trace)(char*fmt, ...))
+tlsClient2(int ctl, int hand, uchar *csid, int ncsid, char *serverName, int (*trace)(char*fmt, ...))
 {
 	TlsConnection *c;
 	Msg m;
@@ -672,6 +674,7 @@ tlsClient2(int ctl, int hand, uchar *csid, int ncsid, int (*trace)(char*fmt, ...
 	m.u.clientHello.sid = makebytes(csid, ncsid);
 	m.u.clientHello.ciphers = makeciphers();
 	m.u.clientHello.compressors = makebytes(compressors,sizeof(compressors));
+	m.u.clientHello.serverName = serverName;
 	if(c->clientVersion >= TLS12Version)
 		m.u.clientHello.sigAlgs = makeints(sigAlgs, nelem(sigAlgs));
 	if(!msgSend(c, &m, AFlush))
@@ -858,7 +861,7 @@ msgHash(TlsConnection *c, uchar *p, int n)
 static int
 msgSend(TlsConnection *c, Msg *m, int act)
 {
-	uchar *p; // sendp = start of new message;  p = write pointer
+	uchar *p, *ep, *q; // sendp = start of new message;  p = write pointer
 	int nn, n, i;
 
 	if(sendp == nil)
@@ -905,17 +908,35 @@ msgSend(TlsConnection *c, Msg *m, int act)
 		memmove(p+1, m->u.clientHello.compressors->data, n);
 		p += n+1;
 
+		ep = p + 2;
+		q = ep;
+
+		if(m->u.clientHello.serverName != nil) {
+			n = strlen(m->u.clientHello.serverName);
+			put16(q, ExtServerName);
+			put16(q+2, 2+1+2+n); /* length of extension content */
+			put16(q+4, 1+2+n);   /* length of server name list */
+			q[6] = 0;            /* host name type */
+			put16(q+7, n);       /* length of host name */
+			memmove(q+9, m->u.clientHello.serverName, n);
+			q += 9 + n;
+		}
+
 		if(m->u.clientHello.sigAlgs != nil) {
 			n = m->u.clientHello.sigAlgs->len;
-			put16(p, 6 + 2*n);   /* length of extensions */
-			put16(p+2, ExtSigalgs);
-			put16(p+4, 2 + 2*n); /* length of extension content */
-			put16(p+6, 2*n);     /* length of algorithm list */
-			p += 8;
+			put16(q, ExtSigalgs);
+			put16(q+2, 2 + 2*n); /* length of extension content */
+			put16(q+4, 2*n);     /* length of algorithm list */
+			q += 6;
 			for(i = 0; i < n; i++) {
-				put16(p, m->u.clientHello.sigAlgs->data[i]);
-				p += 2;
+				put16(q, m->u.clientHello.sigAlgs->data[i]);
+				q += 2;
 			}
+		}
+
+		if(q > ep) {
+			put16(p, q - ep); /* length of extensions */
+			p = q;
 		}
 		break;
 	case HServerHello:
@@ -1436,6 +1457,8 @@ msgPrint(char *buf, int n, Msg *m)
 		bs = bytesPrint(bs, be, "\tcompressors: ", m->u.clientHello.compressors, "\n");
 		if(m->u.clientHello.sigAlgs != nil)
 			bs = intsPrint(bs, be, "\tsigAlgs: ", m->u.clientHello.sigAlgs, "\n");
+		if(m->u.clientHello.serverName != nil)
+			bs = seprint(bs, be, "\tserverName: %s\n", m->u.clientHello.serverName);
 		bs = seprint(bs, be, "\tsecReneg: %d\n", m->u.clientHello.secReneg);
 		break;
 	case HServerHello:
