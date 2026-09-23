@@ -1,0 +1,53 @@
+#!/bin/rc
+# Client config for updating an installation from the 9legacy sources server.
+# usage: replica/pull /dist/replica/9legacy
+
+if(~ $fscons '')
+	fscons=fscons
+if(~ $replica '')
+	replica=replica
+
+s=/n/sources/plan9/dist/replica
+serverroot=/n/sources/plan9
+serverlog=$s/plan9.log
+serverproto=$s/plan9.proto
+fn servermount {
+	9fs 9legacy
+}
+fn serverupdate { status='' }
+
+if ( ! test -e /srv/boot && ! test -e /srv/kfs ) {
+	echo 'error: neither /srv/boot nor /srv/kfs present; make sure you are running on the file server'
+	exit '/srv/boot or /srv/kfs not present'
+}
+
+if (test -e /srv/$fscons) {
+	if ( ! test -w /srv/$fscons ) {
+		echo 'error: no write access to /srv/'^$fscons^', make sure you are the host owner'
+		exit 'no write access to /srv/fscons'
+	}
+	fn clientmount {
+		if(! test -e /srv/$replica){
+			echo 'srv -AWP '^$replica >>/srv/$fscons
+			sleep 5
+		}
+		mount -c /srv/$replica /n/boot
+	}
+	c=/n/boot/dist/replica
+	clientroot=/n/boot
+}
+if not {
+	fn clientmount { 9fs kfs }
+	c=/n/kfs/dist/replica
+	clientroot=/n/kfs
+}
+
+clientdb=$c/client/plan9.db
+clientexclude=(dist/replica/client)
+clientlog=$c/client/plan9.log
+clientproto=$c/plan9.proto
+
+# 9legacy ships only 386 and amd64, so skip the other architectures,
+# both their top-level trees and their acme/bin binaries
+xarch=(arm arm64 mips mips64 power power64 riscv riscv64 sparc spim spim64)
+applyopt=(-u -T$c/client/plan9.time -x^$xarch -x^acme/bin/^$xarch)
