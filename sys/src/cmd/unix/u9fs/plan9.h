@@ -45,6 +45,19 @@ typedef unsigned long long int  uint64_t;
 #include <string.h>		/* for memmove */
 #include <unistd.h>		/* for write */
 #include <fcntl.h>
+#include <sys/stat.h>		/* for the mtime fields of struct stat */
+
+/*
+ * st_mtime alone is too coarse to version a qid: a rewrite in place
+ * within the second would keep it, and clients cache contents by qid.
+ */
+#if defined(__APPLE__)
+#define MTIMENSEC(st)	((st)->st_mtimespec.tv_nsec)
+#elif defined(st_mtime)		/* the POSIX 2008 timespec members */
+#define MTIMENSEC(st)	((st)->st_mtim.tv_nsec)
+#else
+#define MTIMENSEC(st)	0
+#endif
 
 #define ulong p9ulong		/* because sys/types.h has some of these sometimes */
 #define ushort p9ushort
