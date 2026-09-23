@@ -60,6 +60,7 @@ int	fileMetaFlush(File*, int);
 char	*fileName(File *f);
 File	*fileOpen(Fs*, char*);
 int	fileRead(File*, void *, int, vlong);
+void	fileReadAhead(File*, vlong, int, u32int*, u32int*);
 int	fileRemove(File*, char*);
 int	fileSetDir(File*, DirEntry*, char*);
 int	fileSetQidSpace(File*, u64int, u64int);

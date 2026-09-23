@@ -607,6 +607,51 @@ cacheLocalData(Cache *c, u32int addr, int type, u32int tag, int mode, u32int epo
 	return b;
 }
 
+void
+cachePrefetch(Cache *c, u32int addr)
+{
+	Block *b;
+	ulong h;
+
+	if(!diskCanPrefetch(c->disk))
+		return;
+
+	h = addr % c->hashSize;
+	qlock(&c->lk);
+	for(b = c->heads[h]; b != nil; b = b->next)
+		if(b->part == PartData && b->addr == addr)
+			break;
+	if(b != nil){
+		qunlock(&c->lk);
+		return;
+	}
+	b = cacheBumpBlock(c);
+	b->part = PartData;
+	b->addr = addr;
+	localToGlobal(addr, b->score);
+	b->next = c->heads[h];
+	c->heads[h] = b;
+	if(b->next != nil)
+		b->next->prev = &b->next;
+	b->prev = &c->heads[h];
+	qunlock(&c->lk);
+
+	bwatchLock(b);
+	qlock(&b->lk);
+	b->nlock = 1;
+
+	if(b->iostate == BioEmpty){
+		if(!readLabel(c, &b->l, addr)){
+			blockPut(b);
+			return;
+		}
+		blockSetIOState(b, BioLabel);
+	}
+	if(b->iostate == BioEmpty || b->iostate == BioLabel)
+		diskRead(c->disk, b);
+	blockPut(b);
+}
+
 /*
  * fetch a global (Venti) block from the memory cache.
  * if it's not there, load it, bumping some other block.

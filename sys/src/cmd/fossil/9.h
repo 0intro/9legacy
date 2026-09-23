@@ -107,6 +107,8 @@ struct Fid {
 	int	open;
 	Fsys*	fsys;
 	File*	file;
+	u32int	raexpect;
+	u32int	ramax;
 	Qid	qid;
 	char*	uid;
 	char*	uname;

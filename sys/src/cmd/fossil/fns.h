@@ -9,6 +9,7 @@ int	sourceLock2(Source*, Source*, int);
 int	sourceLock(Source*, int);
 char	*sourceName(Source *s);
 Source*	sourceOpen(Source*, ulong, int, int);
+void	sourceReadAhead(Source*, ulong, int);
 int	sourceRemove(Source*);
 Source*	sourceRoot(Fs*, u32int, int);
 int	sourceSetDirSize(Source*, ulong);
@@ -27,6 +28,7 @@ Block*	cacheGlobal(Cache*, uchar[VtScoreSize], int, u32int, int);
 Block*	cacheLocal(Cache*, int, u32int, int);
 Block*	cacheLocalData(Cache*, u32int, int, u32int, int, u32int);
 u32int	cacheLocalSize(Cache*, int);
+void	cachePrefetch(Cache*, u32int);
 int	readLabel(Cache*, Label*, u32int addr);
 
 Block*	blockCopy(Block*, u32int, u32int, u32int);
@@ -43,6 +45,7 @@ int	blockWrite(Block*, int);
 
 Disk*	diskAlloc(int);
 int	diskBlockSize(Disk*);
+int	diskCanPrefetch(Disk*);
 int	diskFlush(Disk*);
 void	diskFree(Disk*);
 void	diskRead(Disk*, Block*);
