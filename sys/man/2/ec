@@ -14,7 +14,9 @@ ecdsasign,
 ecdsaverify,
 ecencodepub,
 ecdecodepub,
-ecpubfree \- elliptic curve cryptography
+ecpubfree,
+X509toECpub,
+X509ecdsaverifydigest \- elliptic curve cryptography
 .SH SYNOPSIS
 .B #include <u.h>
 .br
@@ -68,6 +70,12 @@ ECpub*	ecdecodepub(ECdomain *dom, uchar *data, int len)
 .PP
 .B
 void	ecpubfree(ECpub *p);
+.PP
+.B
+ECpub*	X509toECpub(uchar *cert, int ncert, char *name, int nname, ECdomain *dom)
+.PP
+.B
+char*	X509ecdsaverifydigest(uchar *sig, int siglen, uchar *edigest, int edigestlen, ECdomain *dom, ECpub *pub)
 .DT
 .SH DESCRIPTION
 These functions implement elliptic curve cryptography.
@@ -146,6 +154,36 @@ also verifies that the public key is valid in the specified domain.
 frees a
 .B ECpub
 structure and its associated members.
+.PP
+.B X509toECpub
+parses an X.509 certificate
+.I cert
+of length
+.I ncert
+and returns its elliptic curve public key,
+initialising the curve domain
+.I dom
+to match.
+If
+.I name
+is not nil, the certificate subject's common name is copied into it,
+truncated to
+.I nname
+bytes.
+.PP
+.B X509ecdsaverifydigest
+verifies an ECDSA signature
+.I sig
+of length
+.I siglen
+over the message digest
+.I edigest
+of length
+.I edigestlen
+using the public key
+.I pub
+in the domain
+.IR dom .
 .SH RETURN VALUE
 .B *verify
 functions return
