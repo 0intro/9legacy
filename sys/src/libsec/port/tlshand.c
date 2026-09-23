@@ -807,24 +807,20 @@ tlsClient2(int ctl, int hand, uchar *csid, int ncsid, char *serverName, int (*tr
 	m.u.finished = c->finished;
 
 	if(!msgSend(c, &m, AFlush)) {
-		fprint(2, "tlsClient nepm=%d\n", nepm);
 		tlsError(c, EInternalError, "can't flush after client Finished: %r");
 		goto Err;
 	}
 	msgClear(&m);
 
 	if(tlsSecFinished(c->sec, c->hs, c->finished.verify, c->finished.n, 0) < 0){
-		fprint(2, "tlsClient nepm=%d\n", nepm);
 		tlsError(c, EInternalError, "can't set finished 0: %r");
 		goto Err;
 	}
 	if(!msgRecv(c, &m)) {
-		fprint(2, "tlsClient nepm=%d\n", nepm);
 		tlsError(c, EInternalError, "can't read server Finished: %r");
 		goto Err;
 	}
 	if(m.tag != HFinished) {
-		fprint(2, "tlsClient nepm=%d\n", nepm);
 		tlsError(c, EUnexpectedMessage, "expected a Finished msg from server");
 		goto Err;
 	}
