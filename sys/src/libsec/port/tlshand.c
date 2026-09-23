@@ -43,6 +43,7 @@ typedef struct Algs{
 	char *digest;
 	int nsecret;
 	int tlsid;
+	int sha384;	// use the sha384 PRF and finished hash
 	int ok;
 } Algs;
 
@@ -60,6 +61,7 @@ typedef struct HandHash{
 	MD5state	md5;
 	SHAstate	sha1;
 	SHA2_256state	sha2_256;
+	SHA2_384state	sha2_384;
 } HandHash;
 
 typedef struct TlsConnection{
@@ -87,6 +89,7 @@ typedef struct TlsConnection{
 	char *digest;	// name of digest algorithm to use
 	char *enc;		// name of encryption algorithm to use
 	int nsecret;	// amount of secret data to init keys
+	int sha384;		// cipher suite uses the sha384 PRF
 	int cipher;		// negotiated cipher suite
 	int curve;		// ephemeral key exchange group chosen by the server
 	Bytes *Ys;		// server ephemeral key exchange public value
@@ -150,6 +153,7 @@ typedef struct TlsSec{
 	uchar srandom[RandomSize];	// server random
 	int clientVers;		// version in ClientHello
 	int vers;			// final version
+	int sha384;			// use the sha384 PRF and finished hash
 	// ephemeral elliptic curve diffie-hellman state
 	Namedcurve *nc;		// selected curve
 	struct {
@@ -400,6 +404,11 @@ static AuthRpc* factotum_rsa_open(uchar *cert, int certlen);
 static mpint* factotum_rsa_decrypt(AuthRpc *rpc, mpint *cipher);
 static void factotum_rsa_close(AuthRpc*rpc);
 
+static void	tls12SetFinished384(TlsSec *sec, HandHash hs, uchar *finished, int isClient);
+static void	tlsPsha2_384(uchar *buf, int nbuf, uchar *key, int nkey, uchar *label, int nlabel, uchar *seed, int nseed);
+static void	tls12PRF384(uchar *buf, int nbuf, uchar *key, int nkey, char *label,
+			uchar *seed0, int nseed0, uchar *seed1, int nseed1);
+
 static int	isECDHE(int tlsid);
 static int	isECDSA(int tlsid);
 static int	isDHE(int tlsid);
@@ -632,6 +641,7 @@ tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...
 		goto Err;
 	}
 	c->sec->rsapub = X509toRSApub(cert, ncert, nil, 0);
+	c->sec->sha384 = c->sha384;
 	if(isECDHE(cipher) && tlsSecECDHEs0(c->sec, m.u.clientHello.curves) < 0){
 		tlsError(c, EHandshakeFailure, "no matching elliptic curve");
 		goto Err;
@@ -834,6 +844,7 @@ tlsClient2(int ctl, int hand, uchar *csid, int ncsid, char *serverName, int (*tr
 		tlsError(c, EIllegalParameter, "invalid cipher suite");
 		goto Err;
 	}
+	c->sec->sha384 = c->sha384;
 	if(m.u.serverHello.compressor != CompressionNull) {
 		tlsError(c, EIllegalParameter, "invalid compression");
 		goto Err;
@@ -1048,10 +1059,13 @@ msgHash(TlsConnection *c, uchar *p, int n)
 {
 	md5(p, n, 0, &c->hs.md5);
 	sha1(p, n, 0, &c->hs.sha1);
-	if(c->version >= TLS12Version)
+	if(c->version >= TLS12Version){
 		sha2_256(p, n, 0, &c->hs.sha2_256);
-	else
+		sha2_384(p, n, 0, &c->hs.sha2_384);
+	}else{
 		memset(&c->hs.sha2_256, 0, sizeof c->hs.sha2_256);
+		memset(&c->hs.sha2_384, 0, sizeof c->hs.sha2_384);
+	}
 }
 
 static int
@@ -1918,6 +1932,7 @@ setAlgs(TlsConnection *c, int a)
 			c->enc = cipherAlgs[i].enc;
 			c->digest = cipherAlgs[i].digest;
 			c->nsecret = cipherAlgs[i].nsecret;
+			c->sha384 = cipherAlgs[i].sha384;
 			if(c->nsecret > MaxKeyData)
 				return 0;
 			return 1;
@@ -2237,6 +2252,43 @@ tls12PRF(uchar *buf, int nbuf, uchar *key, int nkey, char *label, uchar *seed0, 
 	tlsPsha2_256(buf, nbuf, key, nkey, (uchar*)label, nlabel, seed, nseed0+nseed1);
 }
 
+static void
+tlsPsha2_384(uchar *buf, int nbuf, uchar *key, int nkey, uchar *label, int nlabel, uchar *seed, int nseed)
+{
+	uchar ai[SHA2_384dlen], tmp[SHA2_384dlen];
+	int n;
+	SHAstate *s;
+
+	// generate a1
+	s = hmac_sha2_384(label, nlabel, key, nkey, nil, nil);
+	hmac_sha2_384(seed, nseed, key, nkey, ai, s);
+
+	while(nbuf > 0) {
+		s = hmac_sha2_384(ai, SHA2_384dlen, key, nkey, nil, nil);
+		s = hmac_sha2_384(label, nlabel, key, nkey, nil, s);
+		hmac_sha2_384(seed, nseed, key, nkey, tmp, s);
+		n = SHA2_384dlen;
+		if(n > nbuf)
+			n = nbuf;
+		memmove(buf, tmp, n);
+		buf += n;
+		nbuf -= n;
+		hmac_sha2_384(ai, SHA2_384dlen, key, nkey, tmp, nil);
+		memmove(ai, tmp, SHA2_384dlen);
+	}
+}
+
+static void
+tls12PRF384(uchar *buf, int nbuf, uchar *key, int nkey, char *label, uchar *seed0, int nseed0, uchar *seed1, int nseed1)
+{
+	uchar seed[2*RandomSize];
+	int nlabel = strlen(label);
+
+	memmove(seed, seed0, nseed0);
+	memmove(seed+nseed0, seed1, nseed1);
+	tlsPsha2_384(buf, nbuf, key, nkey, (uchar*)label, nlabel, seed, nseed0+nseed1);
+}
+
 /*
  * for setting server session id's
  */
@@ -2344,6 +2396,8 @@ tlsSecFinished(TlsSec *sec, HandHash hs, uchar *fin, int nfin, int isclient)
 	}
 	hs.md5.malloced = 0;
 	hs.sha1.malloced = 0;
+	hs.sha2_256.malloced = 0;
+	hs.sha2_384.malloced = 0;
 	if(sec->setFinished == nil ){
 		sec->ok = -1;
 		werrstr("nil sec->setFinished in tlsSecFinished");
@@ -2401,9 +2455,14 @@ setVers(TlsSec *sec, int v)
 		sec->prf = tlsPRF;
 		break;
 	case TLS12Version:
-		sec->setFinished = tls12SetFinished;
 		sec->nfin = TLSFinishedLen;
-		sec->prf = tls12PRF;
+		if(sec->sha384){
+			sec->setFinished = tls12SetFinished384;
+			sec->prf = tls12PRF384;
+		}else{
+			sec->setFinished = tls12SetFinished;
+			sec->prf = tls12PRF;
+		}
 		break;
 	default:
 		werrstr("invalid version");
@@ -2962,6 +3021,23 @@ tls12SetFinished(TlsSec *sec, HandHash hs, uchar *finished, int isClient)
 	else
 		label = "server finished";
 	tlsPsha2_256(finished, TLSFinishedLen, sec->sec, MasterSecretSize, (uchar*)label, strlen(label), h, SHA2_256dlen);
+}
+
+// fill "finished" arg with sha384(args)
+static void
+tls12SetFinished384(TlsSec *sec, HandHash hs, uchar *finished, int isClient)
+{
+	uchar h[SHA2_384dlen];
+	char *label;
+
+	// get current hash value, but allow further messages to be hashed in
+	sha2_384(nil, 0, h, &hs.sha2_384);
+
+	if(isClient)
+		label = "client finished";
+	else
+		label = "server finished";
+	tlsPsha2_384(finished, TLSFinishedLen, sec->sec, MasterSecretSize, (uchar*)label, strlen(label), h, SHA2_384dlen);
 }
 
 static void
