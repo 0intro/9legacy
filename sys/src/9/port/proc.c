@@ -91,16 +91,22 @@ schedinit(void)		/* never returns */
 			 */
 			mmurelease(up);
 
+			up->mach = nil;
+			updatecpu(up);
+
 			up->qnext = procalloc.free;
 			procalloc.free = up;
 
 			unlock(&palloc);
+			up = procalloc.Lock.p = nil;
 			unlock(&procalloc);
 			break;
 		}
-		up->mach = nil;
-		updatecpu(up);
-		up = nil;
+		if(up) {
+			up->mach = nil;
+			updatecpu(up);
+			up = nil;
+		}
 	}
 	sched();
 }
