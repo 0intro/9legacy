@@ -318,7 +318,7 @@ runs
 with the
 .B -v
 flag and with
-.B /dist/replica/network
+.B /dist/replica/9legacy
 inserted at the right point on the command line.
 Logged in as glenda, one can repeat the above example with:
 .EX
