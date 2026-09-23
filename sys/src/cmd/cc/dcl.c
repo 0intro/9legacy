@@ -18,6 +18,8 @@ loop:
 		break;
 
 	case OARRAY:
+		if(t->etype == TARRAY && t->width == 0)
+			diag(n, "unspecified array size in nested array");
 		t = typ(TARRAY, t);
 		t->width = 0;
 		n1 = n->right;
