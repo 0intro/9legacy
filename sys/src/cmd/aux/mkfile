@@ -5,6 +5,7 @@ TARG=\
 	9pcon\
 	accupoint\
 	acidleak\
+	aout2efi\
 	apm\
 	astarld\
 	cddb\
