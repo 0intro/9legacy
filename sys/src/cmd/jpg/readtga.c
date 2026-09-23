@@ -114,8 +114,8 @@ rdhdr(Biobuf *bp)
 		return nil;
 	}
 	if(Bread(bp, h->cmap, n) != n){
-		free(h);
 		free(h->cmap);
+		free(h);
 		return nil;
 	}
 	return h;
