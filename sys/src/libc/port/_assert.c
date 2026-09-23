@@ -8,6 +8,6 @@ _assert(char *s)
 {
 	if(__assert)
 		(*__assert)(s);
-	fprint(2, "assert failed: %s\n", s);
+	fprint(2, "assert failed, called from %#p: %s\n", getcallerpc(&s), s);
 	abort();
 }
