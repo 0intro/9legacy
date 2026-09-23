@@ -86,12 +86,16 @@ schedinit(void)		/* never returns */
 			mmurelease(up);
 			unlock(&palloc);
 
+			up->mach = nil;
 			psrelease(up);
+			up = procalloc.Lock.p = nil;
 			unlock(&procalloc);
 			break;
 		}
-		up->mach = nil;
-		up = nil;
+		if(up){
+			up->mach = nil;
+			up = nil;
+		}
 	}
 	sched();
 }
