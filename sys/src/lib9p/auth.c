@@ -76,6 +76,11 @@ _authread(Afid *afid, void *data, int count)
 		ai = auth_getinfo(afid->rpc);
 		if(ai == nil)
 			return -1;
+		if(strcmp(afid->uname, ai->cuid) != 0){
+			auth_freeAI(ai);
+			werrstr("auth uname mismatch");
+			return -1;
+		}
 		auth_freeAI(ai);
 		if(chatty9p)
 			fprint(2, "authenticate %s/%s: ok\n", afid->uname, afid->aname);
@@ -173,13 +178,6 @@ authattach(Req *r)
 		return -1;
 	}
 
-	if(!afid->authok){
-		if(_authread(afid, buf, 0) < 0){
-			responderror(r);
-			return -1;
-		}
-	}
-	
 	if(strcmp(afid->uname, r->ifcall.uname) != 0){
 		snprint(buf, sizeof buf, "auth uname mismatch: %s vs %s", 
 			afid->uname, r->ifcall.uname);
@@ -192,6 +190,13 @@ authattach(Req *r)
 			afid->aname, r->ifcall.aname);
 		respond(r, buf);
 		return -1;
+	}
+
+	if(!afid->authok){
+		if(_authread(afid, buf, 0) < 0){
+			responderror(r);
+			return -1;
+		}
 	}
 	return 0;
 }
