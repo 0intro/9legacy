@@ -727,6 +727,8 @@ talph:
 	 * prefix has been stored
 	 */
 	for(;;) {
+		if(cp >= &symb[NSYMB-UTFmax-1])
+			goto toolong;
 		if(c >= Runeself) {
 			for(c1=0;;) {
 				cp[c1++] = c;
@@ -775,6 +777,8 @@ tnum:
 	if(c != '0') {
 		c1 |= Numdec;
 		for(;;) {
+			if(cp >= &symb[NSYMB-1])
+				goto toolong;
 			*cp++ = c;
 			c = GETC();
 			if(isdigit(c))
@@ -786,6 +790,8 @@ tnum:
 	c = GETC();
 	if(c == 'x' || c == 'X')
 		for(;;) {
+			if(cp >= &symb[NSYMB-1])
+				goto toolong;
 			*cp++ = c;
 			c = GETC();
 			if(isdigit(c))
@@ -802,6 +808,8 @@ tnum:
 		goto dc;
 	for(;;) {
 		if(c >= '0' && c <= '7') {
+			if(cp >= &symb[NSYMB-1])
+				goto toolong;
 			*cp++ = c;
 			c = GETC();
 			continue;
@@ -873,6 +881,8 @@ nret:
 
 casedot:
 	for(;;) {
+		if(cp >= &symb[NSYMB-1])
+			goto toolong;
 		*cp++ = c;
 		c = GETC();
 		if(!isdigit(c))
@@ -882,6 +892,8 @@ casedot:
 		goto caseout;
 
 casee:
+	if(cp >= &symb[NSYMB-2])
+		goto toolong;
 	*cp++ = 'e';
 	c = GETC();
 	if(c == '+' || c == '-') {
@@ -891,6 +903,8 @@ casee:
 	if(!isdigit(c))
 		yyerror("malformed fp constant exponent");
 	while(isdigit(c)) {
+		if(cp >= &symb[NSYMB-1])
+			goto toolong;
 		*cp++ = c;
 		c = GETC();
 	}
@@ -914,6 +928,11 @@ caseout:
 	if(c1 & Numflt)
 		return LFCONST;
 	return LDCONST;
+
+toolong:
+	yyerror("token too long: %.*s...", utfnlen(symb, cp-symb), symb);
+	errorexit();
+	return -1;
 }
 
 /*
