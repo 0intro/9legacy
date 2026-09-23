@@ -538,6 +538,7 @@ rudpiput(Proto *rudp, Ipifc *ifc, Block *bp)
 	len -= (UDP_RHDRSIZE-UDP_PHDRSIZE);
 	bp = trimblock(bp, UDP_IPHDR+UDP_RHDRSIZE, len);
 	if(bp == nil) {
+		qunlock(ucb);
 		netlog(f, Logrudp, "rudp: len err %I.%d -> %I.%d\n",
 			raddr, rport, laddr, lport);
 		DPRINT("rudp: len err %I.%d -> %I.%d\n",
