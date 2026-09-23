@@ -2292,7 +2292,11 @@ reset:
 				update(s, &seg);
 				tcpsynackrtt(s);
 				tcpsetstate(s, Established);
-				tcpsetscale(s, tcb, seg.ws, tcb->scale);
+				/* if the peer does not support ws option, disable window scaling */
+				if(seg.ws == 0)
+					tcpsetscale(s, tcb, 0, 0);
+				else
+					tcpsetscale(s, tcb, seg.ws, tcb->scale);
 			}
 			else {
 				tcb->time = NOW;
