@@ -21,6 +21,7 @@ LIBS=\
 	libhtml\
 	libhttpd\
 	libip\
+	libjson\
 	liblex\
 	libmach\
 	libmemdraw\
