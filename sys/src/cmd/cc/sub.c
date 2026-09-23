@@ -713,7 +713,7 @@ arith(Node *n, int f)
 			n->op = OCAST;
 			n->left = n1;
 			n->right = Z;
-			n->type = types[TLONG];
+			n->type = types[TVLONG];	/* not TLONG: it truncates pointer spans > 2GB */
 		}
 		if(w > 1) {
 			n1 = new1(OXXX, Z, Z);
