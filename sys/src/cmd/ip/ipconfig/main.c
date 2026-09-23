@@ -193,6 +193,7 @@ void	doremove(void);
 void	dounbind(void);
 int	getndb(void);
 void	getoptions(uchar*);
+int	ifcmtu(void);
 int	ip4cfg(void);
 int	ip6cfg(int a);
 void	lookforip(char*);
@@ -1301,8 +1302,13 @@ dhcprecv(void)
 		/* get mtu */
 		if(conf.mtu == 0){
 			conf.mtu = optgetushort(bp->optdata, OBmtu);
-			if(conf.mtu != 0)
+			if(conf.mtu != 0){
+				int max;
+
 				conf.mtu += 14; /* size of ethernet header */
+				if((max = ifcmtu()) > 0 && conf.mtu > max)
+					conf.mtu = max;
+			}
 			DEBUG("mtu=%d ", conf.mtu);
 		}
 
@@ -1878,6 +1884,20 @@ nipifcs(char *net)
 			myifc = nifc->index;
 	}
 	return n;
+}
+
+/* return the bound interface mtu, or 0 if not found */
+int
+ifcmtu(void)
+{
+	static Ipifc *ifc;
+	Ipifc *nifc;
+
+	ifc = readipifc(conf.mpoint, ifc, -1);
+	for(nifc = ifc; nifc != nil; nifc = nifc->next)
+		if(strcmp(nifc->dev, conf.dev) == 0)
+			return nifc->mtu;
+	return 0;
 }
 
 /* return true if this is a valid v4 address */
