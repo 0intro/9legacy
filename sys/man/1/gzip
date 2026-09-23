@@ -49,14 +49,14 @@ gzip, gunzip, bzip2, bunzip2, lzip, lunzip, compress, uncompress, zip, unzip \- 
 ]
 .PP
 .B zip
-.RB [ -avD [ 1-9 ]]
+.RB [ -vD [ 1-9 ]]
 .RB [ -f
 .IR zipfile ]
 .I file
 .RB [ ... ]
 .br
 .B unzip
-.RB [ -cistTvD ]
+.RB [ -acistTvD ]
 .RB [ -f
 .IR zipfile ]
 .RI [ file
@@ -171,7 +171,7 @@ The options are:
 .\" .TP 0.6i
 .TP 0.3i
 .B -a
-Automaticialy creates directories as needed, needed for zip files
+Automatically creates directories as needed, needed for zip files
 created by broken implementations which omit directories.
 .TP
 .B -c

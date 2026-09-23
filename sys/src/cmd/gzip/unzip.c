@@ -52,7 +52,7 @@ static	int	autodir;
 static void
 usage(void)
 {
-	fprint(2, "usage: unzip [-cistTvD] [-f zipfile] [file ...]\n");
+	fprint(2, "usage: unzip [-acistTvD] [-f zipfile] [file ...]\n");
 	exits("usage");
 }
 
@@ -353,7 +353,7 @@ mkpdirs(char *path)
 {
 	int rv = 0;
 	char *sl = strrchr(path, '/');
-print("%s\n", path);
+
 	if (sl != nil) {
 		*sl = '\0';
 		rv = mkdirs(path);
