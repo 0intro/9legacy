@@ -128,7 +128,6 @@ char	Eperm[] =	"permission denied";
 char	Enotdir[] =	"not a directory";
 char	Enoauth[] =	"ramfs: authentication not required";
 char	Enotexist[] =	"file does not exist";
-char	Einuse[] =	"file in use";
 char	Eexist[] =	"file exists";
 char	Eisdir[] =	"file is a directory";
 char	Enotowner[] =	"not owner";
@@ -466,7 +465,7 @@ rcreate(Fid *f)
 	for(r=ram; r<&ram[nram]; r++)
 		if(r->busy && parent==r->parent)
 		if(strcmp((char*)name, r->name)==0)
-			return Einuse;
+			return Eexist;
 	for(r=ram; r->busy || r->ref; r++)
 		if(r == &ram[maxnram-1] && (r = ramexpand(r)) == nil)
 			return "no free ram resources";
