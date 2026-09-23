@@ -20,8 +20,8 @@ CFLAGS=-FVw
 # $LIB seems to be in random order, invoke it multiple times
 $p$CONF:	$CONF.c $OBJ $LIB
 	$CC $CFLAGS '-DKERNDATE='`{date -n} $CONF.c
-	$LD -o $target -T0xfffffffff0110000 -R4096 -l $OBJ $CONF.$O $LIB $LIB
-	$LD -o $target.elf -H5 -E0x00110000 -P0x00110000 -8 -T0xfffffffff0110000 -R4096 -l -S $OBJ $CONF.$O $LIB $LIB
+	$LD -o $target -T0xffffffff80120000 -R4096 -l $OBJ $CONF.$O $LIB $LIB
+	$LD -o $target.elf -H5 -E0x00120000 -P0x00120000 -8 -T0xffffffff80120000 -R4096 -l -S $OBJ $CONF.$O $LIB $LIB
 	size $target
 
 install:QV:	$p$CONF
@@ -80,7 +80,7 @@ ${objtype}l.h:DQ:	$objtype.h
 	rc ../mk/mkenum $objtype.h > $target
 
 sipi.h:		l64sipi.$O mkfile
-	$LD -o l64sipi.out -T0xfffffffff0003000 -R4 -l -s l64sipi.$O
+	$LD -o l64sipi.out -T0xffffffff80003000 -R4 -l -s l64sipi.$O
 	{echo 'uchar sipihandler[]={'
 	 xd -1x l64sipi.out |
 	 sed -e 's/^[0-9a-f]+ //'				\

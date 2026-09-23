@@ -66,6 +66,31 @@ options(int argc, char* argv[])
 	vflag = dbgflg['v'];
 }
 
+enum {
+	Minmb = 128,			/* minimum sane memory in MB */
+	Kernfract = 32,			/* fraction of memory for the kernel */
+};
+
+static void
+setkernmem(void)
+{
+	uintptr pmsize;
+
+	pmsize = sys->pmend;
+	if(pmsize < Minmb*MB){
+		print("setkernmem: mem %llud, assuming %d MB\n", (uvlong)pmsize, Minmb);
+		pmsize = Minmb*MB;
+		sys->pmend = pmsize;
+	}
+	if(pmsize <= KSEG0SIZE)
+		kernmem = 200*MB;
+	if(kernmem >= pmsize/Kernfract + Minmb*MB){
+		kernmem = PGROUND(pmsize/Kernfract + Minmb*MB);
+		if(kernmem < Minmb*MB/3)
+			kernmem = Minmb*MB/3;
+	}
+}
+
 void
 squidboy(int apicno)
 {
@@ -205,6 +230,7 @@ main(u32int ax, u32int bx)
 	 * makes mappings and
 	 * flushes the TLB via m->pml4->pa.
 	 */
+	setkernmem();
 	mmuinit();
 
 	ioinit();

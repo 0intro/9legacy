@@ -53,30 +53,33 @@
 /*
  *  Address spaces
  *
- *  Kernel gets loaded at 1*MiB+64*KiB;
+ *  Kernel gets loaded at 1*MiB+128*KiB;
  *  Memory from 0 to 1MiB is not used for other things;
- *  1*MiB to 1MiB+64KiB is used to hold the Sys and
+ *  1*MiB to 1MiB+128KiB is used to hold the Sys and
  *  Mach0 datastructures.
  *
  *  User is at low addresses; kernel vm starts at KZERO;
- *  KSEG0 maps the first TMFM bytes, one to one, (i.e KZERO);
+ *  KSEG0 maps the first kernmem bytes, one to one (i.e. KZERO);
  *  KSEG1 maps the PML4 into itself;
  *  KSEG2 maps all remaining physical memory.
  */
 #define UTZERO		(0+2*MiB)		/* first address in user text */
 #define UTROUND(t)	ROUNDUP((t), 2*MiB)
-#define USTKTOP		0x00007ffffffff000ull
+#define ADDRSPCSZ	(1ull<<(48-1))		/* high bit selects user vs kernel */
+#define USTKTOP		(ADDRSPCSZ-PGSZ)	/* 0x00007ffffffff000 */
 #define USTKSIZE	(16*1024*1024)		/* size of user stack */
 #define TSTKTOP		(USTKTOP-USTKSIZE)	/* end of new stack in sysexec */
 
-#define KSEG0		(0xfffffffff0000000ull)	/* 256MB - this is confused */
-#define KSEG1		(0xffffff0000000000ull)	/* 512GB - embedded PML4 */
-#define KSEG2		(0xfffffe0000000000ull)	/* 1TB - KMAP */
+#define KSEG0SIZE	(2ull*GB)		/* kernel direct-map window; l32p.s/mkfile know this */
+#define VZERO		0ull			/* top of kernel address space + 1 */
+#define KSEG0		(VZERO-KSEG0SIZE)	/* 2GB direct map (was 0xfffffffff0000000) */
+#define KSEG1		(VZERO-TB)		/* 512GB - embedded PML4 */
+#define KSEG2		(VZERO-ADDRSPCSZ)	/* KMAP - all remaining physical memory */
 
-#define PMAPADDR	(0xffffffffffe00000ull)	/* unused as of yet (KMAP?) */
+#define PMAPADDR	(VZERO-(2*MiB))		/* unused as of yet (KMAP?) */
 
-#define KZERO		(0xfffffffff0000000ull)
-#define KTZERO		(KZERO+1*MiB+64*KiB)
+#define KZERO		KSEG0
+#define KTZERO		(KZERO+1*MiB+128*KiB)
 
 /*
  *  virtual MMU
@@ -108,8 +111,6 @@
  */
 #define PTLX(v, l)	(((v)>>(((l)*PTSHFT)+PGSHFT)) & ((1<<PTSHFT)-1))
 #define PGLSZ(l)	(1ull<<(((l)*PTSHFT)+PGSHFT))
-
-#define TMFM		((256-32)*MiB)			/* GAK kernel memory */
 
 /* this can go when the arguments to mmuput change */
 #define PPN(x)		((x) & ~(PGSZ-1))		/* GAK */
