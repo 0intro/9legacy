@@ -150,6 +150,7 @@ enum
 	MD4dlen=	16,	/* MD4 digest length */
 	MD5dlen=	16,	/* MD5 digest length */
 	AESdlen=	16,	/* TODO: see rfc */
+	Maxdlen=	64,
 
 	Hmacblksz	= 64,	/* in bytes; from rfc2104 */
 };
@@ -406,5 +407,12 @@ int	okThumbprint(uchar *sha1, Thumbprint *ok);
 /* readcert.c */
 uchar	*readcert(char *filename, int *pcertlen);
 PEMChain*readcertchain(char *filename);
+
+/*
+ * HKDF
+ */
+void	hkdfExtract(uchar*, DigestState*(*)(uchar*, ulong, uchar*, DigestState*), int, uchar*, int, uchar*, int);
+int	hkdfExpand(uchar*, DigestState*(*)(uchar*, ulong, uchar*, DigestState*), int, uchar*, int, uchar*, int, int);
+int	hkdfKey(uchar*, DigestState*(*x)(uchar*, ulong, uchar*, DigestState*), int xlen, uchar*, int, uchar*, int, uchar*, int, int);
 
 #endif

@@ -182,6 +182,7 @@ enum
 	MD5dlen=	16,	/* MD5 digest length */
 	AESdlen=	16,	/* TODO: see rfc */
 	Poly1305dlen=	16,	/* Poly1305 digest length */
+	Maxdlen=	64,
 
 	Hmacblksz	= 64,	/* in bytes; from rfc2104 */
 };
@@ -447,3 +448,11 @@ void	freecertchain(PEMChain *chain);
 /* password-based key derivation function 2 (rfc2898) */
 void pbkdf2_x(uchar *p, ulong plen, uchar *s, ulong slen, ulong rounds, uchar *d, ulong dlen,
 	DigestState* (*x)(uchar*, ulong, uchar*, ulong, uchar*, DigestState*), int xlen);
+
+/*
+ * HKDF
+ */
+void	hkdfExtract(uchar*, DigestState*(*)(uchar*, ulong, uchar*, DigestState*), int, uchar*, int, uchar*, int);
+int	hkdfExpand(uchar*, DigestState*(*)(uchar*, ulong, uchar*, DigestState*), int, uchar*, int, uchar*, int, int);
+int	hkdfKey(uchar*, DigestState*(*x)(uchar*, ulong, uchar*, DigestState*), int xlen, uchar*, int, uchar*, int, uchar*, int, int);
+
