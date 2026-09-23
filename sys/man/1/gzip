@@ -158,6 +158,9 @@ or the standard output if no file is given.
 extracts files from an archive created by
 .IR zip .
 If no files are named as arguments, all of files in the archive are extracted.
+An entry whose name is absolute, or leads out of the current directory through
+.BR .. ,
+is not extracted.
 A directory's name implies all recursively contained files and subdirectories.
 .I Zip
 is the
