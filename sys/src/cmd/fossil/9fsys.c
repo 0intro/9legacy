@@ -4,6 +4,12 @@
 #include "fns.h"
 #include "9.h"
 
+enum {
+	KB = 1024,
+	MB = 1024*1024,
+	GB = 1024*1024*1024,
+};
+
 struct Fsys {
 	QLock	lock;
 
@@ -1498,7 +1504,20 @@ out:
 	return r;
 }
 
-static ulong
+/*
+ * cap allocations to keep sizes within 32 bits on 32-bit machines.
+ * malloc implementations may restrict its arguments further (and
+ * Plan 9's does, so reduce the maximum size further).
+ */
+static uvlong
+capmalloc(uvlong size)
+{
+	if (sizeof(void *) < sizeof(vlong) && size > 1600ULL * MB)
+		return 1600ULL * MB;
+	return size;
+}
+
+static uvlong
 freemem(void)
 {
 	int nf, pgsize = 0;
@@ -1507,7 +1526,7 @@ freemem(void)
 	char *fields[2];
 	Biobuf *bp;
 
-	size = 64*1024*1024;
+	size = 64*MB;
 	bp = Bopen("#c/swap", OREAD);
 	if (bp != nil) {
 		while ((ln = Brdline(bp, '\n')) != nil) {
@@ -1529,9 +1548,6 @@ freemem(void)
 		if (pgsize > 0 && userpgs > 0)
 			size = (userpgs - userused) * pgsize;
 	}
-	/* cap it to keep the size within 32 bits */
-	if (size >= 3840UL * 1024 * 1024)
-		size = 3840UL * 1024 * 1024;
 	return size;
 }
 
@@ -1541,7 +1557,7 @@ fsysOpen(char* name, int argc, char* argv[])
 	char *p, *host;
 	Fsys *fsys;
 	int noauth, noventi, noperm, rflag, wstatallow, noatimeupd;
-	long ncache;
+	vlong ncache;
 	char *usage = "usage: fsys name open [-APVWr] [-c ncache]";
 
 	ncache = 1000;
@@ -1586,8 +1602,9 @@ fsysOpen(char* name, int argc, char* argv[])
 
 	/* automatic memory sizing? */
 	if(mempcnt > 0) {
+		/* plan 9 pool allocator may be 32-bit */
 		/* TODO: 8K is a hack; use the actual block size */
-		ncache = (((vlong)freemem() * mempcnt) / 100) / (8*1024);
+		ncache = capmalloc((freemem() / 100) * mempcnt) / (8*1024);
 		if (ncache < 100)
 			ncache = 100;
 	}
