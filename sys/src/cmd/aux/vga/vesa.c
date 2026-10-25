@@ -182,6 +182,18 @@ havemode:
 	m->attr->attr = "id";
 	m->attr->val = alloc(32);
 	sprint(m->attr->val, "0x%x", vm.id);
+
+	/* account for framebuffer stride */
+	if(vm.bpl * 8 / m->z > m->x){
+		Attr *a;
+
+		a = alloc(sizeof(Attr));
+		a->attr = "virtx";
+		a->val = alloc(32);
+		sprint(a->val, "%d", vm.bpl * 8 / m->z);
+		a->next = m->attr;
+		m->attr = a;
+	}
 	return m;
 }
 
@@ -195,6 +207,18 @@ snarf(Vga* vga, Ctlr* ctlr)
 	vbesnarf(vbe, vga);
 	vga->linear = 1;
 	ctlr->flag |= Hlinear|Ulinear;
+}
+
+static void
+options(Vga *vga, Ctlr *ctlr)
+{
+	char *v;
+
+	if(v = dbattr(vga->mode->attr, "virtx")){
+		vga->virtx = atoi(v);
+		vga->virty = vga->mode->y;
+	}
+	ctlr->flag |= Foptions;
 }
 
 static void
@@ -244,7 +268,7 @@ dump(Vga*, Ctlr*)
 Ctlr vesa = {
 	"vesa",			/* name */
 	snarf,				/* snarf */
-	0,			/* options */
+	options,		/* options */
 	0,				/* init */
 	load,				/* load */
 	dump,				/* dump */

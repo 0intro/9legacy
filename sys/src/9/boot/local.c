@@ -188,23 +188,33 @@ connectlocalfossil(void)
 	char partition[128], buf[512];
 	char *dev;
 
-	if(stat("/boot/fossil", statbuf, sizeof statbuf) < 0)
+	print("lfossil: enter; disk='%s' bootdisk='%s'\n", disk?disk:"nil", bootdisk?bootdisk:"nil");
+	if(stat("/boot/fossil", statbuf, sizeof statbuf) < 0){
+		print("lfossil: stat /boot/fossil FAILED\n");
 		return -1;
+	}
 
 	/* look for fossil partition */
 	dev = disk ? disk : bootdisk;
 	snprint(partition, sizeof partition, "%sfossil", dev);
+	print("lfossil: open '%s' ... ", partition);
 	fd = open(partition, OREAD);
 	if(fd < 0){
+		print("FAIL; trying raw '%s' ... ", dev);
 		strcpy(partition, dev);
 		fd = open(partition, OREAD);
-		if(fd < 0)
+		if(fd < 0){
+			print("FAIL\n");
 			return -1;
+		}
 	}
+	print("OK fd=%d\n", fd);
 	memset(buf, 0, sizeof buf);
 	pread(fd, buf, 512, 127*1024);
 	close(fd);
+	print("lfossil: magic[0..13]='%.*s'\n", 14, buf);
 	if(memcmp(buf, "fossil config\n", 14) != 0){
+		print("lfossil: magic MISMATCH on '%s'\n", partition);
 		if(strstr(partition, "/fossil"))
 			print("no fossil config found on %s\n", partition);
 		return -1;
