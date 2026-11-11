@@ -306,7 +306,7 @@ int		setlabel(Label*);
 void		setregisters(Ureg*, char*, char*, int);
 char*		skipslash(char*);
 void		sleep(Rendez*, int (*)(void*), void*);
-void*		smalloc(ulong);
+void*		smalloc(uintptr);
 char*		srvname(Chan*);
 void		syscallfmt(int, va_list list);
 void		sysretfmt(int, va_list, Ar0*, uvlong, uvlong);
