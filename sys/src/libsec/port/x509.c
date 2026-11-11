@@ -1569,6 +1569,7 @@ typedef struct CertX509 {
 	char*	validity_end;
 	char*	subject;
 	int	publickey_alg;
+	int	curve;
 	Bytes*	publickey;
 	int	signature_alg;
 	Bytes*	signature;
@@ -1592,6 +1593,11 @@ enum {
 	ALG_sha384,
 	ALG_sha512,
 	ALG_sha224,
+	ALG_ecPublicKey,
+	ALG_sha1WithECDSA,
+	ALG_sha256WithECDSA,
+	ALG_sha384WithECDSA,
+	ALG_sha512WithECDSA,
 	NUMALGS
 };
 typedef struct Ints9 {
@@ -1608,6 +1614,11 @@ static Ints9 oid_sha256WithRSAEncryption ={7, 1, 2, 840, 113549, 1, 1, 11 };
 static Ints9 oid_sha384WithRSAEncryption ={7, 1, 2, 840, 113549, 1, 1, 12 };
 static Ints9 oid_sha512WithRSAEncryption ={7, 1, 2, 840, 113549, 1, 1, 13 };
 static Ints9 oid_sha224WithRSAEncryption ={7, 1, 2, 840, 113549, 1, 1, 14 };
+static Ints9 oid_ecPublicKey ={6, 1, 2, 840, 10045, 2, 1 };
+static Ints9 oid_sha1WithECDSA ={6, 1, 2, 840, 10045, 4, 1 };
+static Ints9 oid_sha256WithECDSA ={7, 1, 2, 840, 10045, 4, 3, 2 };
+static Ints9 oid_sha384WithECDSA ={7, 1, 2, 840, 10045, 4, 3, 3 };
+static Ints9 oid_sha512WithECDSA ={7, 1, 2, 840, 10045, 4, 3, 4 };
 static Ints9 oid_md5 ={6, 1, 2, 840, 113549, 2, 5, 0 };
 static Ints9 oid_sha1 ={6, 1, 3, 14, 3, 2, 26 };
 static Ints9 oid_sha256 ={9, 2, 16, 840, 1, 101, 3, 4, 2, 1 };
@@ -1631,9 +1642,24 @@ static Ints *alg_oid_tab[NUMALGS+1] = {
 	(Ints*)&oid_sha384,
 	(Ints*)&oid_sha512,
 	(Ints*)&oid_sha224,
+	(Ints*)&oid_ecPublicKey,
+	(Ints*)&oid_sha1WithECDSA,
+	(Ints*)&oid_sha256WithECDSA,
+	(Ints*)&oid_sha384WithECDSA,
+	(Ints*)&oid_sha512WithECDSA,
 	nil
 };
-static DigestFun digestalg[NUMALGS+1] = { md5, md5, md5, md5, sha1, sha1, sha2_256, sha2_384, sha2_512, sha2_224, md5, sha1, sha2_256, sha2_384, sha2_512, sha2_224, nil };
+static DigestFun digestalg[NUMALGS+1] = { md5, md5, md5, md5, sha1, sha1, sha2_256, sha2_384, sha2_512, sha2_224, md5, sha1, sha2_256, sha2_384, sha2_512, sha2_224, sha2_256, sha1, sha2_256, sha2_384, sha2_512, nil };
+
+static Ints9 oid_secp256r1 = {7, 1, 2, 840, 10045, 3, 1, 7};
+
+static Ints *namedcurves_oid_tab[] = {
+	(Ints*)&oid_secp256r1,
+	nil,
+};
+static void (*namedcurves[])(mpint *p, mpint *a, mpint *b, mpint *x, mpint *y, mpint *n, mpint *h) = {
+	secp256r1,
+};
 
 static void
 freecert(CertX509* c)
@@ -1729,6 +1755,17 @@ parse_alg(Elem* e)
 	return oid_lookup(oid, alg_oid_tab);
 }
 
+static int
+parse_curve(Elem* e)
+{
+	Elist* el;
+	Ints* oid;
+
+	if(!is_seq(e, &el) || elistlen(el)<2 || !is_oid(&el->tl->hd, &oid))
+		return -1;
+	return oid_lookup(oid, namedcurves_oid_tab);
+}
+
 static CertX509*
 decode_cert(Bytes* a)
 {
@@ -1766,6 +1803,7 @@ decode_cert(Bytes* a)
 	c->publickey = nil;
 	c->signature_alg = -1;
 	c->signature = nil;
+	c->curve = -1;
 
 	/* Certificate */
  	if(!is_seq(&ecert, &elcert) || elistlen(elcert) !=3)
@@ -1839,6 +1877,11 @@ decode_cert(Bytes* a)
 	c->publickey_alg = parse_alg(&elpubkey->hd);
 	if(c->publickey_alg < 0)
 		goto errret;
+	if(c->publickey_alg == ALG_ecPublicKey){
+		c->curve = parse_curve(&elpubkey->hd);
+		if(c->curve < 0)
+			goto errret;
+	}
   	if(!is_bitstring(&elpubkey->tl->hd, &bits))
 		goto errret;
 	if(bits->unusedbits != 0)
@@ -2187,6 +2230,65 @@ end:
 	if(pkcs1buf != nil)
 		free(pkcs1buf);
 	return err;
+}
+
+char*
+X509ecdsaverifydigest(uchar *sig, int siglen, uchar *edigest, int edigestlen, ECdomain *dom, ECpub *pub)
+{
+	Elem e;
+	Elist *el;
+	mpint *r, *s;
+	char *err;
+
+	r = s = nil;
+	err = "bad signature";
+	if(decode(sig, siglen, &e) != ASN_OK)
+		goto end;
+	if(!is_seq(&e, &el) || elistlen(el) != 2)
+		goto end;
+	r = asn1mpint(&el->hd);
+	if(r == nil)
+		goto end;
+	el = el->tl;
+	s = asn1mpint(&el->hd);
+	if(s == nil)
+		goto end;
+	if(ecdsaverify(dom, pub, edigest, edigestlen, r, s))
+		err = nil;
+end:
+	mpfree(s);
+	mpfree(r);
+	return err;
+}
+
+ECpub*
+X509toECpub(uchar *cert, int ncert, char *name, int nname, ECdomain *dom)
+{
+	char *e;
+	Bytes *b;
+	CertX509 *c;
+	ECpub *pub;
+
+	b = makebytes(cert, ncert);
+	c = decode_cert(b);
+	freebytes(b);
+	if(c == nil)
+		return nil;
+	if(name != nil && c->subject != nil){
+		e = strchr(c->subject, ',');
+		if(e != nil)
+			*e = 0;	/* take just CN part of Distinguished Name */
+		strncpy(name, c->subject, nname);
+	}
+	pub = nil;
+	if(c->publickey_alg == ALG_ecPublicKey){
+		ecdominit(dom, namedcurves[c->curve]);
+		pub = ecdecodepub(dom, c->publickey->data, c->publickey->len);
+		if(pub == nil)
+			ecdomfree(dom);
+	}
+	freecert(c);
+	return pub;
 }
 
 RSApub*

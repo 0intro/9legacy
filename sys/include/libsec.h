@@ -466,6 +466,8 @@ int	base58dec(char *, uchar *, int);
 ECpub*	ecdecodepub(ECdomain *dom, uchar *, int);
 int	ecencodepub(ECdomain *dom, ECpub *, uchar *, int);
 void	ecpubfree(ECpub *);
+ECpub*	X509toECpub(uchar *cert, int ncert, char *name, int nname, ECdomain *dom);
+char*	X509ecdsaverifydigest(uchar *sig, int siglen, uchar *edigest, int edigestlen, ECdomain *dom, ECpub *pub);
 
 void	secp256r1(mpint *p, mpint *a, mpint *b, mpint *x, mpint *y, mpint *n, mpint *h);
 
