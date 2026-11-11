@@ -861,7 +861,7 @@ mntrpcread(Mnt *m, Mntrpc *r)
 
 	/* read in the rest of the message, avoid ridiculous (for now) message sizes */
 	len = GBIT32(nb->rp);
-	if(len > m->msize){
+	if(len < BIT32SZ+BIT8SZ+BIT16SZ || len > m->msize){
 		qdiscard(m->q, qlen(m->q));
 		return -1;
 	}
