@@ -1387,8 +1387,7 @@ decode(Header *h, Huffman *t)
 	m = 1<<cnt;
 	sr = h->sr;
 	code <<= 1;
-	i = 9;
-	for(;;i++){
+	for(i = 9; i < 17; i++){
 		if(sr & m)
 			code |= 1;
 		if(code <= maxcode[i])
