@@ -254,16 +254,23 @@ int
 compar(NDir *a, NDir *b)
 {
 	long i;
+	vlong vl;
 	Dir *ad, *bd;
 
 	ad = a->d;
 	bd = b->d;
 
 	if(tflag){
+		/* we now treat times as ulongs to extend their range */
+		i = 0;
 		if(uflag)
-			i = bd->atime-ad->atime;
+			vl = (uvlong)bd->atime - (uvlong)ad->atime;
 		else
-			i = bd->mtime-ad->mtime;
+			vl = (uvlong)bd->mtime - (uvlong)ad->mtime;
+		if (vl < 0)
+			i = -1;
+		else if (vl > 0)
+			i = 1;
 	}else{
 		if(a->prefix && b->prefix){
 			i = strcmp(a->prefix, b->prefix);
