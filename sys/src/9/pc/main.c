@@ -9,6 +9,7 @@
 #include	"pool.h"
 #include	"reboot.h"
 #include	"mp.h"
+#include	"multiboot.h"
 #include	<tos.h>
 
 Mach *m;
@@ -115,6 +116,7 @@ main(void)
 {
 	cgapost(0);
 	mach0init();
+	multibootinit();
 	options();
 	ioinit();
 	i8250console();
