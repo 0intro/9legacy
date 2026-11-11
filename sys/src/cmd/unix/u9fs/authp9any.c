@@ -376,7 +376,7 @@ p9anyattach(Fcall *rx, Fcall *tx)
 static int
 readstr(Fcall *rx, Fcall *tx, char *s, int len)
 {
-	if (rx->offset >= len)
+	if (rx->offset < 0 || rx->offset >= len)
 		return 0;
 	tx->count = len - rx->offset;
 	if (tx->count > rx->count)
