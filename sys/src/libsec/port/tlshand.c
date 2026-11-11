@@ -1018,7 +1018,8 @@ msgSend(TlsConnection *c, Msg *m, int act)
 	if(act == AFlush){
 		sendp = sendbuf;
 		if(write(c->hand, sendbuf, p-sendbuf) < 0){
-			fprint(2, "write error: %r\n");
+			if(c->trace)
+				c->trace("write error: %r\n");
 			goto Err;
 		}
 	}
