@@ -66,8 +66,7 @@ putseg(Segment *s)
 	else
 		lock(s);
 
-	s->ref--;
-	if(s->ref != 0) {
+	if(decref(s) != 0) {
 		unlock(s);
 		return;
 	}

@@ -164,7 +164,7 @@ found:
 		}
 		i->s = newseg(type, base, top);
 		i->s->image = i;
-		i->ref++;
+		incref(i);
 		poperror();
 	}
 	else
@@ -183,7 +183,7 @@ putimage(Image *i)
 		return;
 
 	lock(i);
-	if(--i->ref == 0) {
+	if(decref(i) == 0) {
 		l = &ihash(i->qid.path);
 		mkqid(&i->qid, ~0, ~0, QTFILE);
 		unlock(i);
