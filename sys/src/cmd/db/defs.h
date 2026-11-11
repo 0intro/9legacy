@@ -10,13 +10,13 @@
 
 #include <mach.h>
 
-typedef ulong WORD;
+typedef uvlong WORD;
 typedef uvlong ADDR;
 
-#define	HUGEINT	0x7fffffff	/* enormous WORD */
+#define	HUGEINT	(~(WORD)0 >> 1)	/* enormous WORD */
 
 #define	MAXOFF	0x1000000
-#define	INCDIR	"/usr/lib/adb"
+#define	INCDIR	"/sys/lib/adb"
 #define	DBNAME	"db\n"
 #define CMD_VERBS	"?/=>!$: \t"
 

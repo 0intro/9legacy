@@ -7,7 +7,7 @@
 #include "defs.h"
 #include "fns.h"
 
-static long	round(long, long);
+static uvlong	round(uvlong, uvlong);
 
 extern	ADDR	ditto;
 uvlong	expv;
@@ -35,7 +35,7 @@ fpin(char *buf)
 {
 	union {
 		WORD w;
-		float f;
+		double f;
 	} x;
 
 	x.f = atof(buf);
@@ -366,10 +366,10 @@ symchar(int dig)
 	return(isalpha(lastc) || lastc>0x80 || lastc=='_' || dig && isdigit(lastc));
 }
 
-static long
-round(long a, long b)
+static uvlong
+round(uvlong a, uvlong b)
 {
-	long w;
+	uvlong w;
 
 	w = (a/b)*b;
 	if (a!=w)
