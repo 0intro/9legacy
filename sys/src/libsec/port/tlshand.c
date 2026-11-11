@@ -98,6 +98,7 @@ typedef struct Msg{
 			Ints*	ciphers;
 			Bytes*	compressors;
 			Ints*	sigAlgs;
+			int	secReneg;
 		} clientHello;
 		struct {
 			int version;
@@ -105,6 +106,7 @@ typedef struct Msg{
 			Bytes*	sid;
 			int cipher;
 			int compressor;
+			int secReneg;
 		} serverHello;
 		struct {
 			int ncert;
@@ -250,6 +252,7 @@ enum {
 // extensions
 enum {
 	ExtSigalgs = 0xd,
+	ExtRenegInfo = 0xff01,
 };
 
 // signature algorithms
@@ -469,7 +472,7 @@ tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...
 	Bytes *csid;
 	uchar sid[SidSize], kd[MaxKeyData];
 	char *secrets;
-	int cipher, compressor, nsid, rv, numcerts, i;
+	int cipher, compressor, nsid, rv, numcerts, i, secReneg;
 
 	if(trace)
 		trace("tlsServer2\n");
@@ -533,6 +536,10 @@ tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...
 		goto Err;
 	}
 	c->sec->rsapub = X509toRSApub(cert, ncert, nil, 0);
+	secReneg = m.u.clientHello.secReneg;
+	for(i = 0; i < m.u.clientHello.ciphers->len; i++)
+		if(m.u.clientHello.ciphers->data[i] == TLS_EMPTY_RENEGOTIATION_INFO_SCSV)
+			secReneg = 1;
 	msgClear(&m);
 
 	m.tag = HServerHello;
@@ -540,6 +547,7 @@ tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...
 	memmove(m.u.serverHello.random, c->srandom, RandomSize);
 	m.u.serverHello.cipher = cipher;
 	m.u.serverHello.compressor = compressor;
+	m.u.serverHello.secReneg = secReneg;
 	c->sid = makebytes(sid, nsid);
 	m.u.serverHello.sid = makebytes(c->sid->data, c->sid->len);
 	if(!msgSend(c, &m, AQueue))
@@ -929,6 +937,17 @@ msgSend(TlsConnection *c, Msg *m, int act)
 		p += 2;
 		p[0] = m->u.serverHello.compressor;
 		p += 1;
+		if(m->u.serverHello.secReneg){
+			if(p + 7 - sendbuf > sizeof(sendbuf)){
+				tlsError(c, EInternalError, "output buffer too small for server hello");
+				goto Err;
+			}
+			put16(p, 5);
+			put16(p+2, ExtRenegInfo);
+			put16(p+4, 1);
+			p[6] = 0;
+			p += 7;
+		}
 		break;
 	case HServerHelloDone:
 		break;
@@ -1166,6 +1185,14 @@ msgRecv(TlsConnection *c, Msg *m)
 				m->u.clientHello.sigAlgs = newints(nn/2);
 				for(i = 0; i < nn; i += 2)
 					m->u.clientHello.sigAlgs->data[i >> 1] = get16(&p[i]);
+			} else if(i == ExtRenegInfo){
+				if(nn < 1 || p[0] != nn-1)
+					goto Short;
+				if(p[0] != 0){
+					tlsError(c, EHandshakeFailure, "invalid renegotiation extension");
+					goto Err;
+				}
+				m->u.clientHello.secReneg = 1;
 			}
 			p += nn;
 			n -= nn;
@@ -1409,6 +1436,7 @@ msgPrint(char *buf, int n, Msg *m)
 		bs = bytesPrint(bs, be, "\tcompressors: ", m->u.clientHello.compressors, "\n");
 		if(m->u.clientHello.sigAlgs != nil)
 			bs = intsPrint(bs, be, "\tsigAlgs: ", m->u.clientHello.sigAlgs, "\n");
+		bs = seprint(bs, be, "\tsecReneg: %d\n", m->u.clientHello.secReneg);
 		break;
 	case HServerHello:
 		bs = seprint(bs, be, "ServerHello\n");
@@ -1420,6 +1448,7 @@ msgPrint(char *buf, int n, Msg *m)
 		bs = bytesPrint(bs, be, "\tsid: ", m->u.serverHello.sid, "\n");
 		bs = seprint(bs, be, "\tcipher: %.4x\n", m->u.serverHello.cipher);
 		bs = seprint(bs, be, "\tcompressor: %.2x\n", m->u.serverHello.compressor);
+		bs = seprint(bs, be, "\tsecReneg: %d\n", m->u.serverHello.secReneg);
 		break;
 	case HCertificate:
 		bs = seprint(bs, be, "Certificate\n");
