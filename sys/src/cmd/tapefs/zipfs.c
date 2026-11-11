@@ -138,9 +138,10 @@ doread(Ram *r, vlong off, long cnt)
 			bs.limit = cache+r->ndata;
 			if ((err = inflate(&bs, blwrite, bin, (int(*)(void*))Bgetc)) != FlateOk)
 				sysfatal("inflate failed - %s", flateerr(err));
+			trailer(bin, &zh);
 
 			if (blockcrc(crctab, crc, cache, r->ndata) != zh.crc)
-				fprint(2, "%s - crc failed", r->name);
+				fprint(2, "%s - crc failed\n", r->name);
 
 			if ((r->addr & High64) && MUNGE_CR){
 				for (i = 0; i < r->ndata -1; i++)
