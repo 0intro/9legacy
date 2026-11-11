@@ -99,9 +99,9 @@ void	body(Biobuf*, Biobuf*, int);
 int	cistrcmp(char*, char*);
 int	cistrncmp(char*, char*, int);
 int	doublequote(Fmt*);
-void*	emalloc(int);
+void*	emalloc(uintptr);
 int	enc64(char*, int, uchar*, int);
-void*	erealloc(void*, int);
+void*	erealloc(void*, uintptr);
 char*	estrdup(char*);
 Addr*	expand(int, char**);
 Addr*	expandline(String**, Addr*);
@@ -816,7 +816,10 @@ printinreplyto(Biobuf *out, char *dir)
 	if(n <= 0)
 		return 0;
 	buf[n] = 0;
-	return Bprint(out, "In-Reply-To: %s\n", buf);
+	if (buf[0] == '<')
+		return Bprint(out, "In-Reply-To: %s\n", buf);
+	else
+		return Bprint(out, "In-Reply-To: <%s>\n", buf);
 }
 
 Attach*
@@ -1793,7 +1796,7 @@ estrdup(char *x)
 }
 
 void*
-emalloc(int n)
+emalloc(uintptr n)
 {
 	void *x;
 
@@ -1804,7 +1807,7 @@ emalloc(int n)
 }
 
 void*
-erealloc(void *x, int n)
+erealloc(void *x, uintptr n)
 {
 	x = realloc(x, n);
 	if(x == nil)
