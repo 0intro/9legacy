@@ -23,7 +23,6 @@ swapb(char *i, char *j, long es)
 		*j++ = c;
 		es--;
 	} while(es != 0);
-
 }
 
 static	void
@@ -42,9 +41,9 @@ swapi(char *ii, char *ij, long es)
 }
 
 static	char*
-pivot(char *a, long n, Sort *p)
+pivot(char *a, uintptr n, Sort *p)
 {
-	long j;
+	uintptr j;
 	char *pi, *pj, *pk;
 
 	j = n/6 * p->es;
@@ -69,9 +68,9 @@ pivot(char *a, long n, Sort *p)
 }
 
 static	void
-qsorts(char *a, long n, Sort *p)
+qsorts(char *a, uintptr n, Sort *p)
 {
-	long j, es;
+	uintptr j, es;
 	char *pi, *pj, *pn;
 
 	es = p->es;
@@ -99,14 +98,16 @@ qsorts(char *a, long n, Sort *p)
 		p->swap(a, pj, es);
 		j = (pj - a) / es;
 
-		n = n-j-1;
+		n -= j+1;
+		pj = a + (j+1)*es;
 		if(j >= n) {
 			qsorts(a, j, p);
-			a += (j+1)*es;
+			a = pj;
 		} else {
-			qsorts(a + (j+1)*es, n, p);
+			qsorts(pj, n, p);
 			n = j;
 		}
+		/* sort the other partition on the next iteration */
 	}
 }
 
