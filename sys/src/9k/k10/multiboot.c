@@ -149,3 +149,34 @@ multiboot(u32int magic, u32int pmbi, int vflag)
 
 	return 0;
 }
+
+int
+e820(void)
+{
+	char *s;
+	int type;
+	u64int base, top;
+
+	if((s = getconf("*e820")) == nil)
+		return -1;
+	for(;;){
+		while(*s == ' ')
+			s++;
+		if(*s == 0)
+			break;
+		type = 1;
+		if(s[1] == ' '){
+			type = s[0] - '0';
+			s += 2;
+		}
+		base = strtoull(s, &s, 16);
+		if(*s != ' ')
+			break;
+		top = strtoull(s, &s, 16);
+		if(*s != ' ' && *s != 0)
+			break;
+		if(base < top && type >= 1 && type <= 4)
+			asmmapinit(base, top-base, type);
+	}
+	return 0;
+}

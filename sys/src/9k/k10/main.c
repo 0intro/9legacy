@@ -192,9 +192,11 @@ main(u32int ax, u32int bx)
 	up = nil;
 
 	asminit();
-	multiboot(ax, bx, 0);
+	i = multiboot(ax, bx, 0);
 	options(oargc, oargv);
 	crapoptions();
+	if(i < 0)
+		e820();
 
 	/*
 	 * Need something for initial delays

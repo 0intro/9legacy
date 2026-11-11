@@ -23,6 +23,7 @@ u32int	cpuid(u32int, u32int, u32int[4]);
 int	dbgprint(char*, ...);
 #define decref(r)	adec(&(r)->ref)
 void	delay(int);
+int	e820(void);
 #define	evenaddr(x)				/* x86 doesn't care */
 int	fpudevprocio(Proc*, void*, long, uintptr, int);
 void	fpuinit(void);
