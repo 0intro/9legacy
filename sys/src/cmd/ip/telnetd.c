@@ -500,8 +500,9 @@ termsub(Biobuf *bp, uchar *sub, int n)
 	if(n-- < 1 || sub[0] != 0)
 		return 0;
 	if(n >= sizeof term)
-		n = sizeof term;
-	strncpy(term, (char*)sub, n);
+		n = sizeof term - 1;
+	strncpy(term, (char*)sub+1, n);
+	term[n] = '\0';
 	putenv("TERM", term);
 	return 0;
 }
@@ -534,8 +535,9 @@ xlocsub(Biobuf *bp, uchar *sub, int n)
 	if(n-- < 1 || sub[0] != 0)
 		return 0;
 	if(n >= sizeof xloc)
-		n = sizeof xloc;
-	strncpy(xloc, (char*)sub, n);
+		n = sizeof xloc - 1;
+	strncpy(xloc, (char*)sub+1, n);
+	xloc[n] = '\0';
 	putenv("DISPLAY", xloc);
 	return 0;
 }
