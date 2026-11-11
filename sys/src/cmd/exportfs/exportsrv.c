@@ -25,6 +25,7 @@ char Enopsmt[] = "Out of pseudo mount points";
 char Enomem[] = "No memory";
 char Eversion[] = "Bad 9P2000 version";
 char Ereadonly[] = "File system read only";
+char Ebadname[] = "Bad character in file name";
 
 ulong messagesize;
 int readonly;
@@ -159,6 +160,12 @@ clonefid(Fid *f, int new)
 	return n;
 }
 
+static int
+badname(char *name)
+{
+	return *name == '\0' || strchr(name, '/') != nil;
+}
+
 void
 Xwalk(Fsrpc *t)
 {
@@ -186,6 +193,11 @@ Xwalk(Fsrpc *t)
 	for(i=0; i<t->work.nwname; i++){
 		if(i == MAXWELEM){
 			e = "Too many path elements";
+			break;
+		}
+
+		if(badname(t->work.wname[i])) {
+			e = Ebadname;
 			break;
 		}
 
@@ -315,6 +327,12 @@ Xcreate(Fsrpc *t)
 		return;
 	}
 	
+
+	if(badname(t->work.name)) {
+		reply(&t->work, &rhdr, Ebadname);
+		t->busy = 0;
+		return;
+	}
 
 	path = makepath(f->f, t->work.name);
 	f->fid = create(path, t->work.mode, t->work.perm);
