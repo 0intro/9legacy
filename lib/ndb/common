@@ -291,6 +291,7 @@ tcp=rexexec port=17009
 tcp=ncpu port=17010
 tcp=cpu port=17010		# about to rename ncpu to cpu
 # tcp=cpu port=17013 # phasing out this obsolete protocol used by very old drawterm
+tcp=cpu-tls port=17014		# current protocol via tls
 tcp=glenglenda1 port=17020
 tcp=glenglenda2 port=17021
 tcp=glenglenda3 port=17022
