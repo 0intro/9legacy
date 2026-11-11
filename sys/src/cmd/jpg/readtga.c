@@ -14,6 +14,7 @@
 
 enum {
 	HdrLen = 18,
+	Maxpixels = 1<<28,
 };
 
 typedef struct {
@@ -338,6 +339,11 @@ Breadtga(Biobuf *bp)
 		ar->chandesc = CRGB;
 	}
 
+	if(h->width <= 0 || h->height <= 0 ||
+	   (vlong)h->width * h->height > Maxpixels){
+		werrstr("ReadTGA: bad image size %dx%d", h->width, h->height);
+		goto Error;
+	}
 	ar->chanlen = h->width*h->height;
 	ar->r = Rect(0, 0, h->width, h->height);
 	for (c = 0; c < ar->nchans; c++)

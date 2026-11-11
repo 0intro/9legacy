@@ -138,6 +138,10 @@ Error:
 	return nil;
 }
 
+enum {
+	Maxpixels = 1<<28,
+};
+
 typedef struct Pix	Pix;
 struct Pix {
 	char magic;
@@ -184,7 +188,7 @@ readppm(Biobuf *b, Rawimage *a)
 
 	wid = Bgetint(b);
 	ht = Bgetint(b);
-	if(wid <= 0 || ht <= 0)
+	if(wid <= 0 || ht <= 0 || (vlong)wid * ht > Maxpixels)
 		goto Error;
 	a->r = Rect(0,0,wid,ht);
 

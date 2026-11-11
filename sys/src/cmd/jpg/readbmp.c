@@ -40,6 +40,10 @@
  enough to guarantee bug-free decoding. caveat emptor!
 */
 
+enum {
+	Maxpixels = 1<<28,
+};
+
 static short
 r16(Biobuf*b)
 {
@@ -503,6 +507,10 @@ ReadBMP(Biobuf *b, int *width, int *height)
 	*width = bmih.width;
 	*height = bmih.height;
 	colours = bmih.bpp;
+
+	if(*width <= 0 || *height == 0 ||
+	   (vlong)*width * abs(*height) > Maxpixels)
+		sysfatal("bad image size %dx%d", *width, *height);
 
 	Bseek(b, bmfh.offbits, 0);
 
