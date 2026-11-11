@@ -26,6 +26,7 @@ static	int	unzip(Biobuf *bin, char *file);
 static	int	unzipEntry(Biobuf *bin, ZipHead *czh);
 static	int	unztable(Biobuf *bin, char *file);
 static	int	wantFile(char *file);
+static	int	badname(char *file);
 
 static	void	*emalloc(ulong);
 static	void	error(char*, ...);
@@ -420,6 +421,11 @@ unzipEntry(Biobuf *bin, ZipHead *czh)
 
 	fd = -1;
 	if(wantFile(zh.file)){
+		if(badname(zh.file)){
+			fprint(2, "unzip: refusing to extract %s\n", zh.file);
+			free(zh.file);
+			return 1;
+		}
 		if(verbose)
 			fprint(2, "extracting %s\n", zh.file);
 
@@ -501,6 +507,22 @@ unzipEntry(Biobuf *bin, ZipHead *czh)
 	}
 
 	return ok;
+}
+
+static int
+badname(char *file)
+{
+	char *p;
+
+	if(file[0] == '/' || file[0] == '#')
+		return 1;
+	for(p = file; p != nil; p = strchr(p, '/')){
+		while(*p == '/')
+			p++;
+		if(strcmp(p, "..") == 0 || strncmp(p, "../", 3) == 0)
+			return 1;
+	}
+	return 0;
 }
 
 static int
