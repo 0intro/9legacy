@@ -481,14 +481,16 @@ echo(char *buf, int n)
 		}
 	}
 
-	qproduce(kbdq, buf, n);
-	if(kbd.raw)
+	if(kbd.raw){
+		qproduce(kbdq, buf, n);
 		return;
+	}
 	kmesgputs(buf, n);
 	if(screenputs != nil)
 		echoscreen(buf, n);
 	if(serialoq)
 		echoserialoq(buf, n);
+	qproduce(kbdq, buf, n);
 }
 
 /*
