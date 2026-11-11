@@ -8,6 +8,7 @@ enum
 	ZHeader		= 0x04034b50,
 	ZCHeader	= 0x02014b50,
 	ZECHeader	= 0x06054b50,
+	ZTHeader	= 0x08074b50,	/* optional trailer signature */
 
 	/*
 	 * "general purpose flag" bits
