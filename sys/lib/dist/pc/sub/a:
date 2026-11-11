@@ -9,6 +9,9 @@ if not if(~ $#bootfile 0)
 	adisk=/dev/fd0disk
 if not {
 	switch($bootfile) {
+	case sdB*
+		adisk=/dev/sdXX/dos
+		test -r $adisk || adisk=/dev/sdXX/9fat
 	case sd*
 		adisk=`{echo $bootfile | sed 's#(sd..).*#/dev/\1/data#'}
 	case fd*
