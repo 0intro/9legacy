@@ -59,6 +59,11 @@ enum {
 	UserTag = 32,		/* all other tags should be >= UserTag */
 };
 
+/*
+ * use of u32int for block numbers here limits fossil write buffer partitions
+ * to 32TB.  using wider integers will invalidate any existing superblocks.
+ * see also superPack and superUnpack.
+ */
 struct Super {
 	u16int version;
 	u32int epochLow;
@@ -235,7 +240,7 @@ struct Block {
 	QLock	lk;
 
 	int 	part;
-	u32int	addr;
+	u32int	addr;			/* should be uvlong */
 	uchar	score[VtScoreSize];	/* score */
 	Label	l;
 

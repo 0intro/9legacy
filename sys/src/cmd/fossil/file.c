@@ -1569,7 +1569,7 @@ fileMetaAlloc(File *f, DirEntry *dir, u32int start)
 		b = sourceBlock(ms, bo, OReadWrite);
 		if(b == nil)
 			goto Err;
-		sourceSetSize(ms, (nb+1)*ms->dsize);
+		sourceSetSize(ms, ((uvlong)nb+1)*ms->dsize);
 		mbInit(&mb, b->data, ms->dsize, ms->dsize/BytesPerEntry);
 	}
 
