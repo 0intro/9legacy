@@ -101,6 +101,7 @@ struct Chachastate
 			u32int	iv[3];
 		};
 	};
+	u32int	xkey[8];
 	int	rounds;
 	int	ivwords;
 };
@@ -110,6 +111,8 @@ void	chacha_setiv(Chachastate *, uchar*);
 void	chacha_setblock(Chachastate*, u64int);
 void	chacha_encrypt(uchar*, usize, Chachastate*);
 void	chacha_encrypt2(uchar*, uchar*, usize, Chachastate*);
+
+void	hchacha(uchar h[32], uchar *key, ulong keylen, uchar nonce[16], int rounds);
 
 void	ccpoly_encrypt(uchar *dat, ulong ndat, uchar *aad, ulong naad, uchar tag[16], Chachastate *cs);
 int	ccpoly_decrypt(uchar *dat, ulong ndat, uchar *aad, ulong naad, uchar tag[16], Chachastate *cs);
