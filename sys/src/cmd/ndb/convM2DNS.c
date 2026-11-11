@@ -237,12 +237,17 @@ gname(char *to, RR *rp, Scan *sp)
 		goto err;
 	}
 	toend = to + Domlen;
-	for(len = 0; *p && p < sp->ep; len += (pointer? 0: n+1)) {
+	for(len = 0; p < sp->ep && *p; len += (pointer? 0: n+1)) {
 		n = 0;
 		switch (*p & 0300) {
 		case 0:			/* normal label */
 			if (p < sp->ep)
 				n = *p++ & 077;		/* pick up length */
+			if(sp->ep - p < n){
+				errtoolong(rp, sp, sp->ep - p, n,
+					"label runs past the packet");
+				goto err;
+			}
 			if(len + n < Domlen - 1){
 				if(n > toend - to){
 					errtoolong(rp, sp, toend - to, n,
@@ -253,7 +258,7 @@ gname(char *to, RR *rp, Scan *sp)
 				to += n;
 			}
 			p += n;
-			if(*p){
+			if(p < sp->ep && *p){
 				if(to >= toend){
 					errtoolong(rp, sp, toend - to, 2,
 				     "more name components but no bytes left");
@@ -278,6 +283,11 @@ gname(char *to, RR *rp, Scan *sp)
 				sp->err = "pointer loop";
 				goto err;
 			}
+			if(sp->ep - p < 2){
+				errtoolong(rp, sp, sp->ep - p, 2,
+					"pointer runs past the packet");
+				goto err;
+			}
 			off = (p[0] & 077)<<8 | p[1];
 			p = sp->base + off;
 			if(p >= sp->ep){
@@ -287,6 +297,10 @@ gname(char *to, RR *rp, Scan *sp)
 			n = 0;
 			break;
 		}
+	}
+	if(p >= sp->ep){
+		sp->err = "name runs past the packet";
+		goto err;
 	}
 	*to = 0;
 	if(pointer)
