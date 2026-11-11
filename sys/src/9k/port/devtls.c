@@ -83,12 +83,15 @@ struct Secret
 {
 	char		*encalg;	/* name of encryption alg */
 	char		*hashalg;	/* name of hash alg */
+	int		(*aead_enc)(Secret*, uchar*, int, uchar*, uchar*, int);
+	int		(*aead_dec)(Secret*, uchar*, int, uchar*, uchar*, int);
 	int		(*enc)(Secret*, uchar*, int);
 	int		(*dec)(Secret*, uchar*, int);
 	int		(*unpad)(uchar*, int, int);
 	DigestState	*(*mac)(uchar*, ulong, uchar*, ulong, uchar*, DigestState*);
 	int		block;		/* encryption block len, 0 if none */
-	int		maclen;
+	int		maclen;		/* # bytes of record mac / authentication tag */
+	int		recivlen;	/* # bytes of record iv for AEAD ciphers */
 	void		*enckey;
 	uchar	mackey[MaxMacLen];
 };
@@ -223,6 +226,7 @@ static DigestState*sslmac_sha1(uchar *p, ulong len, uchar *key, ulong klen, ucha
 static DigestState*nomac(uchar *p, ulong len, uchar *key, ulong klen, uchar *digest, DigestState *s);
 static void	sslPackMac(Secret *sec, uchar *mackey, uchar *seq, uchar *header, uchar *body, int len, uchar *mac);
 static void	tlsPackMac(Secret *sec, uchar *mackey, uchar *seq, uchar *header, uchar *body, int len, uchar *mac);
+static int	tlsPackAAD(vlong seq, uchar *header, uchar *aad);
 static void	put64(uchar *p, vlong x);
 static void	put32(uchar *p, u32int);
 static void	put24(uchar *p, int);
@@ -803,34 +807,54 @@ if(tr->debug) pprint("consumed unprocessed %d\n", len);
 	if(in->sec != nil) {
 		/* to avoid Canvel-Hiltgen-Vaudenay-Vuagnoux attack, all errors here
 		        should look alike, including timing of the response. */
-		unpad_len = (*in->sec->dec)(in->sec, p, len);
+		if(in->sec->aead_dec != nil){
+			uchar aad[8+RecHdrLen];
+			int ivlen, aadlen;
 
-		/* excplicit iv */
-		if(tr->version >= TLS11Version){
-			len -= in->sec->block;
+			/* the record is the explicit iv, the ciphertext and the tag */
+			ivlen = in->sec->recivlen;
+			len -= ivlen + in->sec->maclen;
 			if(len < 0)
 				rcvError(tr, EDecodeError, "runt record message");
 
-			unpad_len -= in->sec->block;
-			p += in->sec->block;
-		}
+			/* update length */
+			put16(header+3, len);
+			aadlen = tlsPackAAD(in->seq, header, aad);
+			in->seq++;
+			if((*in->sec->aead_dec)(in->sec, aad, aadlen, p, p + ivlen, len + in->sec->maclen) < 0)
+				rcvError(tr, EBadRecordMac, "record mac mismatch");
+			b->rp = p + ivlen;
+			b->wp = p + ivlen + len;
+		}else{
+			unpad_len = (*in->sec->dec)(in->sec, p, len);
 
-		if(unpad_len >= in->sec->maclen)
-			len = unpad_len - in->sec->maclen;
+			/* excplicit iv */
+			if(tr->version >= TLS11Version){
+				len -= in->sec->block;
+				if(len < 0)
+					rcvError(tr, EDecodeError, "runt record message");
+
+				unpad_len -= in->sec->block;
+				p += in->sec->block;
+			}
+
+			if(unpad_len >= in->sec->maclen)
+				len = unpad_len - in->sec->maclen;
 if(tr->debug) pprint("decrypted %d\n", unpad_len);
 if(tr->debug) pdump(unpad_len, p, "decrypted:");
 
-		/* update length */
-		put16(header+3, len);
-		put64(seq, in->seq);
-		in->seq++;
-		(*tr->packMac)(in->sec, in->sec->mackey, seq, header, p, len, hmac);
-		if(unpad_len < in->sec->maclen)
-			rcvError(tr, EBadRecordMac, "short record mac");
-		if(memcmp(hmac, p+len, in->sec->maclen) != 0)
-			rcvError(tr, EBadRecordMac, "record mac mismatch");
-		b->rp = p;
-		b->wp = p+len;
+			/* update length */
+			put16(header+3, len);
+			put64(seq, in->seq);
+			in->seq++;
+			(*tr->packMac)(in->sec, in->sec->mackey, seq, header, p, len, hmac);
+			if(unpad_len < in->sec->maclen)
+				rcvError(tr, EBadRecordMac, "short record mac");
+			if(memcmp(hmac, p+len, in->sec->maclen) != 0)
+				rcvError(tr, EBadRecordMac, "record mac mismatch");
+			b->rp = p;
+			b->wp = p+len;
+		}
 	}
 	qunlock(&in->seclock);
 	poperror();
@@ -1280,8 +1304,11 @@ if(tr->debug)pdump(BLEN(b), b->rp, "sent:");
 		if(out->sec != nil){
 			maclen = out->sec->maclen;
 			pad = maclen + out->sec->block;
-			if(tr->version >= TLS11Version)
-				ivlen = out->sec->block;
+			ivlen = out->sec->recivlen;
+			if(tr->version >= TLS11Version){
+				if(ivlen == 0)
+					ivlen = out->sec->block;
+			}
 		}
 		n = BLEN(bb);
 		if(n > MaxRecLen){
@@ -1307,19 +1334,28 @@ if(tr->debug)pdump(BLEN(b), b->rp, "sent:");
 		put16(p+3, n);
 
 		if(out->sec != nil){
-			put64(seq, out->seq);
-			out->seq++;
-			(*tr->packMac)(out->sec, out->sec->mackey, seq, p, p + RecHdrLen + ivlen, n, p + RecHdrLen + ivlen + n);
-			n += maclen;
+			if(out->sec->aead_enc != nil){
+				uchar aad[8+RecHdrLen];
+				int aadlen;
 
-			/* explicit iv */
-			if(ivlen > 0){
-				randfill(p + RecHdrLen, ivlen);
-				n += ivlen;
+				aadlen = tlsPackAAD(out->seq, p, aad);
+				out->seq++;
+				n = (*out->sec->aead_enc)(out->sec, aad, aadlen, p + RecHdrLen, p + RecHdrLen + ivlen, n) + ivlen;
+			}else{
+				put64(seq, out->seq);
+				out->seq++;
+				(*tr->packMac)(out->sec, out->sec->mackey, seq, p, p + RecHdrLen + ivlen, n, p + RecHdrLen + ivlen + n);
+				n += maclen;
+
+				/* explicit iv */
+				if(ivlen > 0){
+					randfill(p + RecHdrLen, ivlen);
+					n += ivlen;
+				}
+
+				/* encrypt */
+				n = (*out->sec->enc)(out->sec, p + RecHdrLen, n);
 			}
-
-			/* encrypt */
-			n = (*out->sec->enc)(out->sec, p + RecHdrLen, n);
 			nb->wp = p + RecHdrLen + n;
 
 			/* update length */
@@ -1656,6 +1692,7 @@ tlswrite(Chan *c, void *a, long n, vlong off)
 		(*ea->initkey)(ea, tos, &x[2 * ha->maclen], &x[2 * ha->maclen + 2 * ea->keylen]);
 		(*ea->initkey)(ea, toc, &x[2 * ha->maclen + ea->keylen], &x[2 * ha->maclen + 2 * ea->keylen + ea->ivlen]);
 
+		if(!tos->aead_enc || !tos->aead_dec || !toc->aead_enc || !toc->aead_dec)
 		if(!tos->mac || !tos->enc || !tos->dec
 		|| !toc->mac || !toc->enc || !toc->dec)
 			error("missing algorithm implementations");
@@ -2181,6 +2218,18 @@ tlsPackMac(Secret *sec, uchar *mackey, uchar *seq, uchar *header, uchar *body, i
 
 	s = (*sec->mac)(buf, 13, mackey, sec->maclen, 0, 0);
 	(*sec->mac)(body, len, mackey, sec->maclen, mac, s);
+}
+
+static int
+tlsPackAAD(vlong seq, uchar *header, uchar *aad)
+{
+	put64(aad, seq);
+	aad[8] = header[0];
+	aad[9] = header[1];
+	aad[10] = header[2];
+	aad[11] = header[3];
+	aad[12] = header[4];
+	return 13;
 }
 
 static void
