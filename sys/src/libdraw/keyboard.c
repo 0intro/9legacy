@@ -93,7 +93,7 @@ Error2:
 	}
 	free(t);
 	kc->c = chancreate(sizeof(Rune), 20);
-	proccreate(_ioproc, kc, 4096);
+	proccreate(_ioproc, kc, 1024*sizeof(void *));
 	return kc;
 }
 
