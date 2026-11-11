@@ -108,6 +108,7 @@ sshlogint(Conn *c, char *file, char *p)
 {
 	char *role, *id;
 
+	quotefmtinstall();
 	if (c == nil)
 		role = "";
 	else if (c->role == Server)
@@ -117,7 +118,7 @@ sshlogint(Conn *c, char *file, char *p)
 	if (c == nil)
 		id = strdup("");
 	else if (c->user || c->remote)
-		id = smprint("user %s@%s id %d ", c->user, c->remote, c->id);
+		id = smprint("user %q@%q id %d ", c->user, c->remote, c->id);
 	else
 		id = smprint("id %d ", c->id);
 
@@ -984,15 +985,109 @@ stwrite(Req *r)
 	}
 }
 
+enum
+{
+	Maxstring	= 256,
+};
+
+typedef struct DS DS;
+struct DS {
+	/* dist string */
+	char	buf[Maxstring];
+	char	*netdir;
+	char	*proto;
+	char	*rem;
+
+	/* other args */
+	char	*local;
+	char	*dir;
+	int	*cfdp;
+};
+
+/* modified csdial from libc/9sys/dial.c. return ip!port */
+static char *
+cstrans(DS *ds)
+{
+	int n, fd;
+	char *nl, *ip;
+	char buf[Maxstring];
+
+	/*
+	 * open connection server
+	 */
+	sshdebug(nil, "cstrans: netdir %s proto %s remote %s",
+		ds->netdir, ds->proto, ds->rem);
+	snprint(buf, sizeof(buf), "%s/cs", ds->netdir);
+	fd = open(buf, ORDWR);
+	if(fd < 0)		/* no connection server, don't translate */
+		return nil;
+
+	/*
+	 * ask connection server to translate
+	 * e.g., net!cs.bell-labs.com!smtp
+	 */
+	snprint(buf, sizeof(buf), "%s!%s", ds->proto, ds->rem);
+	if(write(fd, buf, strlen(buf)) < 0){
+		close(fd);
+		return nil;
+	}
+
+	/*
+	 * read addresses from the connection server:
+	 * /net/tcp/clone 135.104.9.78!25
+	 * /net/tcp/clone 2620:0:dc0:1805::29!25
+	 *
+	 * assumes that we'll get one record per read.
+	 */
+	seek(fd, 0, 0);
+	n = read(fd, buf, sizeof buf - 2);	/* 2 is room for \n\0 */
+	close(fd);
+	if (n <= 0)
+		*buf = '\0';
+	else
+		buf[n] = '\0';			/* choose first line */
+	nl = strchr(buf, '\n');
+	if (nl)
+		*nl = '\0';
+
+	ip = strchr(buf, ' ');			/* pull out just ip!port */
+	if (ip)
+		++ip;
+	sshdebug(nil, "cstrans: returning %s", ip);
+	return strdup(ip);
+}
+
+#include <ctype.h>
+
+/*
+ * this uses /net/tcp to connect directly.
+ * toks[1] must be an ip address, not a domain name.
+ * should use dial(2) instead of doing it by hand.
+ */
 static int
 dialbyhand(Conn *c, int ntok, char *toks[])
 {
-	/*
-	 * this uses /net/tcp to connect directly.
-	 * should use dial(2) instead of doing it by hand.
-	 */
-	sshdebug(c, "tcp connect %s %s", toks[1], ntok > 3? toks[2]: "");
-	return fprint(c->ctlfd, "connect %s %s", toks[1], ntok > 3? toks[2]: "");
+	char *ip, *port;
+	DS ds;
+
+	ip = toks[1];
+	port = ntok > 3 && toks[2] != nil? toks[2]: "22";
+	sshdebug(c, "tcp connect %s %s", ip, port);
+	if (isdigit(ip[0]))		/* already numeric ip? */
+		ip = smprint("%s!%s", ip, port);
+	else {
+		memset(&ds, 0, sizeof ds);
+		ds.netdir = "/net";
+		ds.proto = "tcp";
+		ds.rem = ip;
+		if (strchr(ip, '!') == nil)	/* not already domain!port? */
+			ds.rem = smprint("%s!%s", ip, "22");
+		ip = cstrans(&ds);	/* translate name to ip!port */
+	}
+	if (ip == nil)
+		return -1;
+	sshdebug(c, "connect %s", ip);
+	return fprint(c->ctlfd, "connect %s", ip);
 }
 
 static void
@@ -1125,7 +1220,8 @@ writectlproc(void *a)
 			 */
 			memset(tcpconn, '\0', sizeof(tcpconn));
 			pread(c->ctlfd, tcpconn, sizeof tcpconn, 0);
-			dialbyhand(c, ntok, toks);
+			if (dialbyhand(c, ntok, toks) < 0)
+				sshlog(c, "connect failed: %r");
 
 			c->role = Client;
 			/* Override the PKA list; we can take any in */
@@ -1787,133 +1883,6 @@ hangupconn(Conn *c)
 	c->ctlfd = c->datafd = -1;
 }
 
-#ifdef COEXIST
-static int
-exchids(Conn *c, Ioproc *io, char *remid, int remsz)
-{
-	int n;
-
-	/*
-	 * exchange versions.  server writes id, then reads;
-	 * client reads id then writes (in theory).
-	 */
-	if (c->role == Server) {
-		sendmyid(c, io);
-
-		n = readlineio(c, io, c->datafd, remid, remsz);
-		if (n < 5)		/* can't be a valid SSH id string */
-			return -1;
-		sshdebug(c, "dohandshake: server, got `%s', sent `%s'", remid,
-			MYID);
-	} else {
-		/* client: read server's id */
-		n = readlineio(c, io, c->datafd, remid, remsz);
-		if (n < 5)		/* can't be a valid SSH id string */
-			return -1;
-
-		sendmyid(c, io);
-		sshdebug(c, "dohandshake: client, got `%s' sent `%s'", remid, MYID);
-		if (remid[0] == '\0') {
-			sshlog(c, "dohandshake: client, empty remote id string;"
-				" out of sync");
-			return -1;
-		}
-	}
-	sshdebug(c, "remote id string `%s'", remid);
-	return 0;
-}
-
-/*
- * negotiate the protocols.
- * We don't do the full negotiation here, because we also have
- * to handle a re-negotiation request from the other end.
- * So we just kick it off and let the receiver process take it from there.
- */
-static int
-negotiate(Conn *c)
-{
-	send_kexinit(c);
-
-	qlock(&c->l);
-	if ((c->role == Client && c->state != Negotiating) ||
-	    (c->role == Server && c->state != Established)) {
-		sshdebug(c, "awaiting establishment");
-		rsleep(&c->r);
-	}
-	qunlock(&c->l);
-
-	if (c->role == Server && c->state != Established ||
-	    c->role == Client && c->state != Negotiating) {
-		sshdebug(c, "failed to establish");
-		return -1;
-	}
-	sshdebug(c, "established; crypto now on");
-	return 0;
-}
-
-/* this was deferred when trying to make coexistence with v1 work */
-static int
-deferredinit(Conn *c)
-{
-	char remid[Arbbufsz];
-	Ioproc *io;
-
-	io = ioproc();
-	/*
-	 * don't bother checking the remote's id string.
-	 * as a client, we can cope with v1 if we don't verify the host key.
-	 */
-	if (exchids(c, io, remid, sizeof remid) < 0 ||
-	    0 && c->role == Client && strncmp(remid, "SSH-2", 5) != 0 &&
-	    strncmp(remid, "SSH-1.99", 8) != 0) {
-		/* not a protocol version we know; give up */
-		closeioproc(io);
-		hangupconn(c);
-		return -1;
-	}
-	closeioproc(io);
-	stashremid(c, remid);
-
-	c->state = Initting;
-
-	/* start the reader thread */
-	if (c->rpid < 0)
-		c->rpid = threadcreate(reader, c, Defstk);
-
-	return negotiate(c);
-}
-
-int
-dohandshake(Conn *c, char *tcpconn)
-{
-	int tcpdfd;
-	char *remote;
-	char path[Arbbufsz];
-	Ioproc *io;
-
-	io = ioproc();
-
-	/* read tcp conn's remote address into c->remote */
-	remote = readremote(c, io, tcpconn);
-	if (remote) {
-		free(c->remote);
-		c->remote = remote;
-	}
-
-	/* open tcp conn's data file */
-	c->tcpconn = atoi(tcpconn);
-	snprint(path, sizeof path, "%s/tcp/%s/data", mntpt, tcpconn);
-	tcpdfd = ioopen(io, path, ORDWR);
-	closeioproc(io);
-	if (tcpdfd < 0) {
-		sshlog(c, "dohandshake: can't open %s: %r", path);
-		return -1;
-	}
-	c->datafd = tcpdfd;		/* underlying tcp data descriptor */
-
-	return deferredinit(c);
-}
-#endif					/* COEXIST */
 
 int
 dohandshake(Conn *c, char *tcpconn)
@@ -1934,13 +1903,22 @@ dohandshake(Conn *c, char *tcpconn)
 			*p = 0;
 		free(c->remote);
 		c->remote = estrdup9p(buf);
+		sshdebug(c, "read remote %q from %q", c->remote, path);
+	} else {
+		sshdebug(c, "eof reading %q", path);
+		c->remote = estrdup9p("");
 	}
 	ioclose(io, fd);
+	if (strcmp(c->remote, "::") == 0 || c->remote[0] == '\0') {
+		sshdebug(c, "bad remote %q read; bailing", c->remote);
+		return -1;
+	}
 
 	snprint(path, sizeof path, "%s/tcp/%s/data", mntpt, tcpconn);
 	fd = ioopen(io, path, ORDWR);
 	if (fd < 0) {
 		closeioproc(io);
+		sshlog(c, "can't open %q", path);
 		return -1;
 	}
 	c->datafd = fd;
@@ -1952,21 +1930,24 @@ dohandshake(Conn *c, char *tcpconn)
 		strncpy(path, c->idstring, sizeof path);
 	else {
 		iowrite(io, fd, path, strlen(path));
+		sshdebug(c, "wrote %q to remote", path);
 		p = path;
 		n = 0;
 		do {
 			if (ioread(io, fd, p, 1) < 0) {
-				fprint(2, "%s: short read in ID exchange: %r\n",
-					argv0);
+				*p = '\0';
+				sshlog(c, "short read after %d bytes "
+					"in ID exchange: %s: %r\n", n, path);
 				break;
 			}
 			++n;
 		} while (*p++ != '\n');
+		*p = 0;
 		if (n < 5) {		/* can't be a valid SSH id string */
 			close(fd);
+			sshlog(c, "ID too short: %s", path);
 			goto err;
 		}
-		*p = 0;
 	}
 	sshdebug(c, "id string `%s'", path);
 	if (c->idstring[0] == '\0' &&
@@ -1974,6 +1955,7 @@ dohandshake(Conn *c, char *tcpconn)
 	    strncmp(path, "SSH-1.99", 8) != 0) {
 		/* not a protocol version we know; give up */
 		ioclose(io, fd);
+		sshlog(c, "wrong protocol version: %s", path);
 		goto err;
 	}
 	closeioproc(io);
@@ -1995,7 +1977,6 @@ dohandshake(Conn *c, char *tcpconn)
 	 * to handle a re-negotiation request from the other end.  So
 	 * we just kick it off and let the receiver process take it from there.
 	 */
-
 	send_kexinit(c);
 
 	qlock(&c->l);
@@ -2004,8 +1985,10 @@ dohandshake(Conn *c, char *tcpconn)
 		rsleep(&c->r);
 	qunlock(&c->l);
 	if (c->role == Server && c->state != Established ||
-	    c->role == Client && c->state != Negotiating)
+	    c->role == Client && c->state != Negotiating) {
+		sshlog(c, "wrong state after send_kexinit");
 		return -1;
+	}
 	return 0;
 err:
 	/* should use hangup in dial(2) instead of diddling /net/tcp */
@@ -2713,66 +2696,78 @@ validatekexc(Packet *p)
 	buf = emalloc9p(Bigbufsz);
 	q = p->payload + 17;
 	q = get_string(p, q, buf, Bigbufsz, nil);
+	sshdebug(nil, "read kexes %s", buf);
 	n = gettokens(buf, toks, nelem(toks), ",");
 	for (j = 0; j < nelem(kexes); ++j)
 		for (i = 0; i < n; ++i)
 			if (strcmp(toks[i], kexes[j]->name) == 0)
 				goto foundk;
 	free(buf);
+	sshlog(nil, "kex not known to us");
 	return -1;
 foundk:
 	p->c->kexalg = j;
 
 	q = get_string(p, q, buf, Bigbufsz, nil);
+	sshdebug(nil, "read pkas %s", buf);
 	n = gettokens(buf, toks, nelem(toks), ",");
 	for (j = 0; j < nelem(pkas) && pkas[j] != nil; ++j)
 		for (i = 0; i < n; ++i)
 			if (strcmp(toks[i], pkas[j]->name) == 0)
 				goto foundpka;
 	free(buf);
+	sshlog(nil, "pka not known to us");
 	return -1;
 foundpka:
 	p->c->pkalg = j;
 
 	q = get_string(p, q, buf, Bigbufsz, nil);
+	sshdebug(nil, "read crytos 1 %s", buf);
 	n = gettokens(buf, toks, nelem(toks), ",");
 	for (j = 0; j < nelem(cryptos); ++j)
 		for (i = 0; i < n; ++i)
 			if (strcmp(toks[i], cryptos[j]->name) == 0)
 				goto foundc1;
 	free(buf);
+	sshlog(nil, "crypto not known to us");
 	return -1;
 foundc1:
 	p->c->ncscrypt = j;
 	q = get_string(p, q, buf, Bigbufsz, nil);
+	sshdebug(nil, "read crytos 2 %s", buf);
 	n = gettokens(buf, toks, nelem(toks), ",");
 	for (j = 0; j < nelem(cryptos); ++j)
 		for (i = 0; i < n; ++i)
 			if (strcmp(toks[i], cryptos[j]->name) == 0)
 				goto foundc2;
 	free(buf);
+	sshlog(nil, "crypto not known to us");
 	return -1;
 foundc2:
 	p->c->nsccrypt = j;
 
 	q = get_string(p, q, buf, Bigbufsz, nil);
+	sshdebug(nil, "read macs 1 %s", buf);
 	n = gettokens(buf, toks, nelem(toks), ",");
 	for (j = 0; j < nelem(macnames); ++j)
 		for (i = 0; i < n; ++i)
 			if (strcmp(toks[i], macnames[j]) == 0)
 				goto foundm1;
 	free(buf);
+	sshlog(nil, "mac not known to us");
 	return -1;
 foundm1:
 	p->c->ncsmac = j;
 
 	q = get_string(p, q, buf, Bigbufsz, nil);
+	sshdebug(nil, "read macs 2 %s", buf);
 	n = gettokens(buf, toks, nelem(toks), ",");
 	for (j = 0; j < nelem(macnames); ++j)
 		for (i = 0; i < n; ++i)
 			if (strcmp(toks[i], macnames[j]) == 0)
 				goto foundm2;
 	free(buf);
+	sshlog(nil, "mac not known to us");
 	return -1;
 foundm2:
 	p->c->nscmac = j;
