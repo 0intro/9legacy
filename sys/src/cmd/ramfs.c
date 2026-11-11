@@ -38,7 +38,7 @@ struct Ram
 	long	ref;
 	short	busy;
 	short	open;
-	long	parent;		/* index in Ram array */
+	uintptr	parent;		/* index in Ram array */
 	Qid	qid;
 	long	perm;
 	char	*name;
@@ -48,7 +48,7 @@ struct Ram
 	char	*group;
 	char	*muid;
 	char	*data;
-	long	ndata;
+	uintptr	ndata;
 };
 
 enum
@@ -79,8 +79,8 @@ Fid *	newfid(int);
 uint	ramstat(Ram*, uchar*, uint);
 void	error(char*);
 void	io(void);
-void	*erealloc(void*, ulong);
-void	*emalloc(ulong);
+void	*erealloc(void*, uintptr);
+void	*emalloc(uintptr);
 char	*estrdup(char*);
 void	usage(void);
 int	perm(Fid*, Ram*, int);
@@ -902,7 +902,7 @@ error(char *s)
 }
 
 void *
-emalloc(ulong n)
+emalloc(uintptr n)
 {
 	void *p;
 
@@ -914,7 +914,7 @@ emalloc(ulong n)
 }
 
 void *
-erealloc(void *p, ulong n)
+erealloc(void *p, uintptr n)
 {
 	p = realloc(p, n);
 	if(n != 0 && !p)
