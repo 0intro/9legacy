@@ -157,6 +157,7 @@ typedef struct TlsSec{
 		ECpriv Q;
 	} ec;
 	uchar X[32];		// x25519 scalar
+	DHstate dh;			// finite-field diffie-hellman state
 	// byte generation and handshake checksum
 	void (*prf)(uchar*, int, uchar*, int, char*, uchar*, int, uchar*, int);
 	void (*setFinished)(TlsSec*, HandHash, uchar*, int);
@@ -263,6 +264,8 @@ enum {
 	TLS_DHE_DSS_WITH_AES_256_CBC_SHA	= 0X0038,
 	TLS_DHE_RSA_WITH_AES_256_CBC_SHA	= 0X0039,
 	TLS_DH_anon_WITH_AES_256_CBC_SHA	= 0X003A,
+	TLS_DHE_RSA_WITH_AES_128_CBC_SHA256	= 0X0067,
+	TLS_DHE_RSA_WITH_AES_128_GCM_SHA256	= 0X009E,
 	TLS_EMPTY_RENEGOTIATION_INFO_SCSV	= 0x00FF,
 	TLS_FALLBACK_SCSV			= 0x5600,
 	CipherMax,
@@ -279,6 +282,7 @@ enum {
 	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256	= 0xC02B,
 	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384	= 0xC02C,
 	TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305	= 0xCCA9,
+	TLS_DHE_RSA_WITH_CHACHA20_POLY1305	= 0xCCAA,
 };
 
 // compression methods
@@ -319,6 +323,10 @@ static Algs cipherAlgs[] = {
 	{"aes_128_cbc", "sha256", 2*(16+16+SHA2_256dlen), TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256},
 	{"aes_128_cbc", "sha1", 2*(16+16+SHA1dlen), TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA},
 	{"aes_256_cbc", "sha1", 2*(32+16+SHA1dlen), TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA},
+	{"aes_128_cbc", "sha256", 2*(16+16+SHA2_256dlen), TLS_DHE_RSA_WITH_AES_128_CBC_SHA256},
+	{"aes_128_cbc", "sha1", 2*(16+16+SHA1dlen), TLS_DHE_RSA_WITH_AES_128_CBC_SHA},
+	{"aes_256_cbc", "sha1", 2*(32+16+SHA1dlen), TLS_DHE_RSA_WITH_AES_256_CBC_SHA},
+	{"3des_ede_cbc", "sha1", 2*(4*8+SHA1dlen), TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA},
 	{"rc4_128", "md5", 2*(16+MD5dlen), TLS_RSA_WITH_RC4_128_MD5},
 	{"rc4_128", "sha1", 2*(16+SHA1dlen), TLS_RSA_WITH_RC4_128_SHA},
 	{"3des_ede_cbc", "sha1", 2*(4*8+SHA1dlen), TLS_RSA_WITH_3DES_EDE_CBC_SHA},
@@ -1934,6 +1942,8 @@ okCipher(Ints *cv)
 			if(cipherAlgs[j].ok && cipherAlgs[j].tlsid == c){
 				if(isECDSA(c))
 					break;	/* server has no ecdsa key */
+				if(isDHE(c))
+					break;	/* server has no dhe key */
 				return c;
 			}
 	}
@@ -2370,6 +2380,7 @@ tlsSecClose(TlsSec *sec)
 	mpfree(sec->ec.Q.d);
 	if(sec->ec.dom.p != nil)
 		ecdomfree(&sec->ec.dom);
+	dh_finish(&sec->dh, nil);
 	free(sec->server);
 	free(sec);
 }
@@ -2614,7 +2625,15 @@ isECDSA(int tlsid)
 static int
 isDHE(int tlsid)
 {
-	USED(tlsid);
+	switch(tlsid){
+	case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
+	case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
+	case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
+	case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256:
+	case TLS_DHE_RSA_WITH_AES_128_GCM_SHA256:
+	case TLS_DHE_RSA_WITH_CHACHA20_POLY1305:
+		return 1;
+	}
 	return 0;
 }
 
@@ -2814,8 +2833,63 @@ tlsSecDHEs2(TlsSec *sec, Bytes *Yc)
 static Bytes*
 tlsSecDHEc(TlsSec *sec, Bytes *par)
 {
-	USED(sec); USED(par);
-	return nil;
+	DHstate *dh = &sec->dh;
+	mpint *P, *G, *Y, *K;
+	Bytes *Yc, *Z;
+	uchar *p, *e;
+	int n, len;
+
+	if(par == nil)
+		return nil;
+	P = G = Y = K = nil;
+	Yc = nil;
+	p = par->data;
+	e = p + par->len;
+	if(e - p < 2)
+		goto Out;
+	len = get16(p);
+	p += 2;
+	if(e - p < len || len <= 1024/8)	/* reject logjam-weak primes */
+		goto Out;
+	P = betomp(p, len, nil);
+	p += len;
+	if(e - p < 2)
+		goto Out;
+	len = get16(p);
+	p += 2;
+	if(e - p < len)
+		goto Out;
+	G = betomp(p, len, nil);
+	p += len;
+	if(e - p < 2)
+		goto Out;
+	len = get16(p);
+	p += 2;
+	if(e - p < len)
+		goto Out;
+	Y = betomp(p, len, nil);
+	if(dh_new(dh, P, nil, G) == nil)
+		goto Out;
+	n = (mpsignif(P)+7)/8;
+	Yc = newbytes(n);
+	mptober(dh->y, Yc->data, n);
+	K = dh_finish(dh, Y);	/* zeros dh */
+	if(K == nil){
+		freebytes(Yc);
+		Yc = nil;
+		goto Out;
+	}
+	Z = newbytes(n);
+	mptober(K, Z->data, n);
+	setMasterSecret(sec, Z);
+	memset(Z->data, 0, Z->len);
+	freebytes(Z);
+Out:
+	mpfree(K);
+	mpfree(Y);
+	mpfree(G);
+	mpfree(P);
+	return Yc;
 }
 
 static void
