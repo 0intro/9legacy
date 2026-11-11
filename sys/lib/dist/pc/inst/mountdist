@@ -128,7 +128,7 @@ case go
 			srvmedia=(9660srv)
 			mountmedia=(mount /srv/9660 /n/distmedia $disk)
 		case $fossil
-			echo 'srv fossil.mountdist' > /tmp/fossi.conf
+			echo 'srv fossil.mountdist' > /tmp/fossil.conf
 			echo 'fsys main config '^$disk >> /tmp/fossil.conf
 			echo 'fsys main open -AWVP' >> /tmp/fossil.conf
 			echo 'fsys main' >> /tmp/fossil.conf
