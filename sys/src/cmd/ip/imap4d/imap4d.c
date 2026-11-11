@@ -33,6 +33,7 @@ typedef struct	ParseCmd	ParseCmd;
 enum
 {
 	UlongMax	= 4294967295,
+	Maxlit		= 64*1024,
 };
 
 struct ParseCmd
@@ -2035,6 +2036,8 @@ literal(void)
 	ulong v;
 
 	v = litlen();
+	if(v > Maxlit)
+		parseErr("literal too long");
 	s = binalloc(&parseBin, v+1, 0);
 	if(s == nil)
 		parseErr("out of memory");
