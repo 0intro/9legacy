@@ -5,6 +5,7 @@
 #include <libsec.h>
 #include <auth.h>
 #include <authsrv.h>
+#include <bio.h>
 
 typedef struct Hdr Hdr;
 
@@ -17,8 +18,7 @@ struct Hdr {
 };
 
 #define Keyspec		"proto=rsa service=acme role=sign hash=sha256 acct=%s"
-#define Contenttype	"contenttype application/jose+json"
-#define between(x,min,max)	(((min-1-x) & (x-max-1))>>8)
+#define Contenttype	"application/jose+json"
 int	debug;
 int	(*challengefn)(char*, char*, char*, int*);
 char	*keyspec;
@@ -58,30 +58,26 @@ esmprint(char *fmt, ...)
 	return r;
 }
 
-int
-encurl64chr(int o)
-{
-	int c;
-
-	c  = between(o,  0, 25) & ('A'+o);
-	c |= between(o, 26, 51) & ('a'+(o-26));
-	c |= between(o, 52, 61) & ('0'+(o-52));
-	c |= between(o, 62, 62) & ('-');
-	c |= between(o, 63, 63) & ('_');
-	return c;
-}
 char*
 encurl64(void *in, int n)
 {
 	int lim;
 	char *out, *p;
 
-	lim = 4*n/3 + 5;
+	lim = 4*((n+2)/3) + 1;
 	if((out = malloc(lim)) == nil)
 		abort();
-	enc64x(out, lim, in, n, encurl64chr);
-	if((p = strchr(out, '=')) != nil)
-		*p = 0;
+	enc64(out, lim, in, n);
+	for(p = out; *p != 0; p++){
+		if(*p == '+')
+			*p = '-';
+		else if(*p == '/')
+			*p = '_';
+		else if(*p == '='){
+			*p = 0;
+			break;
+		}
+	}
 	return out;
 }
 
@@ -152,92 +148,165 @@ slurp(int fd, int *n)
 	b[*n] = 0;
 	return b;
 }
-		
-static int
-webopen(char *url, char *dir, int ndir)
+
+/* set the error string from the acme problem document, else the raw body */
+static void
+acmeerror(char *body)
 {
-	char buf[16];
-	int n, cfd, conn;
+	JSON *j;
+	JSONEl *e;
+	char *m;
 
-	if((cfd = open("/mnt/web/clone", ORDWR|OCEXEC)) == -1)
-		return -1;
-	if((n = read(cfd, buf, sizeof(buf)-1)) == -1)
-		goto Error;
-	buf[n] = 0;
-	conn = atoi(buf);
+	m = body;
+	if((j = jsonparse(body)) != nil && j->t == JSONObject){
+		for(e = j->first; e != nil; e = e->next){
+			if(e->val->t == JSONString && strcmp(e->name, "detail") == 0){
+				m = e->val->s;
+				break;
+			}
+		}
+	}
+	werrstr("%s", m);
+	if(j != nil)
+		jsonfree(j);
+}
 
-	if(fprint(cfd, "url %s", url) == -1)
-		goto Error;
-	snprint(dir, ndir, "/mnt/web/%d", conn);
-	return cfd;
-Error:
-	close(cfd);
-	return -1;
+static char*
+httpreq(char *method, char *url, char *ctype, char *body, int nbody,
+	int *nresp, char *wanthdr, char **hdrval)
+{
+	char *p, *q, *line, *resp, *port, auth[256], host[256], path[1024], req[2048];
+	int fd, tfd, tls, n, cap, status;
+	TLSconn conn;
+	Biobuf b;
+
+	if(hdrval != nil)
+		*hdrval = nil;
+	*nresp = 0;
+
+	tls = 0;
+	if(cistrncmp(url, "https://", 8) == 0){
+		tls = 1;
+		p = url+8;
+	}else if(cistrncmp(url, "http://", 7) == 0)
+		p = url+7;
+	else{
+		werrstr("bad url: %s", url);
+		return nil;
+	}
+	q = strchr(p, '/');
+	n = q!=nil ? q-p : strlen(p);
+	if(n >= (int)sizeof(auth))
+		n = sizeof(auth)-1;
+	memmove(auth, p, n);
+	auth[n] = 0;
+	snprint(path, sizeof(path), "%s", q!=nil ? q : "/");
+
+	snprint(host, sizeof(host), "%s", auth);
+	if((port = strchr(host, ':')) != nil)
+		*port++ = 0;
+	else
+		port = tls ? "443" : "80";
+	if((fd = dial(netmkaddr(host, "tcp", port), nil, nil, nil)) < 0)
+		return nil;
+	if(tls){
+		memset(&conn, 0, sizeof(conn));
+		conn.serverName = host;
+		tfd = tlsClient(fd, &conn);
+		free(conn.cert);
+		free(conn.sessionID);
+		if(tfd < 0)
+			return nil;
+		fd = tfd;
+	}
+
+	p = seprint(req, req+sizeof(req), "%s %s HTTP/1.0\r\nHost: %s\r\nUser-Agent: acmed\r\n",
+		method, path, auth);
+	if(ctype != nil)
+		p = seprint(p, req+sizeof(req), "Content-Type: %s\r\n", ctype);
+	if(body != nil)
+		p = seprint(p, req+sizeof(req), "Content-Length: %d\r\n", nbody);
+	p = seprint(p, req+sizeof(req), "\r\n");
+	if(write(fd, req, p-req) != p-req
+	|| (body!=nil && write(fd, body, nbody) != nbody)){
+		close(fd);
+		return nil;
+	}
+
+	Binit(&b, fd, OREAD);
+	if((line = Brdline(&b, '\n')) == nil){
+		werrstr("no http response");
+		Bterm(&b);
+		close(fd);
+		return nil;
+	}
+	if((q = strchr(line, ' ')) == nil){
+		werrstr("malformed http response");
+		Bterm(&b);
+		close(fd);
+		return nil;
+	}
+	status = atoi(q+1);
+	while((line = Brdline(&b, '\n')) != nil){
+		n = Blinelen(&b);
+		while(n > 0 && (line[n-1]=='\n' || line[n-1]=='\r'))
+			line[--n] = 0;
+		if(n == 0)
+			break;
+		if(wanthdr!=nil && *hdrval==nil && (q = strchr(line, ':')) != nil){
+			*q++ = 0;
+			if(cistrcmp(line, wanthdr) == 0){
+				while(*q==' ' || *q=='\t')
+					q++;
+				*hdrval = strdup(q);
+			}
+		}
+	}
+	resp = nil;
+	cap = 0;
+	for(;;){
+		if(*nresp+1 >= cap){
+			cap = cap!=0 ? cap*2 : 8192;
+			if((resp = realloc(resp, cap)) == nil)
+				abort();
+		}
+		n = Bread(&b, resp+*nresp, cap-*nresp-1);
+		if(n <= 0)
+			break;
+		*nresp += n;
+	}
+	resp[*nresp] = 0;
+	Bterm(&b);
+	close(fd);
+	if(status >= 400){
+		acmeerror(resp);
+		free(resp);
+		if(hdrval != nil){
+			free(*hdrval);
+			*hdrval = nil;
+		}
+		return nil;
+	}
+	return resp;
 }
 
 static char*
 get(char *url, int *n)
 {
-	char *r, dir[64], path[80];
-	int cfd, dfd;
-
-	r = nil;
-	dfd = -1;
-	if((cfd = webopen(url, dir, sizeof(dir))) == -1)
-		goto Error;
-	snprint(path, sizeof(path), "%s/%s", dir, "body");
-	if((dfd = open(path, OREAD|OCEXEC)) == -1)
-		goto Error;
-	r = slurp(dfd, n);
-Error:
-	if(dfd != -1) close(dfd);
-	if(cfd != -1) close(cfd);
-	return r;
+	return httpreq("GET", url, nil, nil, 0, n, nil, nil);
 }
 
 static char*
 post(char *url, char *buf, int nbuf, int *nret, Hdr *h)
 {
-	char *r, dir[64], path[80];
-	int cfd, dfd, hfd, ok;
+	char *r;
 
-	r = nil;
-	ok = 0;
-	dfd = -1;
-	hfd = -1;
-	if((cfd = webopen(url, dir, sizeof(dir))) == -1)
-		goto Error;
-	if(write(cfd, Contenttype, strlen(Contenttype)) == -1)
-		goto Error;
-	snprint(path, sizeof(path), "%s/%s", dir, "postbody");
-	if((dfd = open(path, OWRITE|OCEXEC)) == -1)
-		goto Error;
-	if(write(dfd, buf, nbuf) != nbuf)
-		goto Error;
-	close(dfd);
-	snprint(path, sizeof(path), "%s/%s", dir, "body");
-	if((dfd = open(path, OREAD|OCEXEC)) == -1)
-		goto Error;
 	if(h != nil){
-		snprint(path, sizeof(path), "%s/%s", dir, h->name);
-		if((hfd = open(path, OREAD|OCEXEC)) == -1)
-			goto Error;
-		if((h->val = slurp(hfd, &h->nval)) == nil)
-			goto Error;
+		r = httpreq("POST", url, Contenttype, buf, nbuf, nret, h->name, &h->val);
+		h->nval = h->val!=nil ? strlen(h->val) : 0;
+		return r;
 	}
-	if((r = slurp(dfd, nret)) == nil)
-		goto Error;
-	ok = 1;
-Error:
-	if(hfd != -1) close(hfd);
-	if(dfd != -1) close(dfd);
-	if(cfd != -1) close(cfd);
-	if(!ok && h != nil){
-		free(h->val);
-		h->val = nil;
-		h->nval = 0;
-	}
-	return r;
+	return httpreq("POST", url, Contenttype, buf, nbuf, nret, nil, nil);
 }
 
 static int
@@ -279,30 +348,14 @@ endpoints(void)
 static char*
 getnonce(void)
 {
-	char *r, dir[64], path[80];
-	int n, cfd, dfd, hfd;
+	char *r, *nonce;
+	int n;
 
-	r = nil;
-	dfd = -1;
-	hfd = -1;
-	if((cfd = webopen(epnewnonce, dir, sizeof(dir))) == -1)
-		goto Error;
-	fprint(cfd, "request HEAD");
-
-	snprint(path, sizeof(path), "%s/%s", dir, "body");
-	if((dfd = open(path, OREAD|OCEXEC)) == -1)
-		goto Error;
-	snprint(path, sizeof(path), "%s/%s", dir, "replaynonce");
-	if((hfd = open(path, OREAD|OCEXEC)) == -1)
-		goto Error;
-	r = slurp(hfd, &n);
-Error:
-	if(hfd != -1)
-		close(hfd);
-	if(dfd != -1)
-		close(dfd);
-	close(cfd);
-	return r;
+	nonce = nil;
+	if((r = httpreq("GET", epnewnonce, nil, nil, 0, &n, "replay-nonce", &nonce)) == nil)
+		return nil;
+	free(r);
+	return nonce;
 }
 
 char*
@@ -406,9 +459,6 @@ mkaccount(char *addr)
 static char*
 idn(char *dom)
 {
-	static char buf[256];
-	if(utf2idn(dom, buf, sizeof(buf)) >= 0)
-		return buf;
 	return dom;
 }
 
