@@ -5,6 +5,8 @@
 #include	"fns.h"
 #include	"../port/error.h"
 
+#include	<libsec.h>
+
 
 struct Rb
 {
@@ -38,7 +40,7 @@ rbnotempty(void*)
 }
 
 static void
-genrandom(void*)
+randomproc(void*)
 {
 	up->basepri = PriNormal;
 	up->priority = up->basepri;
@@ -88,14 +90,14 @@ randominit(void)
 	addclock0link(randomclock, 13);
 	rb.ep = rb.buf + sizeof(rb.buf);
 	rb.rp = rb.wp = rb.buf;
-	kproc("genrandom", genrandom, 0);
+	kproc("genrandom", randomproc, 0);
 }
 
 /*
  *  consume random bytes from a circular buffer
  */
-ulong
-randomread(void *xp, ulong n)
+static void
+seedfromrb(void *xp, int n)
 {
 	uchar *e, *p;
 	ulong x;
@@ -134,6 +136,46 @@ randomread(void *xp, ulong n)
 	poperror();
 
 	wakeup(&rb.producer);
+}
+
+ulong
+randomread(void *p, ulong n)
+{
+	static QLock lk;
+	static Chachastate cs;
+	static int seeded;
+	uchar seed[32+12];
+	Chachastate c;
+
+	if(n == 0)
+		return 0;
+
+	qlock(&lk);
+	if(waserror()){
+		qunlock(&lk);
+		nexterror();
+	}
+	if(!seeded){
+		seedfromrb(seed, sizeof seed);
+		setupChachastate(&cs, seed, 32, seed+32, 12, 20);
+		memset(seed, 0, sizeof seed);
+		seeded = 1;
+	}
+
+	/* copy chacha state, rekey and increment iv */
+	c = cs;
+	chacha_encrypt((uchar*)&cs.input[4], 32, &c);
+	if(++cs.input[13] == 0)
+		if(++cs.input[14] == 0)
+			++cs.input[15];
+	poperror();
+	qunlock(&lk);
+
+	/* encrypt the buffer, can fault */
+	chacha_encrypt((uchar*)p, n, &c);
+
+	/* prevent state leakage */
+	memset(&c, 0, sizeof c);
 
 	return n;
 }
