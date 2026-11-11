@@ -19,6 +19,10 @@ open(const char *path, int flags, ...)
 	Fdinfo *fi;
 	va_list va;
 
+	if (path == 0) {
+		errno = EINVAL;
+		return -1;
+	}
 	f = flags&O_ACCMODE;
 	if(flags&O_CREAT){
 		if(access(path, 0) >= 0){

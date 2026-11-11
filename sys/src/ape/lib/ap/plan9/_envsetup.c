@@ -96,6 +96,8 @@ _envsetup(void)
 	free(d9a);
 	if(!fdinited)
 		_fdinit(0, 0);
+
+	/* copy environment into a new allocation */
 	pp = malloc((1+cnt)*sizeof(char *));
 	if (pp == 0)
 		return;
@@ -109,6 +111,7 @@ _envsetup(void)
 		p++;
 	}
 	*pp = 0;
+
 	if(!nohandle)
 		_NOTIFY(_notehandler);
 }

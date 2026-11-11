@@ -31,6 +31,10 @@ canlock(Lock *l)
 	/* Undo increment (but don't miss wakeup) */
 	if(adec(&l->key) == 0)
 		return 0;	/* changed from 1 -> 0: no contention */
+	/*
+	 * another proc raced with us and is waiting in semacquire in lock,
+	 * so wake it up.
+	 */
 	_SEMRELEASE(&l->sem, 1);
 	return 0;
 }

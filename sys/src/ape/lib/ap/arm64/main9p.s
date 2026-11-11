@@ -1,38 +1,49 @@
 #define NPRIVATES	16
 
-arg=0
-sb=28
+GLOBL	_tos(SB), $8
+GLOBL	_privates(SB), $8
+GLOBL	_nprivates(SB), $4
 
-TEXT	_mainp(SB), 1, $(16 + NPRIVATES*8)
-	MOV	$setSB(SB), R(sb)
-	MOV	R(arg), _tos(SB)
+TEXT	_mainp(SB), 1, $(3*8+NPRIVATES*8)
 
-	MOV	$p-(NPRIVATES*8)(SP), R1
+	MOV	$setSB(SB), R28
+
+	/* _tos = arg */
+	MOVW	RARG, _tos(SB)
+
+	MOV	$private+8(SP), R1
 	MOV	R1, _privates(SB)
-	MOV	$NPRIVATES, R1
-	MOV	R1, _nprivates(SB)
+	MOVW	$NPRIVATES, R1
+	MOVW	R1, _nprivates(SB)
 
+	/* _profmain(); */
 	BL	_profmain(SB)
-	/* _tos->prof.pp = _tos->prof.next; */
-	MOV	_tos(SB), R1
-	MOV	8(R1), R0
-	MOV	R0, 0(R1)
 
-	MOV	$inargv+0(FP), R(arg)
-	MOV	R(arg), argv-(8*NPRIVATES+16)(SP)
-	MOV	inargc-8(FP), R(arg)
+	/* _tos->prof.pp = _tos->prof.next; */
+	MOV	_tos+0(SB),R1
+	MOV	8(R1), R2
+	MOV	R2, 0(R1)
+
+	BL	_envsetup(SB)
+
+	/* main(argc, argv, environ); */
+	MOV	$inargv+0(FP), RARG
+	MOV	RARG, 16(RSP)
+	MOVW	inargc-8(FP), RARG
+	MOVW	RARG, 4(RSP)
+	MOV	environ(SB), RARG
+	MOV	RARG, 8(RSP)
 	BL	main(SB)
 loop:
-	MOV	$_exitstr<>(SB), R(arg)
-	BL	exits(SB)
+	MOVW	RARG, 4(RSP)
+	BL	exit(SB)
+//	MOV	$_div(SB), RARG	/* force loading of div */
+	MOV	$_profin(SB), RARG	/* force loading of profile */
 	B	loop
 
 TEXT	_savearg(SB), 1, $0
 	RETURN
 
 TEXT	_callpc(SB), 1, $0
-	MOV	0(SP), R0
+	MOV	argp-8(FP), RARG
 	RETURN
-
-DATA	_exitstr<>+0(SB)/4, $"main"
-GLOBL	_exitstr<>+0(SB), $5

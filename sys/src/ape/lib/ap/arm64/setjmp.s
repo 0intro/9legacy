@@ -1,29 +1,27 @@
-arg=0
-link=30
-
 TEXT	setjmp(SB), 1, $-4
 	MOV	SP, R2
-	MOVP	R2, R(link), 0(R(arg))
-	MOV	$0, R(arg)
+	MOV	R2, (RARG)
+	MOV	LR, 8(RARG)
+	MOV	$0, RARG
 	RETURN
 
 TEXT	sigsetjmp(SB), 1, $-4
 	MOV	savemask+8(FP), R2
-	MOV	R2, 0(R(arg))
+	MOV	R2, 0(RARG)
 	MOV	$_psigblocked(SB), R2
-	MOV	R2, 8(R(arg))
+	MOV	R2, 8(RARG)
 	MOV	SP, R2
-	MOVP	R2, R(link), 16(R(arg))
-	MOV	$0, R(arg)
+	MOV	R2, 16(RARG)
+	MOV	LR, 24(RARG)
+	MOV	$0, RARG
 	RETURN
 
 TEXT	longjmp(SB), 1, $-4
-	MOVP	0(R(arg)), R2, R(link)
-	MOV	R2, SP	
-	MOV	r+8(FP), R(arg)
-	CBZ	R(arg), ret1
-	RETURN
-ret1:
-	/* ansi: "longjmp(0) => longjmp(1)" */
-	MOVW	$1, R(arg)
+	MOV	r+8(FP), R1
+	CBNZ	R1, ok
+	MOV	$1, R1
+ok:	MOV	(RARG), R2
+	MOV	8(RARG), LR
+	MOV	R2, SP
+	MOV	R1, RARG
 	RETURN

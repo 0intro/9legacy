@@ -1,4 +1,6 @@
 #include "fconv.h"
+#include <stdio.h>
+#include <assert.h>
 
 static int quorem(Bigint *, Bigint *);
 
@@ -91,6 +93,8 @@ _dtoa(double darg, int mode, int ndigits, int *decpt, int *sign, char **rve)
 
 	mlo = 0;
 	d.d = darg;
+	if (rve)
+		*rve = 0;
 	if (result) {
 		result->k = result_k;
 		result->maxwds = 1 << result_k;
@@ -108,7 +112,8 @@ _dtoa(double darg, int mode, int ndigits, int *decpt, int *sign, char **rve)
 
 #if defined(IEEE_Arith) + defined(VAX)
 #ifdef IEEE_Arith
-	if ((word0(d) & Exp_mask) == Exp_mask)
+//	if ((word0(d) & Exp_mask) == Exp_mask)
+	if (isNaN(darg) || isInf(darg, 0))
 #else
 	if (word0(d)  == 0x8000)
 #endif
@@ -117,9 +122,9 @@ _dtoa(double darg, int mode, int ndigits, int *decpt, int *sign, char **rve)
 		*decpt = 9999;
 		s =
 #ifdef IEEE_Arith
-			!word1(d) && !(word0(d) & 0xfffff) ? "Infinity" :
+//			!word1(d) && !(word0(d) & 0xfffff) ? "Infinity" : "NaN";
+			isNaN(darg)? "NaN": "Infinity";
 #endif
-				"NaN";
 		if (rve)
 			*rve =
 #ifdef IEEE_Arith
@@ -324,6 +329,9 @@ _dtoa(double darg, int mode, int ndigits, int *decpt, int *sign, char **rve)
 			for(i = 0;;) {
 				L = floor(d.d);
 				d.d -= L;
+				if(L < 0 || L > 9)
+					printf("_dtoa: next digit is %d\n", L);
+				assert(L >= 0 && L <= 9);
 				*s++ = '0' + (int)L;
 				if (d.d < eps.d)
 					goto ret1;
@@ -342,6 +350,9 @@ _dtoa(double darg, int mode, int ndigits, int *decpt, int *sign, char **rve)
 			for(i = 1;; i++, d.d *= 10.) {
 				L = floor(d.d);
 				d.d -= L;
+				if(L < 0 || L > 9)
+					printf("_dtoa: next digit is %d\n", L);
+				assert(L >= 0 && L <= 9);
 				*s++ = '0' + (int)L;
 				if (i == ilim) {
 					if (d.d > 0.5 + eps.d)
@@ -385,6 +396,9 @@ _dtoa(double darg, int mode, int ndigits, int *decpt, int *sign, char **rve)
 				d.d += ds;
 				}
 #endif
+			if(L < 0 || L > 9)
+				printf("_dtoa: next digit is %d\n", L);
+			assert(L >= 0 && L <= 9);
 			*s++ = '0' + (int)L;
 			if (i == ilim) {
 				d.d += d.d;

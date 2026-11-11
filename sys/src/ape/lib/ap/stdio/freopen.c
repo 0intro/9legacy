@@ -22,7 +22,7 @@ FILE *freopen(const char *name, const char *mode, FILE *f){
 	}
 
 	m = *mode++;
-	if(m == 0)
+	if(m == 0 || name == 0)
 		return NULL;
 	if(*mode == 'b')
 		mode++;

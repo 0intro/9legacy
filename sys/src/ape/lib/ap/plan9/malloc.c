@@ -2,52 +2,74 @@
 #include <string.h>
 #include <inttypes.h>
 
-typedef unsigned int	uint;
+#define HOWMANY(x, y)	(((x)+((y)-1)) / (y))
+#define ROUNDUP(x, y)	(HOWMANY((x), (y)) * (y))
 
 enum
 {
 	MAGIC		= 0xbada110c,
-	MAX2SIZE	= 32,
+	MAX2SIZE	= 8*sizeof(void *),
 	CUTOFF		= 12,
 };
 
 typedef struct Bucket Bucket;
 struct Bucket
 {
-	int	size;
+	int	size;		/* lg2(actual size) */
 	int	magic;
-	Bucket	*next;
-	int	pad;
+	union {
+		Bucket	*next;
+		long long pad;	/* force data[] to vlong alignment */
+	};
 	char	data[1];
 };
 
 typedef struct Arena Arena;
 struct Arena
 {
-	Bucket	*btab[MAX2SIZE];	
+	Bucket	*btab[MAX2SIZE];
 };
 static Arena arena;
 
-#define datoff		((int)((Bucket*)0)->data)
+#define datoff		((uintptr_t)((Bucket*)0)->data)
 #define nil		((void*)0)
 
-extern	void	*sbrk(unsigned long);
+extern	void	*sbrk(uintptr_t);
+
+static unsigned long long
+nextpow2(unsigned long long n)
+{
+	int pow;
+
+	for(pow = 1; pow < MAX2SIZE; pow++)
+		if(n <= (1ULL << pow))
+			break;
+	return pow;
+}
 
 void*
 malloc(size_t size)
 {
-	uint next;
 	int pow, n;
 	Bucket *bp, *nbp;
+	static int firstalloc = 1;
 
-	for(pow = 1; pow < MAX2SIZE; pow++) {
-		if(size <= (1<<pow))
-			goto good;
+	/*
+	 * not sure why this helps, but it prevents poolfreel from
+	 * dying later after large allocations, at least on 64-bit systems.
+	 */
+	if (firstalloc) {
+		firstalloc = 0;
+		malloc(8);
 	}
 
-	return nil;
-good:
-	/* Allocate off this list */
+	if ((ssize_t)size < 0)
+		abort();
+	pow = nextpow2(size);
+	if (pow == 0)
+		return nil;
+
+	/* Allocate off this list, if any available */
 	bp = arena.btab[pow];
 	if(bp) {
 		arena.btab[pow] = bp->next;
@@ -56,38 +78,31 @@ good:
 			abort();
 
 		bp->magic = MAGIC;
-		return  bp->data;
+		return bp->data;
 	}
-	size = sizeof(Bucket)+(1<<pow);
-	size += 7;
-	size &= ~7;
 
+	/* quantum of allocation */
+	size = ROUNDUP(sizeof(Bucket) + (1ULL << pow), sizeof(long long));
 	if(pow < CUTOFF) {
-		n = (CUTOFF-pow)+2;
-		bp = sbrk(size*n);
-		if((intptr_t)bp == -1)
+		n = (CUTOFF-pow) + 2;
+		bp = sbrk(size*n);	/* allocate small array for list */
+		if(bp == (void *)-1)
 			return nil;
 
-		next = (uint)bp+size;
-		nbp = (Bucket*)next;
-		arena.btab[pow] = nbp;
-		for(n -= 2; n; n--) {
-			next = (uint)nbp+size;
-			nbp->next = (Bucket*)next;
+		nbp = (Bucket*)((uintptr_t)bp + size);
+		arena.btab[pow] = nbp;	/* list skips first quantum (bp) */
+		for(n--; --n > 0; ) {
 			nbp->size = pow;
-			nbp = nbp->next;
+			nbp = nbp->next = (Bucket*)((uintptr_t)nbp + size);
 		}
 		nbp->size = pow;
-	}
-	else {
+	} else {
 		bp = sbrk(size);
-		if((intptr_t)bp == -1)
+		if(bp == (void *)-1)
 			return nil;
 	}
-		
 	bp->size = pow;
 	bp->magic = MAGIC;
-
 	return bp->data;
 }
 
@@ -100,7 +115,7 @@ free(void *ptr)
 		return;
 
 	/* Find the start of the structure */
-	bp = (Bucket*)((uint)ptr - datoff);
+	bp = (Bucket*)((uintptr_t)ptr - datoff);
 
 	if(bp->magic != MAGIC)
 		abort();
@@ -115,20 +130,20 @@ void*
 realloc(void *ptr, size_t n)
 {
 	void *new;
-	uint osize;
+	uintptr_t osize;
 	Bucket *bp;
 
 	if(ptr == nil)
 		return malloc(n);
 
 	/* Find the start of the structure */
-	bp = (Bucket*)((uint)ptr - datoff);
+	bp = (Bucket*)((uintptr_t)ptr - datoff);
 
 	if(bp->magic != MAGIC)
 		abort();
 
-	/* enough space in this bucket */
-	osize = 1<<bp->size;
+	/* enough space in this bucket? */
+	osize = 1ULL << bp->size;
 	if(osize >= n)
 		return ptr;
 

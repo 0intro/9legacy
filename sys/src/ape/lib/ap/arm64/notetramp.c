@@ -52,30 +52,21 @@ notecont(Ureg *u, char *s)
 
 extern sigset_t	_psigblocked;
 
-typedef struct {
-	sigset_t set;
-	sigset_t blocked;
-	unsigned long long jmpbuf[2];
-} sigjmp_buf_arm64;
-
 void
 siglongjmp(sigjmp_buf j, int ret)
 {
 	struct Ureg *u;
-	sigjmp_buf_arm64 *jb;
 
-	jb = (sigjmp_buf_arm64*)j;
-
-	if(jb->set)
-		_psigblocked = jb->blocked;
-	if(nstack == 0 || pcstack[nstack-1].u->sp > jb->jmpbuf[JMPBUFSP])
-		longjmp((void*)jb->jmpbuf, ret);
+	if(j[0])
+		_psigblocked = j[1];
+	if(nstack == 0 || pcstack[nstack-1].u->sp > j[2+JMPBUFSP])
+		longjmp(j+2, ret);
 	u = pcstack[nstack-1].u;
 	nstack--;
 	u->r0 = ret;
 	if(ret == 0)
 		u->r0 = 1;
-	u->pc = jb->jmpbuf[JMPBUFPC];
-	u->sp = jb->jmpbuf[JMPBUFSP] + 8;
+	u->pc = j[2+JMPBUFPC];
+	u->sp = j[2+JMPBUFSP];
 	_NOTED(3);	/* NRSTR */
 }

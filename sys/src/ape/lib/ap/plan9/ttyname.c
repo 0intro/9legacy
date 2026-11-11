@@ -4,8 +4,8 @@
 char *
 ttyname(int fd)
 {
-	static char buf[100];
+	static char buf[16];
 
-	sprintf(buf, "/fd/%d", fd);
+	snprintf(buf, sizeof buf, "/fd/%d", fd);
 	return buf;
 }

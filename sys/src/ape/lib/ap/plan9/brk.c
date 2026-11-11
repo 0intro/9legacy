@@ -1,4 +1,6 @@
 #include "lib.h"
+#include <stdlib.h>
+#include <inttypes.h>
 #include <errno.h>
 #include "sys9.h"
 
@@ -6,27 +8,28 @@ char	end[];
 static	char	*bloc = { end };
 extern	int	_BRK_(void*);
 
-char *
+int
 brk(char *p)
 {
-	unsigned long n;
+	uintptr_t n;
 
-	n = (unsigned long)p;
-	n += 3;
-	n &= ~3;
+	n = (uintptr_t)p + sizeof(uintptr_t) - 1;
+	n &= ~((uintptr_t)sizeof(uintptr_t) - 1);
 	if(_BRK_((void*)n) < 0){
 		errno = ENOMEM;
-		return (char *)-1;
+		return -1;
 	}
 	bloc = (char *)n;
 	return 0;
 }
 
 void *
-sbrk(unsigned long n)
+sbrk(uintptr_t n)
 {
-	n += 3;
-	n &= ~3;
+	if ((intptr_t)n < 0)
+		abort();
+	n += sizeof(uintptr_t) - 1;
+	n &= ~((uintptr_t)sizeof(uintptr_t) - 1);
 	if(_BRK_((void *)(bloc+n)) < 0){
 		errno = ENOMEM;
 		return (void *)-1;
