@@ -1,0 +1,91 @@
+TARG=bootia32.efi bootx64.efi bootaa64.efi efiboot.fat
+HFILES=fns.h mem.h
+IMAGEBASE=0x8000
+CFLAGS=-FTVw
+PEFLAGS=$CFLAGS '-DIMAGEBASE='$IMAGEBASE
+
+all:V: $TARG
+
+install:V: $TARG
+	cp bootia32.efi bootx64.efi efiboot.fat /386
+	cp bootaa64.efi /arm64
+
+%.8:	%.s
+	8a $PEFLAGS $stem.s
+%.8:	%.c
+	8c $CFLAGS $stem.c
+bootia32.efi:	ia32.8 efi.8 fs.8 pxe.8 iso.8 sub.8
+	8l -l -s -R1 -T0x8200 -o bootia32.out $prereq
+	aux/aout2efi -Z$IMAGEBASE -o $target bootia32.out
+%.8:	$HFILES
+
+
+%.6:	%.s
+	6a $PEFLAGS $stem.s
+%.6:	%.c
+	6c $CFLAGS $stem.c
+bootx64.efi:	x64.6 efi.6 fs.6 pxe.6 iso.6 sub.6
+	6l -l -s -R1 -T0x8200 -o bootx64.out $prereq
+	aux/aout2efi -Z$IMAGEBASE -o $target bootx64.out
+%.6:	$HFILES
+
+
+%.7:	%.s
+	7a $PEFLAGS $stem.s
+%.7:	%.c
+	7c $CFLAGS $stem.c
+bootaa64.efi:	aa64.7 efi.7 fs.7 pxe.7 iso.7 sub.7
+	7l -l -s -R1 -T0x8200 -o bootaa64.out $prereq
+	aux/aout2efi -Z$IMAGEBASE -o $target bootaa64.out
+%.7:	$HFILES
+
+
+efiboot.fat:D:	bootia32.efi bootx64.efi bootaa64.efi
+	s = $target.$pid
+	rm -f $target
+	dd -if /dev/zero -of $target -bs 1024 -count 1024
+	disk/format -xd -t hard $target
+	dossrv -f $target $s
+	mount -c /srv/$s /n/esp
+	mkdir /n/esp/efi
+	mkdir /n/esp/efi/boot
+	cp bootia32.efi /n/esp/efi/boot
+	cp bootx64.efi /n/esp/efi/boot
+	cp bootaa64.efi /n/esp/efi/boot
+	unmount /n/esp
+	rm /srv/$s
+
+
+test.iso:D:	efiboot.fat
+	rm -fr tmp
+	mkdir tmp
+	mkdir tmp/cfg
+	mkdir tmp/386
+	mkdir tmp/amd64
+	cp efiboot.fat tmp/386
+	cp /386/9bootiso tmp/386
+	cp /sys/src/9/pc64/9pc64 tmp/amd64
+	echo 'bootfile=/amd64/9pc64' >tmp/cfg/plan9.ini
+	disk/mk9660 -B 386/9bootiso -E 386/efiboot.fat -p <{echo +} -s tmp $target
+	rm -r tmp
+
+test.fat:D:	bootia32.efi bootx64.efi bootaa64.efi
+	s = $target.$pid
+	rm -f $target
+	dd -if /dev/zero -of $target -bs 65536 -count 128
+	disk/format -xd -t hard $target
+	dossrv -f $target $s
+	mount -c /srv/$s /n/esp
+	mkdir /n/esp/efi
+	mkdir /n/esp/efi/boot
+	cp bootia32.efi /n/esp/efi/boot
+	cp bootx64.efi /n/esp/efi/boot
+	cp bootaa64.efi /n/esp/efi/boot
+	cp /386/9pc /n/esp
+	echo 'bootfile=9pc' >/n/esp/plan9.ini
+	unmount /n/esp
+	rm /srv/$s
+
+
+clean:V:
+	rm -f *.[678] *.out $TARG test.* 
