@@ -1934,7 +1934,12 @@ dohandshake(Conn *c, char *tcpconn)
 		p = path;
 		n = 0;
 		do {
-			if (ioread(io, fd, p, 1) < 0) {
+			if (n >= sizeof path - 1) {
+				sshlog(c, "ID string too long in ID exchange");
+				close(fd);
+				goto err;
+			}
+			if (ioread(io, fd, p, 1) != 1) {
 				*p = '\0';
 				sshlog(c, "short read after %d bytes "
 					"in ID exchange: %s: %r\n", n, path);
