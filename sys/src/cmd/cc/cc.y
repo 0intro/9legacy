@@ -1074,6 +1074,8 @@ complex:
 	}
 	enum '}'
 	{
+		if(en.tenum == T)
+			en.tenum = types[TINT];
 		$$ = en.tenum;
 	}
 |	LTYPE
