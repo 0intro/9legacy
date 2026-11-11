@@ -70,7 +70,6 @@ setcor(void)
 		setmap(cormap, fcor, fhdr.dataddr, 0xffffffff, fhdr.dataddr, "data");
 	}
 	kmsys();
-	return;
 }
 
 Map *
@@ -192,10 +191,10 @@ attachprocess(void)
 		return;
 	}
 	sym = dirfstat(fsym);
-	sprint(buf, "/proc/%lud/mem", adrval);
+	sprint(buf, "/proc/%llud/mem", (uvlong)adrval);
 	corfil = buf;
 	setcor();
-	sprint(buf, "/proc/%lud/text", adrval);
+	sprint(buf, "/proc/%llud/text", (uvlong)adrval);
 	fd = open(buf, OREAD);
 	mem = nil;
 	if (sym==nil || fd < 0 || (mem=dirfstat(fd))==nil
