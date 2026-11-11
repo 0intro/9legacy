@@ -323,6 +323,8 @@ readslave(Header *header, int colorspace)
 			header->Y = int2(b, 1);
 			header->X = int2(b, 3);
 			header->Nf =b[5];
+			if(header->Nf != 1 && header->Nf != 3)
+				jpgerror(header, "ReadJPG: image must have 1 or 3 components");
 			for(i=0; i<header->Nf; i++){
 				header->comp[i].C = b[6+3*i+0];
 				nibbles(b[6+3*i+1], &H, &V);
@@ -331,6 +333,8 @@ readslave(Header *header, int colorspace)
 				header->comp[i].H = H;
 				header->comp[i].V = V;
 				header->comp[i].Tq = b[6+3*i+2];
+				if(header->comp[i].Tq > 3)
+					jpgerror(header, "ReadJPG: invalid quantization table index");
 			}
 			header->mode = m;
 			header->sf = b;
