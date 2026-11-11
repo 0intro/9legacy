@@ -49,7 +49,7 @@ ctlstring(void)
 	for (p = tab; p < tab + nelem(tab); p++)
 		if (p->inuse)
 			fmtprint(&fmt, "part %s %lld %lld\n",
-				p->name, p->offset, p->length);
+				p->name, p->offset, p->offset + p->length);
 	return fmtstrflush(&fmt);
 }
 
