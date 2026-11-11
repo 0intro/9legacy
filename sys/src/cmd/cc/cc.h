@@ -665,6 +665,7 @@ void	dclfunct(Type*, Sym*);
  * sub.c
  */
 void	arith(Node*, int);
+int	castucom(Node*);
 int	deadheads(Node*);
 Type*	dotsearch(Sym*, Type*, Node*, long*);
 long	dotoffset(Type*, Type*, Node*);
