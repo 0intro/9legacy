@@ -138,7 +138,7 @@ ipoput6(Fs *f, Block *bp, int gating, int ttl, int tos, Conv *c)
 
 	/* start v6 fragmentation */
 	uflen = unfraglen(bp, &nexthdr, 1);
-	if(uflen > medialen) {
+	if(uflen < 0 || uflen > medialen) {
 		ip->stats[FragFails]++;
 		ip->stats[OutDiscards]++;
 		netlog(f, Logip, "%I: unfragmentable part too big\n", eh->dst);
@@ -225,7 +225,7 @@ free:
 void
 ipiput6(Fs *f, Ipifc *ifc, Block *bp)
 {
-	int hl, hop, tos, notforme, tentative;
+	int hl, len, hop, tos, notforme, tentative;
 	uchar proto;
 	uchar v6dst[IPaddrlen];
 	IP *ip;
@@ -252,6 +252,15 @@ ipiput6(Fs *f, Ipifc *ifc, Block *bp)
 			return;
 	}
 
+	h = (Ip6hdr *)bp->rp;
+
+	len = nhgets(h->ploadlen) + IP6HDR;
+	bp = trimblock(bp, 0, len);
+	if(bp == nil){
+		ip->stats[InHdrErrors]++;
+		netlog(f, Logip, "ip: short packet, less than %d bytes\n", len);
+		return;
+	}
 	h = (Ip6hdr *)bp->rp;
 
 	memmove(&v6dst[0], &h->dst[0], IPaddrlen);
@@ -398,12 +407,20 @@ procxtns(IP *ip, Block *bp, int doreasm)
 
 	h = (Ip6hdr *)bp->rp;
 	offset = unfraglen(bp, &proto, 0);
+	if(offset < 0){
+		freeblist(bp);
+		return nil;
+	}
 
 	if(proto == FH && doreasm != 0) {
 		bp = ip6reassemble(ip, offset, bp, h);
 		if(bp == nil)
 			return nil;
 		offset = unfraglen(bp, &proto, 0);
+		if(offset < 0){
+			freeblist(bp);
+			return nil;
+		}
 	}
 
 	if(proto == DOH || offset > IP6HDR)
@@ -430,15 +447,22 @@ unfraglen(Block *bp, uchar *nexthdr, int setfh)
 	p += ufl;
 
 	while (*nexthdr == HBH || *nexthdr == RH) {
+		if(p+2 > bp->wp)
+			return -1;
 		*nexthdr = *p;
 		hs = ((int)*(p+1) + 1) * 8;
 		ufl += hs;
 		q = p;
 		p += hs;
 	}
+	if(p > bp->wp)
+		return -1;
 
-	if(*nexthdr == FH)
+	if(*nexthdr == FH){
+		if(p+IP6FHDR > bp->wp)
+			return -1;
 		*q = *p;
+	}
 	if(setfh)
 		*q = FH;
 	return ufl;
