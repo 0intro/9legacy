@@ -884,6 +884,10 @@ mntrpcread(Mnt *mnt, Mntrpc *r)
 		hlen = len;
 		break;
 	}
+	if(len < hlen){
+		qdiscard(mnt->q, qlen(mnt->q));
+		return -1;
+	}
 	nb = pullupqueue(mnt->q, hlen);
 
 	if(convM2S(nb->rp, len, &r->reply) <= 0){
