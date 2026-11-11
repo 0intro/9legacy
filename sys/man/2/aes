@@ -1,6 +1,6 @@
 .TH AES 2
 .SH NAME
-setupAESstate, aesCBCencrypt, aesCBCdecrypt, aesCTRencrypt, aesCTRdecrypt, setupAESXCBCstate, aesXCBCmac - advanced encryption standard (rijndael)
+setupAESstate, aesCBCencrypt, aesCBCdecrypt, aesCTRencrypt, aesCTRdecrypt, setupAESXCBCstate, aesXCBCmac, setupAESGCMstate, aesgcm_setiv, aesgcm_encrypt, aesgcm_decrypt - advanced encryption standard (rijndael)
 .SH SYNOPSIS
 .B #include <u.h>
 .br
@@ -38,6 +38,18 @@ void	setupAESXCBCstate(AESstate *s)
 .PP
 .B
 void	aesXCBCmac(uchar *p, int len, AESstate *s)
+.PP
+.B
+void	setupAESGCMstate(AESGCMstate *s, uchar *key, int keylen, uchar *iv, int ivlen)
+.PP
+.B
+void	aesgcm_setiv(AESGCMstate *s, uchar *iv, int ivlen)
+.PP
+.B
+void	aesgcm_encrypt(uchar *dat, ulong ndat, uchar *aad, ulong naad, uchar tag[16], AESGCMstate *s)
+.PP
+.B
+int	aesgcm_decrypt(uchar *dat, ulong ndat, uchar *aad, ulong naad, uchar tag[16], AESGCMstate *s)
 .SH DESCRIPTION
 AES (a.k.a. Rijndael) has replaced DES as the preferred
 block cipher.
@@ -99,3 +111,19 @@ The functions
 and
 .IR aesXCBCmac
 have not yet been verified by running test vectors through them.
+.PP
+.I SetupAESGCMstate
+initializes a state for AES in Galois/Counter Mode (GCM), an
+authenticated encryption with associated data (AEAD) cipher.
+.I Aesgcm_encrypt
+encrypts
+.I ndat
+bytes in place and writes a 16-byte authentication
+.I tag
+covering both the ciphertext and the
+.I naad
+bytes of associated data.
+.I Aesgcm_decrypt
+verifies the
+.I tag
+in constant time and decrypts in place, returning a negative value on failure.
