@@ -243,6 +243,8 @@ static int	des3dec(Secret *sec, uchar *buf, int n);
 static int	aesenc(Secret *sec, uchar *buf, int n);
 static int	aesdec(Secret *sec, uchar *buf, int n);
 static int	noenc(Secret *sec, uchar *buf, int n);
+static int	ccpoly_aead_enc(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, int len);
+static int	ccpoly_aead_dec(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, int len);
 static int	sslunpad(uchar *buf, int n, int block);
 static int	tlsunpad(uchar *buf, int n, int block);
 static void	freeSec(Secret *sec);
@@ -1534,6 +1536,23 @@ initclearenc(Encalg *, Secret *s, uchar *, uchar *)
 	s->block = 0;
 }
 
+static void
+initccpolykey(Encalg *ea, Secret *s, uchar *p, uchar *iv)
+{
+	s->enckey = smalloc(sizeof(Chachastate));
+	s->aead_enc = ccpoly_aead_enc;
+	s->aead_dec = ccpoly_aead_dec;
+	s->maclen = Poly1305dlen;
+	if(ea->ivlen == 0) {
+		/* older draft version, iv is 64-bit sequence number */
+		setupChachastate(s->enckey, p, ea->keylen, nil, 64/8, 20);
+	} else {
+		/* IETF standard, 96-bit iv xored with sequence number */
+		memmove(s->mackey, iv, ea->ivlen);
+		setupChachastate(s->enckey, p, ea->keylen, iv, ea->ivlen, 20);
+	}
+}
+
 static Encalg encrypttab[] =
 {
 	{ "clear", 0, 0, initclearenc },
@@ -1541,6 +1560,7 @@ static Encalg encrypttab[] =
 	{ "3des_ede_cbc", 3 * 8, 8, initDES3key },
 	{ "aes_128_cbc", 128/8, 16, initAESkey },
 	{ "aes_256_cbc", 256/8, 16, initAESkey },
+	{ "ccpoly96_aead", 256/8, 96/8, initccpolykey },
 	{ 0 }
 };
 
@@ -2230,6 +2250,50 @@ tlsPackAAD(vlong seq, uchar *header, uchar *aad)
 	aad[11] = header[3];
 	aad[12] = header[4];
 	return 13;
+}
+
+static void
+ccpoly_aead_setiv(Secret *sec, uchar seq[8])
+{
+	uchar iv[ChachaIVlen];
+	Chachastate *cs;
+	int i;
+
+	cs = (Chachastate*)sec->enckey;
+	if(cs->ivwords == 2){
+		chacha_setiv(cs, seq);
+		return;
+	}
+
+	memmove(iv, sec->mackey, ChachaIVlen);
+	for(i=0; i<8; i++)
+		iv[i+(ChachaIVlen-8)] ^= seq[i];
+
+	chacha_setiv(cs, iv);
+
+	memset(iv, 0, sizeof(iv));
+}
+
+static int
+ccpoly_aead_enc(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, int len)
+{
+	USED(reciv);
+	ccpoly_aead_setiv(sec, aad);
+	ccpoly_encrypt(data, len, aad, aadlen, data+len, sec->enckey);
+	return len + sec->maclen;
+}
+
+static int
+ccpoly_aead_dec(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, int len)
+{
+	USED(reciv);
+	len -= sec->maclen;
+	if(len < 0)
+		return -1;
+	ccpoly_aead_setiv(sec, aad);
+	if(ccpoly_decrypt(data, len, aad, aadlen, data+len, sec->enckey) != 0)
+		return -1;
+	return len;
 }
 
 static void
