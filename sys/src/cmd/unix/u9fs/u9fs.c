@@ -651,7 +651,7 @@ stat2qid(struct stat *st)
 			*(dev_t*)q ^= st->st_dev;
 	}
 
-	qid.vers = st->st_mtime ^ (st->st_size << 8);
+	qid.vers = MTIMENSEC(st) ^ st->st_mtime ^ (st->st_size << 8);
 	qid.type = modebyte(st);
 	return qid;
 }
