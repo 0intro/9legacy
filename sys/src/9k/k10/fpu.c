@@ -176,13 +176,21 @@ fpusysrforkchild(Proc* child, Proc* parent)
 	/*
 	 * Called later in sysrfork() via the machine-dependent
 	 * sysrforkchild() routine.
-	 * Copy the parent FPU state to the child.
+	 * Copy the parent FPU state to the child. A fork while a note
+	 * is being handled has Hold set, so copy the aligned save areas
+	 * directly. fpusave() would panic on Hold, and the aligned area
+	 * sits at a different offset within each PFPU's fxsave[] so a
+	 * struct copy would misplace it.
 	 */
 	child->fpustate = parent->fpustate;
-	if(child->fpustate == Init)
-		return;
+	if((child->fpustate & ~Hold) != Init)
+		memmove((void*)((PTR2UINT(child->fxsave)+15) & ~15),
+			(void*)((PTR2UINT(parent->fxsave)+15) & ~15), sizeof(Fxsave));
 
-	memmove(fpusave(child), fpusave(parent), sizeof(Fxsave));
+	child->notefpu.fpustate = parent->notefpu.fpustate;
+	if(child->notefpu.fpustate != Init)
+		memmove((void*)((PTR2UINT(child->notefpu.fxsave)+15) & ~15),
+			(void*)((PTR2UINT(parent->notefpu.fxsave)+15) & ~15), sizeof(Fxsave));
 }
 
 void
