@@ -223,7 +223,7 @@ isgzip(uchar *p)
 }
 
 void*
-malloc(ulong n)
+malloc(uintptr n)
 {
 	void *v;
 
