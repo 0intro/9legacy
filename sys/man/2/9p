@@ -80,8 +80,8 @@ void	walkandclone(Req *r, char *(*walk1)(Fid *old, char *name, void *v),
 .nf
 .ft L
 .ta \w'\fLvoid* 'u
-void*	emalloc9p(ulong n)
-void*	erealloc9p(void *v, ulong n)
+void*	emalloc9p(uintptr n)
+void*	erealloc9p(void *v, uintptr n)
 char*	estrdup9p(char *s)
 .fi
 .PP
