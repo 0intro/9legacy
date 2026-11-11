@@ -179,6 +179,7 @@ loop:
 			print("out of memory\n");
 			killbig("out of memory");
 			freebroken();		/* can use the memory */
+			wakebig();
 
 			/* Emulate the old system if no swap channel */
 			if(!swapimage.c)
