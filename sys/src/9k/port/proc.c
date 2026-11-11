@@ -1306,11 +1306,14 @@ procflushseg(Segment *s)
 	 *  wait for all processors to take a clock interrupt
 	 *  and flush their mmu's
 	 */
+again:
 	for(i = 0; i < MACHMAX; i++){
-		if((mp = sys->machptr[i]) == nil || !mp->online || mp == m)
+		if((mp = sys->machptr[i]) == nil || !mp->online || i == m->machno)
 			continue;
-		while(mp->mmuflush)
+		if(mp->mmuflush){
 			sched();
+			goto again;
+		}
 	}
 }
 
