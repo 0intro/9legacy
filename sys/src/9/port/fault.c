@@ -183,7 +183,7 @@ fixfault(Segment *s, ulong addr, int read, int doputmmu)
 		 * process sharing it can have replaced the page in between,
 		 * and the flush it asked for came too early to reach here.
 		 */
-		if(*pg != mpg)
+		if(*pg != mpg || ((mmuphys & PTEWRITE) && mpg->ref > 1))
 			flushmmu();
 	}
 
