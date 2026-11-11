@@ -1113,9 +1113,9 @@ tsemacquire(Segment* s, int* addr, long ms)
 		}
 		if(waserror())
 			break;
-		t = m->ticks;
+		t = sys->machptr[0]->ticks;
 		tsleep(&phore, semawoke, &phore, ms);
-		ms -= TK2MS(m->ticks-t);
+		ms -= TK2MS(sys->machptr[0]->ticks-t);
 		poperror();
 		if(ms <= 0)
 			break;
