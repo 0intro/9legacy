@@ -204,7 +204,7 @@ ipoput4(Fs *f, Block *bp, int gating, int ttl, int tos, Conv *c)
 		medialen = ifc->maxtu - ifc->medium->hsize;
 	if(len <= medialen) {
 		if(!gating)
-			hnputs(eh->id, incref(&ip->id4));
+			hnputs(eh->id, aadd(&ip->id4.ref, 1));
 		hnputs(eh->length, len);
 		if(!gating){
 			eh->frag[0] = 0;
@@ -244,7 +244,7 @@ ipoput4(Fs *f, Block *bp, int gating, int ttl, int tos, Conv *c)
 	if(gating)
 		lid = nhgets(eh->id);
 	else
-		lid = incref(&ip->id4);
+		lid = aadd(&ip->id4.ref, 1);
 
 	offset = IP4HDR;
 	while(xp != nil && offset && offset >= BLEN(xp)) {

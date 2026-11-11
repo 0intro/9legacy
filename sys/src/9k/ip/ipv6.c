@@ -154,7 +154,7 @@ ipoput6(Fs *f, Block *bp, int gating, int ttl, int tos, Conv *c)
 		goto raise;
 	}
 
-	lid = incref(&ip->id6);
+	lid = aadd(&ip->id6.ref, 1);
 	fraghdr.nexthdr = nexthdr;
 	fraghdr.res = 0;
 	hnputl(fraghdr.id, lid);

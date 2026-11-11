@@ -1,4 +1,5 @@
 void		_assert(char*);
+int		aadd(int*, int);
 void		accounttime(void);
 void		addbootfile(char*, uchar*, ulong);
 Timer*		addclock0link(void (*)(void), int);
