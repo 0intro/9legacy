@@ -4,6 +4,8 @@
 #include "dat.h"
 #include "fns.h"
 
+extern char *multibootcmdline;
+
 typedef struct Mbi Mbi;
 struct Mbi {
 	u32int	flags;
@@ -77,8 +79,10 @@ multiboot(u32int magic, u32int pmbi, int vflag)
 		p = KADDR(mbi->cmdline);
 		if(vflag)
 			print("cmdline <%s>\n", p);
-		else
+		else{
 			optionsinit(p);
+			multibootcmdline = p;
+		}
 	}
 	if(mbi->flags & Fmods){
 		for(i = 0; i < mbi->modscount; i++){
