@@ -1109,7 +1109,7 @@ msgRecv(TlsConnection *c, Msg *m)
 		p += 6;
 		n -= 6;
 		if(nsid != 0 	/* no sid's, since shouldn't restart using ssl2 header */
-				|| nrandom < 16 || nn % 3)
+				|| nrandom < 16 || nn % 3 || n - nrandom < nn)
 			goto Err;
 		if(c->trace && (n - nrandom != nn))
 			c->trace("n-nrandom!=nn: n=%d nrandom=%d nn=%d\n", n, nrandom, nn);
