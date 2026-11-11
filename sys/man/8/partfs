@@ -66,6 +66,16 @@ This is used primarily by
 to assist booting from USB disks.
 .PP
 The
+.I 9boot
+loaders do not set the variable, so with them
+.IR boot (8)
+builds it from the partition table of the USB disk itself,
+provided
+.B readparts
+is set in
+.IR plan9.ini (8).
+.PP
+The
 .B -s
 option causes
 .I partfs
