@@ -246,13 +246,13 @@ readdev(Biobuf *bin)
 	g = mallocz(sizeof *g, 1);
 	if(g == nil)
 		sysfatal("no mem");
-	g->pid = le32get(buf, &p);
-	g->etype = le32get(p, &p);
+	g->pid = legetl(buf); p = buf + 4;
+	g->etype = legetl(p); p += 4;
 	g->state = g->etype;
-	g->machno = le32get(p, &p);
-	x = le64get(p, &p);
+	g->machno = legetl(p); p += 4;
+	x = legetvl(p); p += 8;
 	g->time = x;
-	g->arg = le64get(p, &p);
+	g->arg = legetvl(p);
 	if(g->etype == SName)
 		addname(g);
 	g->name = pidname(g->pid);
