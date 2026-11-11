@@ -89,7 +89,7 @@ opendb(char *file)
 	for(; s=Brdstr(&b, '\n', 1); free(s)){
 		t = estrdup(s);
 		nf = tokenize(s, f, nelem(f));
-		if(nf != 7)
+		if(nf != 7 && nf != 8)
 			sysfatal("bad database entry '%s'", t);
 		free(t);
 		if(strcmp(f[2], "REMOVED") == 0)
@@ -105,6 +105,7 @@ opendb(char *file)
 			e.d.gid = atom(f[4]);
 			e.d.mtime = strtoul(f[5], 0, 10);
 			e.d.length = strtoll(f[6], 0, 10);
+			e.d.hash = atom(nf==8 ? f[7] : "-");
 			_insertdb(db, &e);
 			i++;
 		}
@@ -158,6 +159,12 @@ removedb(Db *db, char *name)
 void
 insertdb(Db *db, char *name, Dir *d)
 {
+	insertdbh(db, name, d, "-");
+}
+
+void
+insertdbh(Db *db, char *name, Dir *d, char *hash)
+{
 	char *dname;
 	Entry e;
 
@@ -169,13 +176,27 @@ insertdb(Db *db, char *name, Dir *d)
 	e.d.mtime = d->mtime;
 	e.d.mode = d->mode;
 	e.d.length = d->length;
+	e.d.hash = atom(hash);
 	e.d.mark = d->muid!=0;
 
 	dname = d->name;
 	if(strcmp(name, dname) == 0)
 		dname = "-";
-	if(db->fd>=0 && fprint(db->fd, "%q %q %luo %q %q %lud %lld\n", name, dname, d->mode, d->uid, d->gid, d->mtime, d->length) < 0)
+	if(db->fd>=0 && fprint(db->fd, "%q %q %luo %q %q %lud %lld %s\n", name, dname, d->mode, d->uid, d->gid, d->mtime, d->length, hash) < 0)
 		sysfatal("appending to db: %r");
 	_insertdb(db, &e);
+}
+
+char*
+dbhash(Db *db, char *name)
+{
+	Entry *e, k;
+
+	memset(&k, 0, sizeof k);
+	k.name = name;
+	e = (Entry*)lookupavl(db->avl, (Avl*)&k);
+	if(e == nil || e->d.hash == nil)
+		return "-";
+	return e->d.hash;
 }
 
