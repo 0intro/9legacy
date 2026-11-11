@@ -30,6 +30,9 @@
 static Lock vmaplock;
 static Page mach0pml4;
 
+/* kernel direct-map size, capped at VMAP-KZERO, reduced by setkernmem() */
+uintptr kernmem = KSEG0SIZE + VMAP;
+
 void
 mmuflushtlb(u64int)
 {
@@ -576,23 +579,25 @@ pte[PTLX(KSEG1PML4, 3)] = m->pml4->pa|PteRW|PteP;
 	sys->vmstart = KSEG0;
 	sys->vmunused = sys->vmstart + ROUNDUP(o, 4*KiB);
 	sys->vmunmapped = sys->vmstart + o + sz;
-	sys->vmend = sys->vmstart + TMFM;
+	sys->vmend = ROUNDUP(sys->vmstart + kernmem, PGLSZ(1));
 
 	print("mmuinit: vmstart %#p vmunused %#p vmunmapped %#p vmend %#p\n",
 		sys->vmstart, sys->vmunused, sys->vmunmapped, sys->vmend);
 
 	/*
-	 * Set up the map for PD entry access by inserting
-	 * the relevant PDP entry into the PD. It's equivalent
-	 * to PADDR(sys->pd)|PteRW|PteP.
+	 * Set up the map for PD entry access. KSEG0 spans two PDP
+	 * entries now, and PDMAP lives in the top one (PDP[511]),
+	 * which gets its own PD page sys->pd2g. Point that PDP entry
+	 * at pd2g, then self-map pd2g through PDMAP.
 	 *
 	 * Change code that uses this to use the KSEG1PML4
 	 * map below.
 	 */
-	sys->pd[PDX(PDMAP)] = sys->pdp[PDPX(PDMAP)] & ~(PteD|PteA);
-	print("sys->pd %#p %#p\n", sys->pd[PDX(PDMAP)], sys->pdp[PDPX(PDMAP)]);
+	sys->pdp[PDPX(PDMAP)] = PADDR(sys->pd2g)|PteRW|PteP;
+	sys->pd2g[PDX(PDMAP)] = sys->pdp[PDPX(PDMAP)] & ~(PteD|PteA);
+	print("sys->pd2g %#p %#p\n", sys->pd2g[PDX(PDMAP)], sys->pdp[PDPX(PDMAP)]);
 
-	assert((pdeget(PDMAP) & ~(PteD|PteA)) == (PADDR(sys->pd)|PteRW|PteP));
+	assert((pdeget(PDMAP) & ~(PteD|PteA)) == (PADDR(sys->pd2g)|PteRW|PteP));
 
 	/*
 	 * Set up the map for PTE access by inserting

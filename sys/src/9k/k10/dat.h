@@ -267,7 +267,8 @@ struct Sys {
 		uchar	ptrpage[4*KiB];
 	};
 
-	uchar	_57344_[2][4*KiB];		/* unused */
+	PTE	pd2g[PTSZ/sizeof(PTE)];		/* PD for KSEG0's 2nd GB (PDP[511]) */
+	uchar	_61440_[4*KiB];			/* unused */
 };
 
 extern Sys* sys;
@@ -317,6 +318,7 @@ extern register Mach* m;			/* R15 */
 extern register Proc* up;			/* R14 */
 
 extern uintptr kseg0;
+extern uintptr kernmem;
 
 /*
  * Horrid.
