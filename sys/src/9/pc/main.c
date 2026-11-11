@@ -609,8 +609,6 @@ fpsserestore(FPsave *fps)
 static void
 matherror(Ureg *ur, void*)
 {
-	ulong status, pc;
-
 	/*
 	 *  a write cycle to port 0xF0 clears the interrupt latch attached
 	 *  to the error# line from the 387
@@ -624,12 +622,17 @@ matherror(Ureg *ur, void*)
 	fpenv(&up->fpsave);	/* result ignored, but masks fp exceptions */
 	fpsave(&up->fpsave);		/* also turns fpu off */
 	fpon();
-	mathnote();
 
-	if((ur->pc & 0xf0000000) == KZERO){
-		mathstate(&status, &pc, nil);
-		panic("fp: status %#lux fppc=%#lux pc=%#lux", status, pc, ur->pc);
-	}
+	/*
+	 * A user floating point exception can be delivered late, with the pc
+	 * in the kernel, once the faulting process has entered a system call.
+	 * postnote() must not run from there, as the interrupted kernel code
+	 * may hold locks. The exception is masked above, so drop the late note
+	 * rather than deadlock in postnote.
+	 */
+	if((ur->pc & 0xf0000000) == KZERO)
+		return;
+	mathnote();
 }
 
 /*
