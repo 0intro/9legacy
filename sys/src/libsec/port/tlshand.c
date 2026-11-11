@@ -192,6 +192,7 @@ enum {
 	EProtocolVersion = 70,
 	EInsufficientSecurity = 71,
 	EInternalError = 80,
+	EInappropriateFallback = 86,
 	EUserCanceled = 90,
 	ENoRenegotiation = 100,
 	EMax = 256
@@ -241,6 +242,7 @@ enum {
 	TLS_DHE_RSA_WITH_AES_256_CBC_SHA	= 0X0039,
 	TLS_DH_anon_WITH_AES_256_CBC_SHA	= 0X003A,
 	TLS_EMPTY_RENEGOTIATION_INFO_SCSV	= 0x00FF,
+	TLS_FALLBACK_SCSV			= 0x5600,
 	CipherMax
 };
 
@@ -503,6 +505,12 @@ tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...
 		tlsError(c, EIllegalParameter, "incompatible version");
 		goto Err;
 	}
+	for(i = 0; i < m.u.clientHello.ciphers->len; i++)
+		if(m.u.clientHello.ciphers->data[i] == TLS_FALLBACK_SCSV
+		&& c->clientVersion < ProtocolVersion){
+			tlsError(c, EInappropriateFallback, "inappropriate fallback");
+			goto Err;
+		}
 
 	memmove(c->crandom, m.u.clientHello.random, RandomSize);
 	cipher = okCipher(m.u.clientHello.ciphers);
