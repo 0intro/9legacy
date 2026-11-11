@@ -245,6 +245,8 @@ static int	aesdec(Secret *sec, uchar *buf, int n);
 static int	noenc(Secret *sec, uchar *buf, int n);
 static int	ccpoly_aead_enc(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, int len);
 static int	ccpoly_aead_dec(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, int len);
+static int	aesgcm_aead_enc(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, int len);
+static int	aesgcm_aead_dec(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, int len);
 static int	sslunpad(uchar *buf, int n, int block);
 static int	tlsunpad(uchar *buf, int n, int block);
 static void	freeSec(Secret *sec);
@@ -1553,6 +1555,19 @@ initccpolykey(Encalg *ea, Secret *s, uchar *p, uchar *iv)
 	}
 }
 
+static void
+initaesgcmkey(Encalg *ea, Secret *s, uchar *p, uchar *iv)
+{
+	s->enckey = smalloc(sizeof(AESGCMstate));
+	s->aead_enc = aesgcm_aead_enc;
+	s->aead_dec = aesgcm_aead_dec;
+	s->maclen = 16;
+	s->recivlen = 8;
+	memmove(s->mackey, iv, ea->ivlen);
+	randfill(s->mackey + ea->ivlen, s->recivlen);
+	setupAESGCMstate(s->enckey, p, ea->keylen, nil, 0);
+}
+
 static Encalg encrypttab[] =
 {
 	{ "clear", 0, 0, initclearenc },
@@ -1561,6 +1576,8 @@ static Encalg encrypttab[] =
 	{ "aes_128_cbc", 128/8, 16, initAESkey },
 	{ "aes_256_cbc", 256/8, 16, initAESkey },
 	{ "ccpoly96_aead", 256/8, 96/8, initccpolykey },
+	{ "aes_128_gcm_aead", 128/8, 4, initaesgcmkey },
+	{ "aes_256_gcm_aead", 256/8, 4, initaesgcmkey },
 	{ 0 }
 };
 
@@ -2292,6 +2309,38 @@ ccpoly_aead_dec(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, 
 		return -1;
 	ccpoly_aead_setiv(sec, aad);
 	if(ccpoly_decrypt(data, len, aad, aadlen, data+len, sec->enckey) != 0)
+		return -1;
+	return len;
+}
+
+static int
+aesgcm_aead_enc(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, int len)
+{
+	uchar iv[12];
+	int i;
+
+	memmove(iv, sec->mackey, 4+8);
+	for(i=0; i<8; i++) iv[4+i] ^= aad[i];
+	memmove(reciv, iv+4, 8);
+	aesgcm_setiv(sec->enckey, iv, 12);
+	memset(iv, 0, sizeof(iv));
+	aesgcm_encrypt(data, len, aad, aadlen, data+len, sec->enckey);
+	return len + sec->maclen;
+}
+
+static int
+aesgcm_aead_dec(Secret *sec, uchar *aad, int aadlen, uchar *reciv, uchar *data, int len)
+{
+	uchar iv[12];
+
+	len -= sec->maclen;
+	if(len < 0)
+		return -1;
+	memmove(iv, sec->mackey, 4);
+	memmove(iv+4, reciv, 8);
+	aesgcm_setiv(sec->enckey, iv, 12);
+	memset(iv, 0, sizeof(iv));
+	if(aesgcm_decrypt(data, len, aad, aadlen, data+len, sec->enckey) != 0)
 		return -1;
 	return len;
 }
