@@ -592,7 +592,10 @@ faultarm(Ureg *ureg, uintptr va, int user, int read)
 	insyscall = up->insyscall;
 	up->insyscall = 1;
 
-	n = fault(va, read);		/* goes spllo */
+	if(va>>32)
+		n = -1;
+	else
+		n = fault(va, read);		/* goes spllo */
 	splhi();
 	if(n < 0){
 		char buf[ERRMAX];

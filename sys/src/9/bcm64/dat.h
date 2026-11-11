@@ -73,10 +73,10 @@ struct FPsave
 	ulong	status;
 	ulong	control;
 	/*
-	 * vfp3 with ieee fp regs; uvlong is sufficient for hardware but
+	 * floating point & advanced simd (neon) registers: 128-bit
 	 * each must be able to hold an Internal from fpi.h for sw emulation.
 	 */
-	ulong	regs[Maxfpregs][3];
+	ulong	regs[Maxfpregs][4];
 
 	int	fpstate;
 	uintptr	pc;		/* of failed fp instr. */
@@ -337,6 +337,7 @@ struct Soc {			/* SoC dependent configuration */
 	uintptr	busio;
 	uintptr	armlocal;
 	uintptr	pcispace;
+	uintptr pcispace1;
 	uint	oscfreq;
 	uint	emmc2freq;
 	uint	dstepping;

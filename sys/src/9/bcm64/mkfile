@@ -72,7 +72,6 @@ $p$CONF:DQ:	$CONF.c $OBJ $LIB mkfile
 	$CC $CFLAGS '-DKERNDATE='`{date -n} $CONF.c
 	echo '# linking raw kernel'	# H6: no headers, data segment aligned
 	$LD -s -l -o $target -H6 -R4096 -T$loadaddr $OBJ $CONF.$O $LIB
-	cp $target /lib/tftpd/faa1159e
 
 s$p$CONF:DQ:	$CONF.$O $OBJ $LIB
 	echo '# linking kernel with symbols'

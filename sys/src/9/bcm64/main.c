@@ -183,6 +183,7 @@ void
 dtproperty(Dtnode n, char *prop, uchar *value, int len)
 {
 	extern uchar ether0mac[];
+	int i;
 
 	if(!strcmp(n.name, "chosen") && !strcmp(prop, "bootargs"))
 		plan9iniinit((char*)value, 1);
@@ -190,13 +191,30 @@ dtproperty(Dtnode n, char *prop, uchar *value, int len)
 	  !strcmp(n.parent->name, "rp1") &&
 	  strstr(prop, "local-mac-address") && len == 6)
 		memmove(ether0mac, value, 6);
-	else if(!strncmp(n.name, "pcie@12", 7) &&
+	else if(!strncmp(n.name, "pcie@100011", 11) &&
 	  !strcmp(prop, "ranges") &&
 	  len >= 48)
-		soc.pcispace = (uvlong)nhgetl(value+40) << 32;
-	else if(!strcmp(n.name, "memory@0") && !strcmp(prop, "reg"))
-		conf.mem[0].limit = nhgetl(value + 8);
-	else if(!strcmp(n.name, "clk_emmc2") && !strcmp(prop, "clock-frequency"))
+		soc.pcispace1 = nhgetv(value+40);
+	else if(!strncmp(n.name, "pcie@", 5) &&
+	  !strcmp(prop, "ranges") &&
+	  len >= 48)
+		soc.pcispace = nhgetv(value+40);
+	else if(!strcmp(n.name, "memory@0") && !strcmp(prop, "reg")){
+		conf.mem[0].base = nhgetv(value);
+		conf.mem[0].limit = conf.mem[0].base + nhgetl(value + 8);
+		conf.mem[1].base = nhgetv(value + 12);
+		conf.mem[1].limit = conf.mem[1].base + nhgetl(value + 20);
+		for(i = 24; i < len; i += 12){
+			if(i == 24){
+				conf.himem.base = nhgetv(value + i);
+				conf.himem.limit = conf.himem.base + nhgetl(value + i + 8);
+			}else{
+				if(nhgetv(value + i) != conf.himem.limit)
+					break;
+				conf.himem.limit += nhgetl(value + i + 8);
+			}
+		}
+	}else if(!strcmp(n.name, "clk-emmc2") && !strcmp(prop, "clock-frequency"))
 		soc.emmc2freq = nhgetl(value);
 	else if(!strncmp(n.name, "framebuffer@", 12) &&
 	  !strcmp(n.parent->name, "chosen"))
@@ -229,38 +247,9 @@ confinit()
 			memsize = 16*MB;
 	}
 
-	getramsize(&conf.mem[0]);
 	if(conf.mem[0].limit == 0){
 		conf.mem[0].base = PHYSDRAM;
 		conf.mem[0].limit = PHYSDRAM + memsize;
-	}
-	/*
-	 * pi4 extra memory (beyond video ram) indicated by board id
-	 */
-	switch(getboardrev()&0xF00000){
-	case 0xA00000:
-		break;
-	case 0xB00000:
-		conf.mem[1].base = 1*GiB;
-		conf.mem[1].limit = 2*GiB;
-		break;
-	case 0xC00000:
-		conf.mem[1].base = 1*GiB;
-		conf.mem[1].limit = 0xFF000000;
-		break;
-	default:
-	case 0xD00000:
-		conf.mem[1].base = 1*GiB;
-		conf.mem[1].limit =  0xFF000000;
-		conf.himem.base = 4LL*GiB;
-		conf.himem.limit = 8LL*GiB;
-		break;
-	case 0xE00000:
-		conf.mem[1].base = 1*GiB;
-		conf.mem[1].limit = 0xFF000000;
-		conf.himem.base = 4LL*GiB;
-		conf.himem.limit = 16LL*GiB;
-		break;
 	}
 	if(p != nil){
 		for(i = 0; i < nelem(conf.mem); i++){
@@ -459,7 +448,7 @@ main(uvlong arg)
 	if(pl011init != nil)
 		(*pl011init)();
 	print("\nPlan 9 from Bell Labs\n");
-	print("vcore reports memory = 0x%llux\n", conf.mem[0].limit);
+	print("pcispace %#p %#p\n", soc.pcispace, soc.pcispace1);
 	trapinit();
 	clockinit();
 	printinit();

@@ -14,3 +14,30 @@ VA				PA				usage
 
 10 0000 0000	10 0000 0000	identity mapping for local bus
 10 8000 0000					top of virtual space
+
+VIRTIO map
+
+local bus
+0x00fff000	emmc1
+0x01100000	emmc2
+0x7c013880	vcore mailbox
+0x7d001000	debug uart
+0x7d200000	power regs
+0x7d508500	gpio
+0x7d504100	pin mux
+0x7c003000	timers
+
+RP1 pcie space		1c 0000 0000
+0x80030000	uart1
+0x80034000	uart2
+0x80038000	uart3
+0x8003c000	uart4
+0x80040000	uart5
+0x800d0000	RP1 gpio
+0x80100000	gem ethernet
+0x80108000	intc
+0x80200000	xhci0
+0x80300000	xhci1
+
+other pcie space	1B 8000 0000
+0xc0000000	nvme
