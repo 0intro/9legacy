@@ -300,6 +300,7 @@ enum {
 enum {
 	X25519 = 0x001d,
 	secp256r1Curve = 0x0017,
+	secp384r1Curve = 0x0018,
 };
 
 // signature algorithms
@@ -330,11 +331,13 @@ static int sigAlgs[] = {
 static Namedcurve namedcurves[] = {
 	{X25519, nil},
 	{secp256r1Curve, secp256r1},
+	{secp384r1Curve, secp384r1},
 };
 
 static int tlscurves[] = {
 	X25519,
 	secp256r1Curve,
+	secp384r1Curve,
 };
 
 static TlsConnection *tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...), PEMChain *chain);

@@ -484,6 +484,7 @@ ECpub*	X509toECpub(uchar *cert, int ncert, char *name, int nname, ECdomain *dom)
 char*	X509ecdsaverifydigest(uchar *sig, int siglen, uchar *edigest, int edigestlen, ECdomain *dom, ECpub *pub);
 
 void	secp256r1(mpint *p, mpint *a, mpint *b, mpint *x, mpint *y, mpint *n, mpint *h);
+void	secp384r1(mpint *p, mpint *a, mpint *b, mpint *x, mpint *y, mpint *n, mpint *h);
 
 /* x25519 elliptic curve diffie-hellman */
 void	curve25519(uchar mypublic[32], uchar secret[32], uchar basepoint[32]);

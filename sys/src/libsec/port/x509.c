@@ -1652,13 +1652,16 @@ static Ints *alg_oid_tab[NUMALGS+1] = {
 static DigestFun digestalg[NUMALGS+1] = { md5, md5, md5, md5, sha1, sha1, sha2_256, sha2_384, sha2_512, sha2_224, md5, sha1, sha2_256, sha2_384, sha2_512, sha2_224, sha2_256, sha1, sha2_256, sha2_384, sha2_512, nil };
 
 static Ints9 oid_secp256r1 = {7, 1, 2, 840, 10045, 3, 1, 7};
+static Ints9 oid_secp384r1 = {5, 1, 3, 132, 0, 34};
 
 static Ints *namedcurves_oid_tab[] = {
 	(Ints*)&oid_secp256r1,
+	(Ints*)&oid_secp384r1,
 	nil,
 };
 static void (*namedcurves[])(mpint *p, mpint *a, mpint *b, mpint *x, mpint *y, mpint *n, mpint *h) = {
 	secp256r1,
+	secp384r1,
 };
 
 static void
