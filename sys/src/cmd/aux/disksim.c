@@ -80,7 +80,8 @@ ctlstring(void)
 	fmtprint(&fmt, "geometry %lld %lld %lld %lld %lld\n", nsect, sectsize, c, h, s);
 	for(i=0; i<nelem(tab); i++)
 		if(tab[i].inuse)
-			fmtprint(&fmt, "part %s %lld %lld\n", tab[i].name, tab[i].offset, tab[i].length);
+			fmtprint(&fmt, "part %s %lld %lld\n", tab[i].name,
+				tab[i].offset, tab[i].offset + tab[i].length);
 	return fmtstrflush(&fmt);
 }
 
