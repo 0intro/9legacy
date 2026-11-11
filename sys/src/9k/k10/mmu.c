@@ -382,9 +382,6 @@ vmap(uintmem pa, usize size)
 
 	DBG("vmap(%#P, %lud)\n", pa, size);
 
-	if(m->machno != 0)
-		panic("vmap");
-
 	/*
 	 * This is incomplete; the checks are not comprehensive
 	 * enough.
@@ -432,9 +429,6 @@ vunmap(void* v, usize size)
 	uintptr va;
 
 	DBG("vunmap(%#p, %lud)\n", v, size);
-
-	if(m->machno != 0)
-		panic("vunmap");
 
 	/*
 	 * See the comments above in vmap.
