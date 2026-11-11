@@ -22,7 +22,7 @@ CFILES = des.c desmodes.c desECB.c desCBC.c des3ECB.c des3CBC.c\
 	hkdf.c\
 	tsmemcmp.c\
 	ccpoly.c\
-	ecc.c jacobian.c secp256r1.c curve25519.c curve25519_dh.c\
+	ecc.c jacobian.c secp256r1.c dh.c curve25519.c curve25519_dh.c\
 
 CLEANFILES=secp256r1.c jacobian.c
 

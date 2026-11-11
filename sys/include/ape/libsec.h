@@ -433,6 +433,19 @@ int	x25519(uchar out[32], uchar s[32], uchar u[32]);
 void	curve25519_dh_new(uchar x[32], uchar y[32]);
 int	curve25519_dh_finish(uchar x[32], uchar y[32], uchar z[32]);
 
+/* Diffie-Hellman key exchange */
+typedef struct DHstate DHstate;
+struct DHstate
+{
+	mpint	*g;	/* base g */
+	mpint	*p;	/* large prime */
+	mpint	*q;	/* subgroup prime */
+	mpint	*x;	/* random secret */
+	mpint	*y;	/* public key y = g**x % p */
+};
+mpint*	dh_new(DHstate *dh, mpint *p, mpint *q, mpint *g);
+mpint*	dh_finish(DHstate *dh, mpint *y);
+
 /*
  * TLS
  */
