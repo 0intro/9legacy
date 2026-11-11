@@ -35,6 +35,10 @@ logfile
 .B -x
 .I excludedkeys
 ]
+[
+.B -n
+.I servername
+]
 .I address
 .PP
 .B tlssrvtunnel
@@ -94,6 +98,12 @@ but not in the file
 See
 .IR thumbprint (6)
 for more information.
+The
+.B -n
+option sends
+.I servername
+as the TLS server name indication (SNI),
+which many HTTPS servers now require to select a certificate.
 .PP
 .I Tlssrvtunnel
 and
