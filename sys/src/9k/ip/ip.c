@@ -314,7 +314,7 @@ free:
 void
 ipiput4(Fs *f, Ipifc *ifc, Block *bp)
 {
-	int hl;
+	int hl, len;
 	int hop, tos, proto, olen;
 	Ip4hdr *h;
 	Proto *p;
@@ -351,6 +351,15 @@ ipiput4(Fs *f, Ipifc *ifc, Block *bp)
 
 	h = (Ip4hdr*)(bp->rp);
 
+	/* dump anything whose header runs past the block */
+	hl = (h->vihl&0xF)<<2;
+	if(hl < IP4HDR || hl > BLEN(bp)){
+		ip->stats[InHdrErrors]++;
+		netlog(f, Logip, "ip: %V bad header length %d\n", h->src, hl);
+		freeblist(bp);
+		return;
+	}
+
 	/* dump anything that whose header doesn't checksum */
 	if((bp->flag & Bipck) == 0 && ipcsum(&h->vihl)) {
 		ip->stats[InHdrErrors]++;
@@ -358,6 +367,23 @@ ipiput4(Fs *f, Ipifc *ifc, Block *bp)
 		freeblist(bp);
 		return;
 	}
+
+	/* dump anything whose length doesn't match the packet */
+	len = nhgets(h->length);
+	if(len < hl){
+		ip->stats[InHdrErrors]++;
+		netlog(f, Logip, "ip: %V bad length %d\n", h->src, len);
+		freeblist(bp);
+		return;
+	}
+	bp = trimblock(bp, 0, len);
+	if(bp == nil){
+		ip->stats[InHdrErrors]++;
+		netlog(f, Logip, "ip: short packet, less than %d bytes\n", len);
+		return;
+	}
+	h = (Ip4hdr*)(bp->rp);
+
 	v4tov6(v6dst, h->dst);
 	notforme = ipforme(f, v6dst) == 0;
 
