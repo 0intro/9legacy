@@ -1588,8 +1588,7 @@ limbo(Conv *s, uchar *source, uchar *dest, Tcp *seg, int version)
 	tpriv = s->p->priv;
 	h = hashipa(source, seg->source);
 
-	for(l = &tpriv->lht[h]; *l != nil; l = &lp->next){
-		lp = *l;
+	for(l = &tpriv->lht[h]; (lp = *l) != nil; l = &lp->next){
 		if(lp->lport != seg->dest || lp->rport != seg->source || lp->version != version)
 			continue;
 		if(ipcmp(lp->raddr, source) != 0)
@@ -1601,19 +1600,16 @@ limbo(Conv *s, uchar *source, uchar *dest, Tcp *seg, int version)
 		lp->irs = seg->seq;
 		break;
 	}
-	lp = *l;
-	if(lp == nil){
-		if(tpriv->nlimbo >= Maxlimbo && tpriv->lht[h]){
-			lp = tpriv->lht[h];
-			tpriv->lht[h] = lp->next;
-			lp->next = nil;
+	if((lp = *l) == nil){
+		if(tpriv->nlimbo >= Maxlimbo && (lp = tpriv->lht[h]) != nil){
+			if((tpriv->lht[h] = lp->next) == nil)
+				l = &tpriv->lht[h];
 		} else {
-			lp = malloc(sizeof(*lp));
-			if(lp == nil)
+			if((lp = malloc(sizeof(*lp))) == nil)
 				return;
 			tpriv->nlimbo++;
 		}
-		*l = lp;
+		lp->next = nil;
 		lp->version = version;
 		ipmove(lp->laddr, dest);
 		ipmove(lp->raddr, source);
@@ -1623,11 +1619,11 @@ limbo(Conv *s, uchar *source, uchar *dest, Tcp *seg, int version)
 		lp->rcvscale = seg->ws;
 		lp->irs = seg->seq;
 		lp->iss = (nrand(1<<16)<<16)|nrand(1<<16);
+		*l = lp;
 	}
-
 	if(sndsynack(s->p, lp) < 0){
-		*l = lp->next;
 		tpriv->nlimbo--;
+		*l = lp->next;
 		free(lp);
 	}
 }
@@ -1640,42 +1636,24 @@ limborexmit(Proto *tcp)
 {
 	Tcppriv *tpriv;
 	Limbo **l, *lp;
-	int h;
-	int seen;
 	ulong now;
+	int h;
 
 	tpriv = tcp->priv;
 
 	if(!canqlock(tcp))
 		return;
-	seen = 0;
 	now = NOW;
-	for(h = 0; h < NLHT && seen < tpriv->nlimbo; h++){
-		for(l = &tpriv->lht[h]; *l != nil && seen < tpriv->nlimbo; ){
-			lp = *l;
-			seen++;
-			if(now - lp->lastsend < (lp->rexmits+1)*SYNACK_RXTIMER)
-				continue;
-
-			/* time it out after 1 second */
-			if(++(lp->rexmits) > 5){
-				tpriv->nlimbo--;
-				*l = lp->next;
-				free(lp);
-				continue;
+	for(h = 0; h < NLHT; h++){
+		for(l = &tpriv->lht[h]; (lp = *l) != nil; ){
+			if(now - lp->lastsend >= (lp->rexmits+1)*SYNACK_RXTIMER){
+				if(++(lp->rexmits) > 5 || sndsynack(tcp, lp) < 0){
+					tpriv->nlimbo--;
+					*l = lp->next;
+					free(lp);
+					continue;
+				}
 			}
-
-			/* if we're being attacked, don't bother resending SYN ACK's */
-			if(tpriv->nlimbo > 100)
-				continue;
-
-			if(sndsynack(tcp, lp) < 0){
-				tpriv->nlimbo--;
-				*l = lp->next;
-				free(lp);
-				continue;
-			}
-
 			l = &lp->next;
 		}
 	}
@@ -1783,8 +1761,10 @@ tcpincoming(Conv *s, Tcp *segp, uchar *src, uchar *dst, uchar version)
 		return nil;
 
 	new = Fsnewcall(s, src, segp->source, dst, segp->dest, version);
-	if(new == nil)
+	if(new == nil){
+		free(lp);
 		return nil;
+	}
 
 	memmove(new->ptcl, s->ptcl, sizeof(Tcpctl));
 	tcb = (Tcpctl*)new->ptcl;
@@ -3360,6 +3340,7 @@ tcpstats(Proto *tcp, char *buf, int len)
 	e = p+len;
 	for(i = 0; i < Nstats; i++)
 		p = seprint(p, e, "%s: %llud\n", statnames[i], priv->stats[i]);
+	p = seprint(p, e, "InLimbo: %d\n", priv->nlimbo);
 	return p - buf;
 }
 
