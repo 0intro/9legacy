@@ -45,7 +45,7 @@ case go
 			}
 			# sort -u avoids dups which could otherwise trigger
 			# pointless boot menus.
-			grep -v '(^\[)|menuitem|adisk|bootfile|bootdisk|bootargs|nobootprompt|mouseport|vgasize|monitor|cdboot' /tmp/plan9.orig |
+			grep -v '(^\[)|menuitem|adisk|bootfile|bootdisk|bootargs|nobootprompt|mouseport|vgasize|monitor|cdboot|nvram|venti' /tmp/plan9.orig |
 				sort -u
 			echo 'mouseport='^$mouseport
 			echo 'monitor='^$monitor
