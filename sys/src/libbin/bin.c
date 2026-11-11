@@ -34,6 +34,8 @@ mkbin(Bin *bin, uintptr size)
 {
 	Bin *b;
 
+	if(size > (~(uintptr)0)/2 - BinSize)
+		return nil;
 	size = ((size << 1) + (BinSize - 1)) & ~((uintptr)BinSize - 1);
 	b = malloc(sizeof(Bin) + size - BinSize);
 	if(b == nil)
