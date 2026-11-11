@@ -129,6 +129,12 @@ Serve the name space described by
 Disallow mounts by user
 .BR none .
 .TP
+.B -L
+Refuse any authenticated user not listed in the local file server's
+.B /adm/users
+file, so that a key in the authentication domain alone does not grant
+access.
+.TP
 .B -P \fIpatternfile
 Restrict the set of exported files.
 .I Patternfile
