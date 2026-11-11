@@ -662,7 +662,7 @@ arith(Node *n, int f)
 	Type *t1, *t2;
 	int i, j, k;
 	Node *n1;
-	long w;
+	long w, x;
 
 	t1 = n->left->type;
 	if(n->right == Z)
@@ -692,7 +692,19 @@ arith(Node *n, int f)
 	if(n->op == OSUB)
 	if(i == TIND && j == TIND) {
 		w = n->right->type->link->width;
-		if(w < 1 || n->left->type->link == T || n->left->type->link->width < 1)
+		if(w < 1) {
+			snap(n->right->type->link);
+			w = n->right->type->link->width;
+		}
+		x = 0;
+		if(n->left->type->link != T) {
+			x = n->left->type->link->width;
+			if(x < 1) {
+				snap(n->left->type->link);
+				x = n->left->type->link->width;
+			}
+		}
+		if(w < 1 || x < 1)
 			goto bad;
 		n->type = types[ewidth[TIND] <= ewidth[TLONG]? TLONG: TVLONG];
 		if(1 && ewidth[TIND] > ewidth[TLONG]){
