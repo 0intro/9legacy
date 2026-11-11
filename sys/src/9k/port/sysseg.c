@@ -422,6 +422,8 @@ syssegflush(Ar0* ar0, va_list list)
 			pteflush(pte, ps/pgsize, pe/pgsize);
 
 		chunk = pe-ps;
+		if(chunk > len)
+			chunk = len;
 		len -= chunk;
 		addr += chunk;
 
