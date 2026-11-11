@@ -2545,6 +2545,8 @@ reader0(Conn *c, Packet *p, Packet *p2)
 			qunlock(&c->l);
 			break;
 		case SSH_MSG_USERAUTH_SUCCESS:
+			if (c->role != Client)
+				bail(c, p, p2, "userauth success from a client");
 			establish(c);
 			break;
 		case SSH_MSG_USERAUTH_BANNER:
