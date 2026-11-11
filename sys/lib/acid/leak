@@ -80,11 +80,11 @@ dumpblock(addr, sum)
 		a = addr;
 		complex Alloc a;
 
-		x = addr+8;
+		x = addr+sizeofBhdr;
 		if sum then {
-			if *(addr+8) != lastalloc then {
+			if *(addr+sizeofBhdr) != lastalloc then {
 				emitsum();
-				lastalloc = *(addr+8);
+				lastalloc = *(addr+sizeofBhdr);
 			}
 			lastcount = lastcount+1;
 			lastsize = lastsize+a.size;
@@ -94,8 +94,8 @@ dumpblock(addr, sum)
 			else
 				s = "free";
 			print(s, " ", addr\X, " ", a.size\X, " ");
-			print(*(addr+8)\X, " ", *(addr+12)\X, " ",
-				*(addr+8)\a, " ", *(addr+12)\a, "\n");
+			print(*(addr+sizeofBhdr)\X, " ", *(addr+sizeofBhdr+4)\X, " ",
+				*(addr+sizeofBhdr)\a, " ", *(addr+sizeofBhdr+4)\a, "\n");
 		}
 	}
 }
