@@ -349,6 +349,7 @@ void		validname(char*, int);
 char*		validnamedup(char*, int);
 void		validstat(uchar*, usize);
 void*		vmemchr(void*, int, int);
+void		wakebig(void);
 Proc*		wakeup(Rendez*);
 int		walk(Chan**, char**, int, int, int*);
 void		wlock(RWlock*);

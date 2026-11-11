@@ -316,6 +316,8 @@ pagechainhead(Page *p)
 static void
 pagewait(uintptr va, int color)
 {
+	static uint killticks;
+
 	qlock(&palloc.pwait);	/* Hold memory requesters here */
 
 	while(waserror())	/* Ignore interrupts */
@@ -331,6 +333,12 @@ pagewait(uintptr va, int color)
 	pagereclaim(highwater/2);
 
 	tsleep(&palloc.r, ispages, 0, 1000);
+	if(!ispages(nil) && sys->ticks - killticks >= ms2tk(5000)){
+		killbig("out of memory");
+		freebroken();
+		wakebig();
+		killticks = sys->ticks;
+	}
 	poperror();
 
 	qunlock(&palloc.pwait);

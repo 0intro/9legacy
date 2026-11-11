@@ -1506,6 +1506,25 @@ killbig(char *why)
 }
 
 /*
+ *  wake the processes killbig marked, so that those
+ *  asleep in the kernel exit too
+ */
+void
+wakebig(void)
+{
+	int x;
+	Proc *p;
+
+	for(x = 0; (p = psincref(x)) != nil; x++) {
+		if(p->state != Dead && p->procctl == Proc_exitbig && canqlock(&p->debug)){
+			postnote(p, 0, "sys: killed", NExit);
+			qunlock(&p->debug);
+		}
+		psdecref(p);
+	}
+}
+
+/*
  *  change ownership to 'new' of all processes owned by 'old'.  Used when
  *  eve changes.
  */
