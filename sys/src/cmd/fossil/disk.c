@@ -215,6 +215,17 @@ diskRead(Disk *disk, Block *b)
 	diskQueue(disk, b);
 }
 
+int
+diskCanPrefetch(Disk *disk)
+{
+	int ok;
+
+	qlock(&disk->lk);
+	ok = disk->nqueue < QueueSize - 16;
+	qunlock(&disk->lk);
+	return ok;
+}
+
 void
 diskWrite(Disk *disk, Block *b)
 {
