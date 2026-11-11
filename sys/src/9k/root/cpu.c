@@ -280,7 +280,7 @@ remoteside(int old)
 		fatal(1, "authenticating");
 	if(setamalg(cmd) < 0){
 		writestr(fd, "unsupported auth method", nil, 0);
-		fatal(1, "bad auth method %s", cmd);
+		fatal(0, "bad auth method %s", cmd);
 	} else
 		writestr(fd, "", "", 1);
 
@@ -406,15 +406,17 @@ readstr(int fd, char *str, int len)
 {
 	int n;
 
-	while(len) {
+	while(len--) {
 		n = read(fd, str, 1);
-		if(n < 0)
+		if(n <= 0){
+			if(n == 0)
+				werrstr("unexpected eof");
 			return -1;
-		if(*str == '\0')
+		}
+		if(*str++ == '\0')
 			return 0;
-		str++;
-		len--;
 	}
+	werrstr("string too long");
 	return -1;
 }
 
