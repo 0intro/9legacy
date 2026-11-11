@@ -185,16 +185,23 @@ mmuput(uintptr va, uintmem pa, Page*)
 {
 	Mpl pl;
 	int l, x;
-	PTE *pte, *ptp;
+	PTE *pte;
 	Page *page, *prev;
 
 	pte = nil;
 	pl = splhi();
 	prev = m->pml4;
 	for(l = 3; l >= 0; l--){
-		ptp = mmuptpget(va, l);
 		x = PTLX(va, l);
-		pte = &ptp[x];
+		/*
+		 * Index the level-l table through its kernel direct-map
+		 * address (prev->va), not the per-cpu recursive self-map.
+		 * m->pml4 is rebuilt each mmuswitch, so under SMP a found
+		 * page's link can be absent in this cpu's table and a
+		 * recursive walk then faults; the direct map is present on
+		 * every cpu. The link is (re)installed below regardless.
+		 */
+		pte = &((PTE*)prev->va)[x];
 		for(page = up->mmuptp[l]; page != nil; page = page->next){
 			if(page->prev == prev && page->daddr == x)
 				break;
@@ -210,6 +217,8 @@ mmuput(uintptr va, uintmem pa, Page*)
 			page->next = up->mmuptp[l];
 			up->mmuptp[l] = page;
 			page->prev = prev;
+		}
+		if(l > 0){
 			*pte = PPN(page->pa)|PteU|PteRW|PteP;
 			if(l == 3 && x >= m->pml4->daddr)
 				m->pml4->daddr = x+1;
