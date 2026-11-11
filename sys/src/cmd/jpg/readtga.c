@@ -142,11 +142,14 @@ luma_rle(Biobuf *bp, uchar *l, int num)
 			len += 1;	/* run of zero is meaningless */
 			if(luma(bp, l, 1) != 1)
 				break;
-			for(i = 0; i < len && got < num; i++)
-				l[i+1] = *l;
+			for(i = 1; i < len && got+i < num; i++)
+				l[i] = *l;
+			len = i;
 		}
 		else{
 			len += 1;	/* raw block of zero is meaningless */
+			if(got+len > num)
+				len = num-got;
 			if(luma(bp, l, len) != len)
 				break;
 		}
@@ -213,14 +216,17 @@ rgba_rle(Biobuf *bp, int bpp, uchar *r, uchar *g, uchar *b, int num)
 			len += 1;	/* run of zero is meaningless */
 			if(rgba(bp, bpp, r, g, b, 1) != 1)
 				break;
-			for(i = 0; i < len-1 && got < num; i++){
-				r[i+1] = *r;
-				g[i+1] = *g;
-				b[i+1] = *b;
+			for(i = 1; i < len && got+i < num; i++){
+				r[i] = *r;
+				g[i] = *g;
+				b[i] = *b;
 			}
+			len = i;
 		}
 		else{
 			len += 1;	/* raw block of zero is meaningless */
+			if(got+len > num)
+				len = num-got;
 			if(rgba(bp, bpp, r, g, b, len) != len)
 				break;
 		}
