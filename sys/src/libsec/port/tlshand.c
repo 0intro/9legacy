@@ -82,6 +82,9 @@ typedef struct TlsConnection{
 	char *digest;	// name of digest algorithm to use
 	char *enc;		// name of encryption algorithm to use
 	int nsecret;	// amount of secret data to init keys
+	int cipher;		// negotiated cipher suite
+	int curve;		// ephemeral key exchange group chosen by the server
+	Bytes *Ys;		// server ephemeral key exchange public value
 
 	// for finished messages
 	HandHash	hs;	// handshake hash
@@ -98,6 +101,7 @@ typedef struct Msg{
 			Ints*	ciphers;
 			Bytes*	compressors;
 			Ints*	sigAlgs;
+			Ints*	curves;
 			char*	serverName;
 			int	secReneg;
 		} clientHello;
@@ -118,6 +122,12 @@ typedef struct Msg{
 			int nca;
 			Bytes **cas;
 		} certificateRequest;
+		struct {
+			int curve;
+			Bytes *key;
+			int sigalg;
+			Bytes *signature;
+		} serverKeyExchange;
 		struct {
 			Bytes *key;
 		} clientKeyExchange;
@@ -327,6 +337,19 @@ static int setVers(TlsSec *sec, int version);
 static AuthRpc* factotum_rsa_open(uchar *cert, int certlen);
 static mpint* factotum_rsa_decrypt(AuthRpc *rpc, mpint *cipher);
 static void factotum_rsa_close(AuthRpc*rpc);
+
+static int	isECDHE(int tlsid);
+static int	isDHE(int tlsid);
+static int	tlsSecECDHEs0(TlsSec *sec, Ints *curves);
+static Bytes*	tlsSecECDHEs1(TlsSec *sec, int *curve);
+static int	tlsSecECDHEs2(TlsSec *sec, Bytes *Yc);
+static Bytes*	tlsSecECDHEc(TlsSec *sec, int curve, Bytes *par);
+static Bytes*	tlsSecDHEs1(TlsSec *sec, int *curve);
+static int	tlsSecDHEs2(TlsSec *sec, Bytes *Yc);
+static Bytes*	tlsSecDHEc(TlsSec *sec, Bytes *par);
+static void	dhParamsDigest(TlsSec *sec, Bytes *par, uchar *digest);
+static Bytes*	pkcs1_sign(TlsSec *sec, uchar *digest, int digestlen);
+static int	pkcs1_verify(RSApub *pk, Bytes *sig, uchar *digest, int digestlen);
 
 static void* emalloc(int);
 static void* erealloc(void*, int);
@@ -546,6 +569,10 @@ tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...
 		goto Err;
 	}
 	c->sec->rsapub = X509toRSApub(cert, ncert, nil, 0);
+	if(isECDHE(cipher) && tlsSecECDHEs0(c->sec, m.u.clientHello.curves) < 0){
+		tlsError(c, EHandshakeFailure, "no matching elliptic curve");
+		goto Err;
+	}
 	secReneg = m.u.clientHello.secReneg;
 	for(i = 0; i < m.u.clientHello.ciphers->len; i++)
 		if(m.u.clientHello.ciphers->data[i] == TLS_EMPTY_RENEGOTIATION_INFO_SCSV)
@@ -575,6 +602,30 @@ tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...
 		goto Err;
 	msgClear(&m);
 
+	if(isECDHE(cipher) || isDHE(cipher)){
+		uchar digest[SHA2_256dlen];
+
+		m.tag = HServerKeyExchange;
+		if(isECDHE(cipher))
+			m.u.serverKeyExchange.key = tlsSecECDHEs1(c->sec, &m.u.serverKeyExchange.curve);
+		else
+			m.u.serverKeyExchange.key = tlsSecDHEs1(c->sec, &m.u.serverKeyExchange.curve);
+		if(m.u.serverKeyExchange.key == nil){
+			tlsError(c, EHandshakeFailure, "can't make server key exchange: %r");
+			goto Err;
+		}
+		m.u.serverKeyExchange.sigalg = RSA_PKCS1_SHA256;
+		dhParamsDigest(c->sec, m.u.serverKeyExchange.key, digest);
+		m.u.serverKeyExchange.signature = pkcs1_sign(c->sec, digest, SHA2_256dlen);
+		if(m.u.serverKeyExchange.signature == nil){
+			tlsError(c, EHandshakeFailure, "can't sign server key exchange: %r");
+			goto Err;
+		}
+		if(!msgSend(c, &m, AQueue))
+			goto Err;
+		msgClear(&m);
+	}
+
 	m.tag = HServerHelloDone;
 	if(!msgSend(c, &m, AFlush))
 		goto Err;
@@ -586,7 +637,15 @@ tlsServer2(int ctl, int hand, uchar *cert, int ncert, int (*trace)(char*fmt, ...
 		tlsError(c, EUnexpectedMessage, "expected a client key exchange");
 		goto Err;
 	}
-	if(tlsSecSecrets(c->sec, c->version, m.u.clientKeyExchange.key->data, m.u.clientKeyExchange.key->len, kd, c->nsecret) < 0){
+	if(isECDHE(cipher) || isDHE(cipher)){
+		if(setVers(c->sec, c->version) < 0
+		|| (isECDHE(cipher) ? tlsSecECDHEs2(c->sec, m.u.clientKeyExchange.key)
+				: tlsSecDHEs2(c->sec, m.u.clientKeyExchange.key)) < 0){
+			tlsError(c, EHandshakeFailure, "couldn't set secrets: %r");
+			goto Err;
+		}
+		setSecrets(c->sec, kd, c->nsecret);
+	}else if(tlsSecSecrets(c->sec, c->version, m.u.clientKeyExchange.key->data, m.u.clientKeyExchange.key->len, kd, c->nsecret) < 0){
 		tlsError(c, EHandshakeFailure, "couldn't set secrets: %r");
 		goto Err;
 	}
@@ -732,10 +791,38 @@ tlsClient2(int ctl, int hand, uchar *csid, int ncsid, char *serverName, int (*tr
 	if(!msgRecv(c, &m))
 		goto Err;
 	if(m.tag == HServerKeyExchange) {
-		tlsError(c, EUnexpectedMessage, "got an server key exchange");
-		goto Err;
-		// If implementing this later, watch out for rollback attack
-		// described in Wagner Schneier 1996, section 4.4.
+		uchar digest[SHA2_256dlen];
+		Bytes *par;
+		RSApub *pub;
+
+		if(!isECDHE(c->cipher) && !isDHE(c->cipher)){
+			tlsError(c, EUnexpectedMessage, "unexpected server key exchange");
+			goto Err;
+		}
+		if(m.u.serverKeyExchange.sigalg != RSA_PKCS1_SHA256){
+			tlsError(c, EHandshakeFailure, "unsupported server key exchange signature");
+			goto Err;
+		}
+		par = m.u.serverKeyExchange.key;
+		pub = X509toRSApub(c->cert->data, c->cert->len, nil, 0);
+		if(pub == nil){
+			tlsError(c, EBadCertificate, "invalid x509/rsa certificate");
+			goto Err;
+		}
+		memmove(c->sec->srandom, c->srandom, RandomSize);
+		dhParamsDigest(c->sec, par, digest);
+		if(pkcs1_verify(pub, m.u.serverKeyExchange.signature, digest, SHA2_256dlen) < 0){
+			rsapubfree(pub);
+			tlsError(c, EDecryptError, "can't verify server key exchange signature");
+			goto Err;
+		}
+		rsapubfree(pub);
+		c->curve = m.u.serverKeyExchange.curve;
+		c->Ys = m.u.serverKeyExchange.key;
+		m.u.serverKeyExchange.key = nil;
+		msgClear(&m);
+		if(!msgRecv(c, &m))
+			goto Err;
 	}
 
 	/* certificate request (optional) */
@@ -753,7 +840,28 @@ tlsClient2(int ctl, int hand, uchar *csid, int ncsid, char *serverName, int (*tr
 	}
 	msgClear(&m);
 
-	if(tlsSecSecretc(c->sec, c->sid->data, c->sid->len, c->srandom,
+	if(isECDHE(c->cipher) || isDHE(c->cipher)){
+		Bytes *Yc;
+
+		if(setVers(c->sec, c->version) < 0){
+			tlsError(c, EHandshakeFailure, "can't set version: %r");
+			goto Err;
+		}
+		if(isECDHE(c->cipher))
+			Yc = tlsSecECDHEc(c->sec, c->curve, c->Ys);
+		else
+			Yc = tlsSecDHEc(c->sec, c->Ys);
+		if(Yc == nil){
+			tlsError(c, EHandshakeFailure, "can't make key exchange: %r");
+			goto Err;
+		}
+		setSecrets(c->sec, kd, c->nsecret);
+		nepm = Yc->len;
+		epm = malloc(nepm);
+		if(epm != nil)
+			memmove(epm, Yc->data, nepm);
+		freebytes(Yc);
+	}else if(tlsSecSecretc(c->sec, c->sid->data, c->sid->len, c->srandom,
 			c->cert->data, c->cert->len, c->version, &epm, &nepm,
 			kd, c->nsecret) < 0){
 		tlsError(c, EBadCertificate, "invalid x509/rsa certificate");
@@ -976,6 +1084,18 @@ msgSend(TlsConnection *c, Msg *m, int act)
 		break;
 	case HServerHelloDone:
 		break;
+	case HServerKeyExchange:
+		n = m->u.serverKeyExchange.key->len;
+		memmove(p, m->u.serverKeyExchange.key->data, n);
+		p += n;
+		put16(p, m->u.serverKeyExchange.sigalg);
+		p += 2;
+		n = m->u.serverKeyExchange.signature->len;
+		put16(p, n);
+		p += 2;
+		memmove(p, m->u.serverKeyExchange.signature->data, n);
+		p += n;
+		break;
 	case HCertificate:
 		nn = 0;
 		for(i = 0; i < m->u.certificate.ncert; i++)
@@ -995,7 +1115,12 @@ msgSend(TlsConnection *c, Msg *m, int act)
 		break;
 	case HClientKeyExchange:
 		n = m->u.clientKeyExchange.key->len;
-		if(c->version != SSL3Version){
+		if(isECDHE(c->cipher)){
+			/* the ec public key has a one-byte length prefix */
+			assert(n < 256);
+			p[0] = n;
+			p += 1;
+		}else if(c->version != SSL3Version){
 			put16(p, n);
 			p += 2;
 		}
@@ -1275,6 +1400,55 @@ msgRecv(TlsConnection *c, Msg *m)
 			i++;
 		}
 		break;
+	case HServerKeyExchange:
+		if(isECDHE(c->cipher)){
+			/* named curve ECDHE parameters */
+			if(n < 4 || p[0] != 3)
+				goto Short;
+			m->u.serverKeyExchange.curve = get16(p+1);
+			nn = p[3];
+			if(n < 4+nn)
+				goto Short;
+			/* keep the raw params for the signature */
+			m->u.serverKeyExchange.key = makebytes(p, 4+nn);
+			p += 4+nn;
+			n -= 4+nn;
+		}else if(isDHE(c->cipher)){
+			/* dh_p, dh_g, dh_Ys, each 2-byte length prefixed */
+			uchar *q = p;
+			int j;
+
+			for(j = 0; j < 3; j++){
+				if(n < 2)
+					goto Short;
+				nn = get16(p);
+				p += 2;
+				n -= 2;
+				if(n < nn)
+					goto Short;
+				p += nn;
+				n -= nn;
+			}
+			m->u.serverKeyExchange.key = makebytes(q, p - q);
+		}else
+			goto Short;
+		if(c->version >= TLS12Version){
+			if(n < 2)
+				goto Short;
+			m->u.serverKeyExchange.sigalg = get16(p);
+			p += 2;
+			n -= 2;
+		}
+		if(n < 2)
+			goto Short;
+		nn = get16(p);
+		p += 2;
+		n -= 2;
+		if(n < nn)
+			goto Short;
+		m->u.serverKeyExchange.signature = makebytes(p, nn);
+		n -= nn;
+		break;
 	case HCertificateRequest:
 		if(n < 1)
 			goto Short;
@@ -1318,9 +1492,15 @@ msgRecv(TlsConnection *c, Msg *m)
 	case HClientKeyExchange:
 		/*
 		 * this message depends upon the encryption selected
-		 * assume rsa.
 		 */
-		if(c->version == SSL3Version)
+		if(isECDHE(c->cipher)){
+			/* the ec public key has a one-byte length prefix */
+			if(n < 1)
+				goto Short;
+			nn = p[0];
+			p += 1;
+			n -= 1;
+		}else if(c->version == SSL3Version)
 			nn = n;
 		else{
 			if(n < 2)
@@ -1376,9 +1556,14 @@ msgClear(Msg *m)
 		m->u.clientHello.ciphers = nil;
 		freebytes(m->u.clientHello.compressors);
 		freeints(m->u.clientHello.sigAlgs);
+		freeints(m->u.clientHello.curves);
 		break;
 	case HServerHello:
 		freebytes(m->u.clientHello.sid);
+		break;
+	case HServerKeyExchange:
+		freebytes(m->u.serverKeyExchange.key);
+		freebytes(m->u.serverKeyExchange.signature);
 		break;
 	case HCertificate:
 		for(i=0; i<m->u.certificate.ncert; i++)
@@ -1493,6 +1678,12 @@ msgPrint(char *buf, int n, Msg *m)
 	case HServerHelloDone:
 		bs = seprint(bs, be, "ServerHelloDone\n");
 		break;
+	case HServerKeyExchange:
+		bs = seprint(bs, be, "HServerKeyExchange\n");
+		bs = seprint(bs, be, "\tcurve: %x\n", m->u.serverKeyExchange.curve);
+		bs = bytesPrint(bs, be, "\tparams: ", m->u.serverKeyExchange.key, "\n");
+		bs = bytesPrint(bs, be, "\tsignature: ", m->u.serverKeyExchange.signature, "\n");
+		break;
 	case HClientKeyExchange:
 		bs = seprint(bs, be, "HClientKeyExchange\n");
 		bs = bytesPrint(bs, be, "\tkey: ", m->u.clientKeyExchange.key, "\n");
@@ -1567,6 +1758,7 @@ tlsConnectionFree(TlsConnection *c)
 	tlsSecClose(c->sec);
 	freebytes(c->sid);
 	freebytes(c->cert);
+	freebytes(c->Ys);
 	memset(c, 0, sizeof *c);
 	free(c);
 }
@@ -1613,6 +1805,7 @@ setAlgs(TlsConnection *c, int a)
 
 	for(i = 0; i < nelem(cipherAlgs); i++){
 		if(cipherAlgs[i].tlsid == a){
+			c->cipher = a;
 			c->enc = cipherAlgs[i].enc;
 			c->digest = cipherAlgs[i].digest;
 			c->nsecret = cipherAlgs[i].nsecret;
@@ -2126,7 +2319,7 @@ setSecrets(TlsSec *sec, uchar *kd, int nkd)
 static void
 setMasterSecret(TlsSec *sec, Bytes *pm)
 {
-	(*sec->prf)(sec->sec, MasterSecretSize, pm->data, MasterSecretSize, "master secret",
+	(*sec->prf)(sec->sec, MasterSecretSize, pm->data, pm->len, "master secret",
 			sec->crandom, RandomSize, sec->srandom, RandomSize);
 }
 
@@ -2180,6 +2373,169 @@ clientMasterSecret(TlsSec *sec, RSApub *pub, uchar **epm, int *nepm)
 	freebytes(key);
 
 	return 1;
+}
+
+// the DER DigestInfo prefix of an RSASSA-PKCS1-v1_5 sha256 signature
+static uchar sha256digestinfo[] = {
+	0x30,0x31,0x30,0x0d,0x06,0x09,0x60,0x86,0x48,0x01,
+	0x65,0x03,0x04,0x02,0x01,0x05,0x00,0x04,0x20,
+};
+
+// digest the signed portion of a tls 1.2 server key exchange
+static void
+dhParamsDigest(TlsSec *sec, Bytes *par, uchar *digest)
+{
+	DigestState *s;
+
+	s = sha2_256(sec->crandom, RandomSize, nil, nil);
+	s = sha2_256(sec->srandom, RandomSize, nil, s);
+	sha2_256(par->data, par->len, digest, s);
+}
+
+// sign a sha256 digest with the host private key held in factotum
+static Bytes*
+pkcs1_sign(TlsSec *sec, uchar *digest, int digestlen)
+{
+	Bytes *sig;
+	mpint *x, *y;
+	uchar *eb;
+	int modlen, padlen, infolen;
+
+	infolen = sizeof(sha256digestinfo) + digestlen;
+	modlen = (mpsignif(sec->rsapub->n)+7)/8;
+	if(modlen < infolen + 11)
+		return nil;
+	eb = emalloc(modlen);
+	eb[0] = 0;
+	eb[1] = 1;
+	padlen = modlen - 3 - infolen;
+	memset(eb+2, 0xff, padlen);
+	eb[2+padlen] = 0;
+	memmove(eb+3+padlen, sha256digestinfo, sizeof(sha256digestinfo));
+	memmove(eb+3+padlen+sizeof(sha256digestinfo), digest, digestlen);
+	x = betomp(eb, modlen, nil);
+	free(eb);
+	y = factotum_rsa_decrypt(sec->rpc, x);
+	if(y == nil)
+		return nil;
+	sig = newbytes(modlen);
+	mptober(y, sig->data, modlen);
+	mpfree(y);
+	return sig;
+}
+
+// verify a server key exchange signature over a sha256 digest
+static int
+pkcs1_verify(RSApub *pk, Bytes *sig, uchar *digest, int digestlen)
+{
+	uchar *buf, info[sizeof(sha256digestinfo)+SHA2_256dlen];
+	int len, infolen, nlen, i;
+	mpint *x;
+
+	infolen = sizeof(sha256digestinfo) + digestlen;
+	if(infolen > sizeof(info))
+		return -1;
+	memmove(info, sha256digestinfo, sizeof(sha256digestinfo));
+	memmove(info+sizeof(sha256digestinfo), digest, digestlen);
+
+	x = betomp(sig->data, sig->len, nil);
+	mpexp(x, pk->ek, pk->n, x);
+	buf = nil;
+	len = mptobe(x, nil, 0, &buf);
+	mpfree(x);
+
+	// the leading 0x00 is dropped by mptobe, so expect 01 ff..ff 00 DigestInfo
+	nlen = (mpsignif(pk->n)-1)/8;
+	i = -1;
+	if(len == nlen && buf[0] == 1){
+		for(i = 1; i < len && buf[i] == 0xff; i++)
+			;
+		if(i >= len || buf[i] != 0)
+			i = -1;
+		else
+			i++;
+	}
+	if(i < 0 || len-i != infolen || memcmp(buf+i, info, infolen) != 0){
+		free(buf);
+		return -1;
+	}
+	free(buf);
+	return 0;
+}
+
+// signed key exchange hooks, filled in by the ECDHE and DHE patches.
+// with neither enabled isECDHE/isDHE are always false and the stubs are
+// never reached, so the handshake stays pure RSA key exchange.
+static int
+isECDHE(int tlsid)
+{
+	USED(tlsid);
+	return 0;
+}
+
+static int
+isDHE(int tlsid)
+{
+	USED(tlsid);
+	return 0;
+}
+
+// server: pick a curve offered by the client, leaving the choice in sec
+static int
+tlsSecECDHEs0(TlsSec *sec, Ints *curves)
+{
+	USED(sec); USED(curves);
+	return 0;
+}
+
+// server: generate an ephemeral key and return the params to be signed
+static Bytes*
+tlsSecECDHEs1(TlsSec *sec, int *curve)
+{
+	USED(sec); USED(curve);
+	return nil;
+}
+
+// server: compute the shared secret from the client's ephemeral key
+static int
+tlsSecECDHEs2(TlsSec *sec, Bytes *Yc)
+{
+	USED(sec); USED(Yc);
+	werrstr("ECDHE not supported");
+	return -1;
+}
+
+// client: compute the shared secret and return our ephemeral key
+static Bytes*
+tlsSecECDHEc(TlsSec *sec, int curve, Bytes *par)
+{
+	USED(sec); USED(curve); USED(par);
+	return nil;
+}
+
+// server: generate the ephemeral DH params to be signed
+static Bytes*
+tlsSecDHEs1(TlsSec *sec, int *curve)
+{
+	USED(sec); USED(curve);
+	return nil;
+}
+
+// server: compute the shared secret from the client's DH public value
+static int
+tlsSecDHEs2(TlsSec *sec, Bytes *Yc)
+{
+	USED(sec); USED(Yc);
+	werrstr("DHE not supported");
+	return -1;
+}
+
+// client: compute the shared secret and return our DH public value
+static Bytes*
+tlsSecDHEc(TlsSec *sec, Bytes *par)
+{
+	USED(sec); USED(par);
+	return nil;
 }
 
 static void
