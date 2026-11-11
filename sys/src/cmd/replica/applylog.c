@@ -90,7 +90,7 @@ readtimefile(void)
 	if(n < sizeof buf)
 		return;
 
-	maxnow = atoi(buf);
+	maxnow = strtoul(buf, 0, 10);
 	maxn = atoi(buf+12);
 }
 
