@@ -62,6 +62,12 @@ tcom(Node *n)
 }
 
 int
+is64bitptr(void)
+{
+	return ewidth[TIND] > ewidth[TLONG];	/* 64-bit pointers on target? */
+}
+
+int
 tcomo(Node *n, int f)
 {
 	Node *l, *r;
@@ -582,8 +588,9 @@ tcomo(Node *n, int f)
 		n->op = OCONST;
 		n->left = Z;
 		n->right = Z;
-		n->vconst = convvtox(n->type->width, TINT);
-		n->type = types[TINT];
+		o = is64bitptr();
+		n->vconst = convvtox(n->type->width, o? TVLONG: TINT);
+		n->type = types[o? TVLONG: TINT];
 		break;
 
 	case OFUNC:
