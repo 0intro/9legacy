@@ -45,11 +45,12 @@ ioprint(Ioproc *io, int fd, char *fmt, ...)
 static long
 _iotlsdial(va_list *arg)
 {
-	char *addr, *local, *dir;
+	char *addr, *server, *local, *dir;
 	int *cfdp, fd, tfd, usetls;
 	TLSconn conn;
 
 	addr = va_arg(*arg, char*);
+	server = va_arg(*arg, char*);
 	local = va_arg(*arg, char*);
 	dir = va_arg(*arg, char*);
 	cfdp = va_arg(*arg, int*);
@@ -62,6 +63,7 @@ _iotlsdial(va_list *arg)
 		return fd;
 
 	memset(&conn, 0, sizeof conn);
+	conn.serverName = server;
 	/* does no good, so far anyway */
 	// conn.chain = readcertchain("/sys/lib/ssl/vsignss.pem");
 
@@ -78,7 +80,7 @@ _iotlsdial(va_list *arg)
 }
 
 int
-iotlsdial(Ioproc *io, char *addr, char *local, char *dir, int *cfdp, int usetls)
+iotlsdial(Ioproc *io, char *addr, char *server, char *local, char *dir, int *cfdp, int usetls)
 {
-	return iocall(io, _iotlsdial, addr, local, dir, cfdp, usetls);
+	return iocall(io, _iotlsdial, addr, server, local, dir, cfdp, usetls);
 }

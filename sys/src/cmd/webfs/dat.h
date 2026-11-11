@@ -33,6 +33,7 @@ struct Client
 	char *redirect;
 	char *authenticate;
 	char *ext;
+	char *hdr;
 	int npostbody;
 	int havepostbody;
 	int iobusy;
